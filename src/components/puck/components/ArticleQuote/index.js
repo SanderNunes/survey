@@ -1,0 +1,1 @@
+export { ArticleQuote } from './ArticleQuote';

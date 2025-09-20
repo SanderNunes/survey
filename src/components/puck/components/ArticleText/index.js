@@ -1,0 +1,1 @@
+export { ArticleText } from './ArticleText';

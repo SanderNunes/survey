@@ -1,0 +1,140 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* Container Grid Layouts */
+.container-grid {
+  display: grid;
+  width: 100%;
+}
+
+.container-1-column {
+  grid-template-columns: 1fr;
+}
+
+.container-2-column {
+  grid-template-columns: 1fr 1fr;
+}
+
+.container-3-column {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* Gap Sizes */
+.gap-small {
+  gap: 1rem;
+}
+
+.gap-medium {
+  gap: 1.5rem;
+}
+
+.gap-large {
+  gap: 2.5rem;
+}
+
+/* Vertical Alignment */
+.align-start {
+  align-items: start;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.align-end {
+  align-items: end;
+}
+
+.align-stretch {
+  align-items: stretch;
+}
+
+/* Padding */
+.padding-none {
+  padding: 0;
+}
+
+.padding-small {
+  padding: 1rem;
+}
+
+.padding-medium {
+  padding: 2rem;
+}
+
+.padding-large {
+  padding: 3rem;
+}
+
+/* Background Colors */
+.bg-light-gray {
+  background-color: #f8f9fa;
+}
+
+.bg-white {
+  background-color: #ffffff;
+}
+
+.bg-dark {
+  background-color: #343a40;
+  color: #ffffff;
+}
+
+.bg-none {
+  background-color: transparent;
+}
+
+
+/* Responsive Breakpoints */
+@media (max-width: 768px) {
+  .container-3-column {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .container-2-column {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .container-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

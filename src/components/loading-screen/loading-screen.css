@@ -1,0 +1,39 @@
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background-color: white;
+}
+
+.loading-text {
+  font-size: 3rem;
+  color: #a01775;
+  display: flex;
+}
+
+.loading-letter {
+  display: inline-block;
+  animation: bounce 1s infinite linear, fade 1s infinite linear;
+}
+
+@keyframes bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes fade {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

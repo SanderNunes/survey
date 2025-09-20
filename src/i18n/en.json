@@ -1,0 +1,1434 @@
+{
+  "lang": "en",
+  "welcome": "Welcome",
+  "Language": "Language",
+  "description": "This is an English description.",
+  "navigation": {
+    "goBack": "Go back",
+    "edit": "Edit",
+    "view": "View",
+    "feature": "Feature",
+    "backToArticles": "Back to articles",
+    "switchToViewMode": "Switch to view mode",
+    "switchToEditMode": "Switch to edit mode"
+  },
+  "modal": {
+    "team": "Team",
+    "reportTo": "Report to",
+    "msisdn": "MSISDN",
+    "email": "Email",
+    "phone": "Phone",
+    "contactInfo": "Contact Information",
+    "employmentDetails": "Employement Details",
+    "editDetails": "Edit Details",
+    "add": "Add to Reporting Line",
+    "startDate": "Start Date",
+    "type": "Type",
+    "ranking": "Ranking",
+    "kpi": "KPI",
+    "close": "Close"
+  },
+  "searchTeam": {
+    "placeholder": "Search person by name or email",
+    "search": "Search",
+    "clean": "Clear"
+  },
+  "zoom": {
+    "center": "Center"
+  },
+  "loading": {
+    "loadingData": "Loading organizational chart..."
+  },
+  "search": {
+    "resultsFor": "Search results for",
+    "noResults": "No results found.",
+    "error": "Search failed",
+    "uncategorized": "Uncategorized",
+    "placeholder": "Search documents, articles, and FAQs...",
+    "tabs": {
+      "article": "Articles",
+      "books": "Books",
+      "videos": "Videos",
+      "courses": "Courses"
+    },
+    "pagination": "Page {{current}} of {{total}}"
+  },
+  "searchSuggestions": {
+    "extension": "Extension",
+    "category": "Category",
+    "noCategory": "No Category",
+    "lastModified": "Last Modified"
+  },
+  "home": {
+    "quiklinks": {
+      "home": "Home",
+      "whoarewe": "Cellito",
+      "news": "News",
+      "africelluniversity": "Africell University",
+      "orgchart": "Our Team",
+      "articles": "Articles",
+      "calendar": "Calendar",
+      "team": "Our Team"
+    },
+    "menu": {
+      "searchbartext": "Get answers, browse FAQs, discover...",
+      "profile": "Profile",
+      "analytics": "Analytics & reporting",
+      "notifications": "Notifications",
+      "contentmanagement": "Content management",
+      "courses": "Courses",
+      "articles": "Articles",
+      "events": "Events",
+      "team": "Team",
+      "feedback": "Feedback",
+      "documents": "Documents",
+      "audit": "System audit",
+      "settings": "Settings",
+      "logout": "Logout"
+    },
+    "submenu": {
+      "kuyuyu": "Kuyuyu SIM/eSIM",
+      "dataplans": "Data Plans",
+      "voiceandsmsplans": "Voice & SMS Plans",
+      "socializaplans": "Socializa Plans",
+      "comboplans": "Combo Plans",
+      "regionsplans": "Regions Plans",
+      "roaming": "Roaming",
+      "internationalcalling": "International Calling",
+      "konekta": "Konekta",
+      "campaignsnadpromotions": "Campaings & Promotions"
+    },
+    "welcome": "Welcome to our",
+    "subtitle": "Knowledge Base",
+    "content": "What can we help with ?",
+    "populararticles": "Popular articles",
+    "helpfullarticles": "People found this guide helpful - {{helpfull}}/5 stars",
+    "explore": "Explore",
+    "allacategories": "All categories",
+    "browsebytopic": "Browse by topic",
+    "satisfiedclients": "Clients satisfied",
+    "projectcompleted": "Project complete",
+    "supportteam": "Support team",
+    "gottohistory": "View board",
+    "eficacy": "Efficacy",
+    "tma": "Average Handle Time (AHT)",
+    "callsperday": "Daily Presented Calls",
+    "viewBoard": "Go to dashboard & ",
+    "viewMore": "View more"
+  },
+  "cellito": {
+    "initializing": "Initializing Cellito...",
+    "gettingReady": "Cellito is getting ready...",
+    "loadingDocuments": "Loading documents...",
+    "greetings": "Hi!",
+    "welcomeMessage": "I'm Cellito",
+    "description": "Your personal assistant. How can I help you today?",
+    "askQuestion": "Ask me a question",
+    "askQuestionPlaceholder": "Type your question here...",
+    "thinking": "Cellito is thinking...",
+    "baseonknowledge": "Based on our knowledge base",
+    "socializa_pack": "What are the Socializa packages?",
+    "weekend_bundles": "What are the weekend bundles?",
+    "konektas_devices": "What are the features of Konekta 5G?",
+    "konekta_plans": "What are the Konekta 5G plans?",
+    "confidence_percentage": "% Confidence",
+    "verified_docs": "Sources consulted:",
+    "source_web": "Web",
+    "source_internal": "Internal",
+    "search_hybrid": "Hybrid",
+    "search_internal": "Internal",
+    "usefull_answer": "Useful response",
+    "non_usefull_response": "Non useful response",
+    "thanks_feedback": "Thanks for the feedback!",
+    "search_hybrid_description": "Hybrid mode: internal search + web",
+    "search_internal_description": "Internal mode: search only in the knowledge base",
+    "footertext": "Cellito may make mistakes. Consider verifying important information."
+  },
+  "footer": {
+    "help": "Need Help?",
+    "more": "Ask Cellito",
+    "productsServices": "Products & Services",
+    "kuyuyuTariffs": "Kuyuyu SIM/eSIM & Tariffs",
+    "dataVoiceSmsPlans": "Data, Voice & SMS Plans",
+    "socialComboPlans": "Socializa & Combo Plans",
+    "roamingIntlCalling": "Region, Roaming & Intl. Calling",
+    "konekta": "Konekta",
+    "campaignsPromotions": "Campaigns & Promotions",
+    "helpGuides": "Help & Guides",
+    "networkSimIssues": "Network & SIM Issues",
+    "dataVoiceSmsHelp": "Data, Voice & SMS Help",
+    "esimRouterGuides": "eSIM & Router Guides",
+    "rechargeHelp": "Recharge Help",
+    "accountManagement": "Account Management",
+    "checkNumberBalance": "Check Number & Balance",
+    "managePlansServices": "Manage Plans & Services",
+    "simSwapOwnership": "SIM Swap & Ownership",
+    "transferBalanceUssd": "Transfer Balance & USSD",
+    "termsConditions": "Terms & Conditions",
+    "core": "Core",
+    "simTariffs": "SIM/eSIM & Tariffs",
+    "dataPlans": "Data Plans",
+    "voiceSmsPlans": "Voice & SMS Plans",
+    "roaming": "Roaming",
+    "copyright": "©2024 Africell. All Rights Reserved.",
+    "termsOfService": "Terms Of Services",
+    "privacyPolicy": "Privacy Policy",
+    "cookiePolicy": "Cookie Policy"
+  },
+  "common": {
+    "loading": "Loading...",
+    "search": "Search",
+    "previous": "Previous",
+    "next": "Next",
+    "clearSearch": "Clear search",
+    "home": "Home",
+    "articles": "Articles"
+  },
+  "articlesFeed": {
+    "pageTitle": "All Articles",
+    "loadingMessage": "Loading knowledge articles...",
+    "loadingArticles": "Loading articles...",
+    "searchResultsFor": "Search results for",
+    "articlesFound": "{{count}} article found",
+    "articlesFound_plural": "{{count}} articles found",
+    "showingResults": "Showing {{start}} to {{end}} of {{total}} articles",
+    "noSearchResults": "No search results found",
+    "noArticlesFound": "No knowledge articles found",
+    "noSearchResultsMessage": "No articles match your search for \"{{query}}\". Try different keywords or clear your search.",
+    "noArticlesMessage": "No articles are currently available"
+  },
+  "sidebar": {
+    "searchHere": "Search Here",
+    "searchPlaceholder": "Search articles, categories, tags...",
+    "clearSearchTitle": "Clear search",
+    "searchTitle": "Search",
+    "found": "Found {{count}} article for \"{{query}}\"",
+    "found_plural": "Found {{count}} articles for \"{{query}}\"",
+    "noResultsFor": "No results found for \"{{query}}\"",
+    "searchResults": "Search Results",
+    "popularPosts": "Popular Posts",
+    "noArticlesFound": "No articles found matching your search.",
+    "noArticlesAvailable": "No articles available yet.",
+    "moreTagsCount": "+{{count}}"
+  },
+  "analytics": {
+    "pageTitle": "Analytics Dashboard",
+    "metrics": {
+      "totalArticles": "Total Articles",
+      "totalCourses": "Total Courses",
+      "recentArticles": "Recent Articles",
+      "contentFreshness": "Content Freshness",
+      "last30Days": "Last 30 days",
+      "recentContentRatio": "Recent content ratio",
+      "fromLastMonth": "from last month"
+    },
+    "errors": {
+      "failedToFetch": "Failed to fetch data",
+      "loadingError": "An error occurred while loading the analytics data"
+    },
+    "loading": {
+      "fetchingData": "Fetching analytics data...",
+      "calculatingMetrics": "Calculating metrics..."
+    }
+  },
+  "quickLinks": {
+    "title": "Quick Links",
+    "actions": {
+      "createCourse": "Create Course",
+      "createArticle": "Create Article",
+      "uploadDocument": "Upload Document"
+    },
+    "descriptions": {
+      "createCourseDesc": "Create a new course",
+      "createArticleDesc": "Create a new article",
+      "uploadDocumentDesc": "Upload or manage documents"
+    },
+    "users": {
+      "quickAction": "Quick Action",
+      "contentHub": "Content Hub",
+      "system": "System"
+    }
+  },
+  "topContent": {
+    "title": "Recent Articles",
+    "viewAll": "View All",
+    "metrics": {
+      "views": "views",
+      "totalArticles": "Total articles"
+    },
+    "timeAgo": {
+      "justNow": "just now",
+      "minuteAgo": "a minute ago",
+      "minutesAgo": "{{count}} minutes ago",
+      "hourAgo": "an hour ago",
+      "hoursAgo": "{{count}} hours ago",
+      "dayAgo": "a day ago",
+      "daysAgo": "{{count}} days ago",
+      "weekAgo": "a week ago",
+      "weeksAgo": "{{count}} weeks ago",
+      "monthAgo": "a month ago",
+      "monthsAgo": "{{count}} months ago",
+      "yearAgo": "a year ago",
+      "yearsAgo": "{{count}} years ago"
+    },
+    "noContent": "No recent articles available",
+    "loadingContent": "Loading recent articles..."
+  },
+  "activityFeed": {
+    "title": "Recent Activities",
+    "viewAll": "View All",
+    "actions": {
+      "created": "created",
+      "updated": "updated",
+      "deleted": "deleted",
+      "uploaded": "uploaded",
+      "downloaded": "downloaded",
+      "shared": "shared",
+      "commented": "commented on",
+      "assigned": "assigned",
+      "completed": "completed",
+      "viewed": "viewed"
+    },
+    "actionTypes": {
+      "Create": "Create",
+      "Update": "Update",
+      "Delete": "Delete",
+      "Upload": "Upload",
+      "Download": "Download",
+      "Share": "Share",
+      "Comment": "Comment",
+      "Assign": "Assign",
+      "Complete": "Complete",
+      "View": "View"
+    },
+    "labels": {
+      "by": "by",
+      "userPerformed": "{{user}} {{action}} {{content}}",
+      "noActivities": "No recent activities available",
+      "loadingActivities": "Loading recent activities..."
+    },
+    "sampleActivities": {
+      "createProject": "created a new project",
+      "completeTask": "completed task",
+      "commentOn": "commented on",
+      "uploadFile": "uploaded file",
+      "assignTask": "assigned task"
+    }
+  },
+  "courses": {
+    "title": "Course Management",
+    "rateCourse": "Please rate the course!",
+    "subtitle": "Manage all courses in the academy system",
+    "actions": {
+      "create": "Create Course",
+      "edit": "Edit Course",
+      "delete": "Delete Course",
+      "view": "View Course",
+      "createNew": "Create New Course",
+      "goBack": "Go Back",
+      "startCourse": "Start Course",
+      "continueCourse": "Continue Course",
+      "reviewCourse": "Review Course",
+      "checkingEnrollment": "Checking Enrollment...",
+      "takeExam": "Take Exam"
+    },
+    "table": {
+      "headers": {
+        "courseTitle": "Course Title",
+        "category": "Category",
+        "duration": "Duration",
+        "reviews": "Reviews",
+        "rating": "Rating",
+        "createdDate": "Created Date",
+        "level": "Level",
+        "status": "Status",
+        "tags": "Tags"
+      },
+      "values": {
+        "noReviews": "No reviews",
+        "notRated": "Not rated",
+        "reviews": "{{count}} review",
+        "reviews_plural": "{{count}} reviews"
+      }
+    },
+    "filters": {
+      "level": {
+        "beginner": "Beginner",
+        "intermediate": "Intermediate",
+        "advanced": "Advanced"
+      }
+    },
+    "bulkActions": {
+      "publishSelected": "Publish Selected",
+      "archiveSelected": "Archive Selected",
+      "deleteSelected": "Delete Selected",
+      "exportSelected": "Export Selected"
+    },
+    "status": {
+      "published": "Published",
+      "draft": "Draft",
+      "archived": "Archived",
+      "scheduled": "Scheduled"
+    },
+    "messages": {
+      "loadingCourses": "Loading courses...",
+      "loadingCourse": "Loading course...",
+      "addCourses": "Add courses",
+      "noCoursesFound": "No courses found",
+      "errorLoading": "Error loading courses",
+      "deleteConfirm": "Are you sure you want to delete \"{{title}}\"?",
+      "deleteSuccess": "Course deleted successfully",
+      "deleteFailed": "Failed to delete course. Please try again.",
+      "bulkDeleteConfirm": "Delete {{count}} course?",
+      "bulkDeleteConfirm_plural": "Delete {{count}} courses?",
+      "bulkActionFailed": "Bulk action failed. Please try again.",
+      "saveCourseFailed": "Failed to save course. Please try again.",
+      "emptyState": "No courses found. Create your first course to get started.",
+      "startExam": "Now that you have completed all lessons, you are ready for the exam. Feel free to get started.",
+      "courseProgress": "Completed",
+      "lessonsComplete": "Congratulations!",
+      "chapters": "Chapters"
+    },
+    "exams": {
+      "actions": {
+        "previous": "Previous",
+        "next": "Next",
+        "complete": "Complete"
+      },
+      "messages": {
+        "examComplete": "Enroll to more Courses",
+        "thankYou": "Thank you for going on this journey and completing the exam for",
+        "questions": "Questions",
+        "correct": "correct out of",
+        "passingScore": "The pasing score is {{score}} points",
+        "yourResults": "Your Results",
+        "yourScore": "Score",
+        "complete": "Complete",
+        "startExam": "Start Exam",
+        "getStarted": "Get Started with your Exam",
+        "welcome": "Welcome to the exam for"
+      }
+    },
+    "details": {
+      "title": "Course Details",
+      "loading": "Loading course details...",
+      "error": "Error loading course",
+      "notFound": "Course not found",
+      "missingId": "Course ID is missing"
+    },
+    "metadata": {
+      "duration": "Duration",
+      "format": "Format",
+      "level": "Level",
+      "rating": "Rating",
+      "ratingOutOf": "{{rating}} / 5"
+    },
+    "enrollment": {
+      "enrolled": "Enrolled",
+      "notEnrolled": "Not Enrolled",
+      "completed": "Completed",
+      "inProgress": "In Progress"
+    },
+    "sections": {
+      "whatYouLearn": "What You'll Learn",
+      "curriculum": "Course Curriculum",
+      "assessment": "Course Assessment",
+      "preview": "Course Preview"
+    },
+    "emptyMessages": {
+      "noOutcomes": "No learning outcomes available for this course.",
+      "noCurriculum": "No curriculum details available for this course.",
+      "noAssessment": "No assessment available for this course."
+    },
+    "dialog": {
+      "assessmentTitle": "Course Assessment",
+      "close": "Close"
+    }
+  },
+  "table": {
+    "search": {
+      "placeholder": "Search...",
+      "noResults": "No results found",
+      "noResultsDesc": "Try adjusting your search or filter criteria",
+      "noData": "No data available"
+    },
+    "filters": {
+      "title": "Filters",
+      "all": "All",
+      "allLevel": "All Level",
+      "allStatus": "All Status",
+      "allCategory": "All Category",
+      "clearFilters": "Clear Filters"
+    },
+    "bulk": {
+      "selected": "{{count}} item selected",
+      "selected_plural": "{{count}} items selected",
+      "chooseAction": "Choose action...",
+      "apply": "Apply"
+    },
+    "actions": {
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
+      "create": "Create"
+    },
+    "pagination": {
+      "showing": "Showing",
+      "to": "to",
+      "of": "of",
+      "results": "results",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "values": {
+      "yes": "Yes",
+      "no": "No",
+      "dash": "—",
+      "ratings": "{{count}} rating",
+      "ratings_plural": "{{count}} ratings"
+    },
+    "loading": "Loading..."
+  },
+  "courseForm": {
+    "titles": {
+      "view": "View Course",
+      "edit": "Edit Course",
+      "create": "Create New Course"
+    },
+    "buttons": {
+      "lesson": "Lesson",
+      "exam": "Exam",
+      "save": "Save",
+      "update": "Update",
+      "saving": "Saving...",
+      "editing": "Editing...",
+      "addLearningOutcome": "Add Learning Outcome",
+      "addCurriculumItem": "Add Curriculum Item",
+      "addOption": "Add Option",
+      "addNewQuestion": "Add New Question"
+    },
+    "fields": {
+      "courseTitle": "Course Title",
+      "courseTitleRequired": "Course Title *",
+      "description": "Description",
+      "authorBio": "Author Biography",
+      "duration": "Duration",
+      "durationPlaceholder": "e.g., 4 weeks",
+      "format": "Format",
+      "selectFormat": "Select Format",
+      "level": "Level",
+      "selectLevel": "Select Level",
+      "tags": "Tags",
+      "tagsPlaceholder": "Comma-separated tags",
+      "language": "Language",
+      "languagePlaceholder": "e.g., English",
+      "category": "Category",
+      "selectCategory": "Select Category",
+      "learningOutcomes": "Learning Outcomes",
+      "learningOutcomePlaceholder": "Learning outcome {{index}}",
+      "curriculum": "Curriculum",
+      "curriculumPlaceholder": "Curriculum item {{index}}",
+      "assessmentQuestions": "Assessment Questions",
+      "imageUrl": "Image URL",
+      "imageUrlPlaceholder": "https://example.com/image.jpg"
+    },
+    "assessment": {
+      "question": "Question",
+      "questionNumber": "Question {{number}}",
+      "stepTitle": "Step Title",
+      "stepTitlePlaceholder": "e.g., Step 1",
+      "questionId": "Question ID",
+      "questionIdPlaceholder": "e.g., q1",
+      "questionPlaceholder": "Enter your question here...",
+      "answerOptions": "Answer Options",
+      "optionPlaceholder": "Option {{number}}",
+      "noQuestions": "No assessment questions added"
+    },
+    "formats": {
+      "online": "Online",
+      "inPerson": "In-Person",
+      "hybrid": "Hybrid",
+      "selfPaced": "Self-Paced"
+    },
+    "levels": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced"
+    },
+    "categories": {
+      "customerExperience": "Customer Experience"
+    },
+    "messages": {
+      "courseSaved": "Course saved successfully!",
+      "courseUpdated": "Course updated successfully!",
+      "errorSaving": "Error saving course: {{error}}",
+      "courseNotFound": "Course not found",
+      "errorParsing": "Error parsing assessment questions",
+      "fetchError": "Failed to fetch courses: {{error}}"
+    }
+  },
+  "articles": {
+    "title": "Article Management",
+    "subtitle": "Manage your knowledge portal articles",
+    "articleHelpfulness": "How helpful was the article?",
+    "table": {
+      "headers": {
+        "title": "Title",
+        "status": "Status",
+        "category": "Category",
+        "tags": "Tags",
+        "date": "Date",
+        "statistics": "Statistics"
+      }
+    },
+    "status": {
+      "published": "Published",
+      "draft": "Draft",
+      "archived": "Archived",
+      "scheduled": "Scheduled"
+    },
+    "actions": {
+      "publish": "Publish",
+      "draft": "Draft",
+      "archive": "Archive",
+      "publishSelected": "Publish Selected",
+      "moveToDraft": "Move to Draft",
+      "archiveSelected": "Archive Selected"
+    },
+    "messages": {
+      "deleteConfirm": "Are you sure you want to delete \"{{title}}\"?",
+      "bulkDeleteConfirm": "Delete {{count}} article?",
+      "bulkDeleteConfirm_plural": "Delete {{count}} articles?",
+      "emptyState": "No articles found. Create your first article to get started.",
+      "ratings": "{{count}} rating",
+      "ratings_plural": "{{count}} ratings"
+    }
+  },
+  "createArticle": {
+    "titles": {
+      "create": "Create new article",
+      "edit": "Edit Article"
+    },
+    "buttons": {
+      "save": "Save",
+      "update": "Update",
+      "saving": "Saving...",
+      "updating": "Updating...",
+      "contentEditor": "Content Editor"
+    },
+    "sections": {
+      "basicInfo": "Basic Information",
+      "classification": "Classification"
+    },
+    "fields": {
+      "title": "Title",
+      "titleRequired": "Title *",
+      "titlePlaceholder": "Enter article title...",
+      "summary": "Summary",
+      "summaryRequired": "Summary *",
+      "summaryPlaceholder": "Enter article summary...",
+      "slug": "Slug",
+      "featured": "Featured",
+      "notFeatured": "Not Featured",
+      "slugRequired": "Slug *",
+      "slugPlaceholder": "article-slug",
+      "coverImage": "Cover Image URL",
+      "coverImageRequired": "Cover Image URL *",
+      "coverImagePlaceholder": "https://example.com/image.jpg",
+      "category": "Category",
+      "categoryRequired": "Category *",
+      "categoryPlaceholder": "Select category...",
+      "type": "Type",
+      "typeRequired": "Type *",
+      "typePlaceholder": "Select type...",
+      "level": "Level",
+      "levelRequired": "Level *",
+      "levelPlaceholder": "Select level...",
+      "tags": "Tags",
+      "tagsPlaceholder": "Add a tag...",
+      "readTime": "Read Time (minutes)",
+      "readTimePlaceholder": "5"
+    },
+    "categories": {
+      "customerExperience": "Customer Experience"
+    },
+    "types": {
+      "tutorial": "Tutorial",
+      "guide": "Guide",
+      "news": "News",
+      "review": "Review",
+      "opinion": "Opinion",
+      "caseStudy": "Case Study",
+      "bestPractice": "Best Practice",
+      "framework": "Framework",
+      "template": "Template"
+    },
+    "levels": {
+      "beginner": "Beginner",
+      "intermediate": "Intermediate",
+      "advanced": "Advanced",
+      "expert": "Expert"
+    },
+    "validation": {
+      "titleRequired": "Title is required",
+      "summaryRequired": "Summary is required",
+      "categoryRequired": "Category is required",
+      "typeRequired": "Type is required",
+      "levelRequired": "Level is required",
+      "slugRequired": "Slug is required"
+    },
+    "messages": {
+      "saveSuccess": "Article saved successfully!",
+      "updateSuccess": "Article updated successfully!",
+      "saveError": "Error saving article: {{error}}",
+      "fetchError": "Error fetching article: {{error}}"
+    }
+  },
+  "editor": {
+    "buttons": {
+      "goBack": "Go Back",
+      "save": "Save",
+      "publish": "Publish",
+      "publishing": "Publishing..."
+    },
+    "status": {
+      "autoSaving": "Auto-saving...",
+      "lastSaved": "Last saved: {{time}}",
+      "manualSaveCompleted": "Manual save completed",
+      "autoSavedAt": "Auto-saved at: {{time}}"
+    },
+    "messages": {
+      "publishSuccess": "Article published successfully!",
+      "publishError": "Failed to publish article. Please try again.",
+      "saveError": "Error saving article: {{error}}",
+      "autoSaveError": "Auto-save failed: {{error}}"
+    },
+    "tooltips": {
+      "goBack": "Go Back",
+      "saveArticle": "Save Article",
+      "publishArticle": "Publish Article",
+      "lastSavedTime": "Last saved: {{time}}"
+    }
+  },
+  "documents": {
+    "title": "Document Management",
+    "subtitle": "Manage and organize documents by category",
+    "breadcrumb": {
+      "allCategories": "All Categories"
+    },
+    "search": {
+      "placeholder": "Search files and categories...",
+      "placeholderInCategory": "Search in {{category}}...",
+      "clearSearch": "Clear search"
+    },
+    "viewModes": {
+      "grid": "Grid view",
+      "list": "List view"
+    },
+    "categories": {
+      "uncategorized": "Uncategorized"
+    },
+    "fileCount": {
+      "single": "{{count}} file",
+      "plural": "{{count}} files"
+    },
+    "stats": {
+      "filesInCategory": "{{count}} files in {{category}}",
+      "categoriesAndFiles": "{{categoryCount}} categories • {{fileCount}} total files"
+    },
+    "emptyState": {
+      "noFiles": "No files found",
+      "noFilesInCategory": "No files in this category",
+      "searchHint": "Try adjusting your search terms or browse a different category",
+      "categoryEmpty": "This category appears to be empty"
+    },
+    "table": {
+      "headers": {
+        "name": "Name",
+        "type": "Type",
+        "modified": "Modified"
+      }
+    },
+    "actions": {
+      "upload": "Upload File",
+      "download": "Download",
+      "preview": "Preview",
+      "delete": "Delete"
+    }
+  },
+  "emptyState": {
+    "auditLogs": {
+      "title": "No audit logs found",
+      "description": "Try adjusting your filters to see more results."
+    },
+    "noData": {
+      "title": "No data available",
+      "description": "There's nothing to display at the moment."
+    },
+    "noSearchResults": {
+      "title": "No search results",
+      "description": "Try different search terms or clear your filters."
+    },
+    "noFiles": {
+      "title": "No files found",
+      "description": "Upload files to get started or adjust your search criteria."
+    },
+    "noArticles": {
+      "title": "No articles found",
+      "description": "Create your first article to get started."
+    },
+    "generic": {
+      "title": "Nothing to show",
+      "description": "Check back later or try refreshing the page."
+    }
+  },
+  "audit": {
+    "title": "Audit Logs",
+    "subtitle": "Monitor and track system activities",
+    "filters": {
+      "activityType": "Activity Type",
+      "dateRange": "Date Range",
+      "selectActivity": "Select Activity Type",
+      "selectDateRange": "Select Date Range"
+    },
+    "status": {
+      "loading": "Loading...",
+      "noEntries": "No entries",
+      "totalEntries": "{{count}} total entry",
+      "totalEntries_plural": "{{count}} total entries",
+      "pageInfo": "Page {{page}}"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "export": "Export",
+      "clearFilters": "Clear Filters"
+    },
+    "dateRanges": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last7Days": "Last 7 days",
+      "last30Days": "Last 30 days",
+      "thisMonth": "This month",
+      "lastMonth": "Last month",
+      "custom": "Custom range"
+    },
+    "activities": {
+      "all": "All Activities",
+      "login": "Login",
+      "logout": "Logout",
+      "create": "Create",
+      "update": "Update",
+      "delete": "Delete",
+      "view": "View",
+      "download": "Download"
+    }
+  },
+  "knowledgeBase": {
+    "bannerAlt": "Knowledge Base Banner"
+  },
+  "pagination": {
+    "ellipsis": "...",
+    "page": "Page",
+    "totalEntries": "{{count}} total entry",
+    "totalEntries_plural": "{{count}} total entries",
+    "pageInfo": "Page {{page}}",
+    "pageInfoWithTotal": "Page {{page}} ({{total}} total entries)",
+    "previous": "Previous",
+    "next": "Next",
+    "loading": "Loading...",
+    "noResults": "No results found"
+  },
+  "events": {
+    "title": "Event Management",
+    "subtitle": "Manage and organize all events",
+    "status": {
+      "scheduled": "Scheduled",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "postponed": "Postponed"
+    },
+    "types": {
+      "internal": "Internal - (PCX)",
+      "external": "External",
+      "client": "Client",
+      "personal": "Personal",
+      "company": "Company - (Africell)"
+    },
+    "table": {
+      "headers": {
+        "title": "Event",
+        "status": "Status",
+        "category": "Category",
+        "eventType": "Type",
+        "dateTime": "Date & Time",
+        "team": "Team",
+        "reminder": "Reminder"
+      },
+      "duration": "Duration"
+    },
+    "actions": {
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "complete": "Complete",
+      "postpone": "Postpone",
+      "confirmSelected": "Confirm Selected",
+      "cancelSelected": "Cancel Selected",
+      "completeSelected": "Complete Selected",
+      "postponeSelected": "Postpone Selected"
+    },
+    "messages": {
+      "deleteConfirm": "Are you sure you want to delete '{title}'?",
+      "bulkDeleteConfirm": "Are you sure you want to delete {count} events?",
+      "emptyState": "No events found"
+    }
+  },
+  "createEvent": {
+    "team": {
+      "pcx": "PCX - General",
+      "quality_assurance": "Quality Assurance",
+      "hybrid": "Hybrid",
+      "residential": "Residential",
+      "corporate": "Corporate",
+      "projects": "Projects",
+      "external": "External"
+    },
+    "titles": {
+      "create": "Create Event",
+      "edit": "Edit Event"
+    },
+    "sections": {
+      "basicInfo": "Basic Information",
+      "classification": "Event Classification"
+    },
+    "fields": {
+      "titleRequired": "Title *",
+      "titlePlaceholder": "Enter event title",
+      "description": "Description",
+      "descriptionPlaceholder": "Enter event description",
+      "startDateRequired": "Start Date *",
+      "endDate": "End Date",
+      "categoryRequired": "Category *",
+      "categoryPlaceholder": "Select category",
+      "eventTypeRequired": "Event Type *",
+      "eventTypePlaceholder": "Select event type",
+      "statusRequired": "Status *",
+      "statusPlaceholder": "Select status",
+      "team": "Team",
+      "teamPlaceholder": "Enter team name",
+      "accessLevel": "Access Level",
+      "accessLevelPlaceholder": "Select access level",
+      "reminder": "Reminder",
+      "reminderPlaceholder": "Select reminder",
+      "recurrenceType": "Recurrence",
+      "recurrenceTypePlaceholder": "Select recurrence",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional notes or comments"
+    },
+    "categories": {
+      "meeting": "Meeting",
+      "training": "Training",
+      "conference": "Conference",
+      "workshop": "Workshop",
+      "mistery_shop": "Mistery Shop",
+      "audit": "Audit",
+      "holiday": "Holiday",
+      "celebration": "Celebration",
+      "review": "Review",
+      "others": "Other Appointments"
+    },
+    "types": {
+      "internal": "Internal - (PCX)",
+      "external": "External",
+      "client": "Client",
+      "personal": "Personal",
+      "company": "Company - (Africell)"
+    },
+    "accessLevels": {
+      "public": "Public",
+      "private": "Private",
+      "restricted": "Restricted",
+      "confidential": "Confidential"
+    },
+    "status": {
+      "scheduled": "Scheduled",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "postponed": "Postponed"
+    },
+    "reminders": {
+      "none": "No Reminder",
+      "fifteenMinutes": "15 minutes before",
+      "thirtyMinutes": "30 minutes before",
+      "oneHour": "1 hour before",
+      "twoHours": "2 hours before",
+      "oneDay": "1 day before",
+      "oneWeek": "1 week before"
+    },
+    "recurrence": {
+      "none": "No Recurrence",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "semestral": "Semestral",
+      "yearly": "Yearly"
+    },
+    "validation": {
+      "titleRequired": "Title is required",
+      "categoryRequired": "Category is required",
+      "startDateRequired": "Start date is required",
+      "eventTypeRequired": "Event type is required",
+      "statusRequired": "Status is required",
+      "endDateAfterStart": "End date must be after start date"
+    },
+    "buttons": {
+      "save": "Save Event",
+      "update": "Update Event",
+      "saving": "Saving...",
+      "updating": "Updating..."
+    },
+    "messages": {
+      "saveSuccess": "Event saved successfully",
+      "saveError": "Failed to save event",
+      "fetchError": "Failed to fetch event: {error}"
+    }
+  },
+  "events": {
+    "title": "Event Management",
+    "subtitle": "Manage and organize all events",
+    "status": {
+      "scheduled": "Scheduled",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "postponed": "Postponed"
+    },
+    "types": {
+      "internal": "Internal - (PCX)",
+      "external": "External",
+      "client": "Client",
+      "personal": "Personal",
+      "company": "Company - (Africell)"
+    },
+    "table": {
+      "headers": {
+        "title": "Event",
+        "status": "Status",
+        "category": "Category",
+        "eventType": "Type",
+        "dateTime": "Date & Time",
+        "team": "Team",
+        "reminder": "Reminder"
+      },
+      "duration": "Duration"
+    },
+    "actions": {
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "complete": "Complete",
+      "postpone": "Postpone",
+      "confirmSelected": "Confirm Selected",
+      "cancelSelected": "Cancel Selected",
+      "completeSelected": "Complete Selected",
+      "postponeSelected": "Postpone Selected"
+    },
+    "messages": {
+      "deleteConfirm": "Are you sure you want to delete '{title}'?",
+      "bulkDeleteConfirm": "Are you sure you want to delete {count} events?",
+      "emptyState": "No events found"
+    }
+  },
+  "events.navigation": {
+    "backToCalendar": "Back to Calendar",
+    "feature": "Feature Event"
+  },
+  "calendar": {
+    "loading": {
+      "events": "Loading events...",
+      "text": "Loading..."
+    },
+    "navigation": {
+      "today": "Today",
+      "prev": "Previous",
+      "next": "Next",
+      "month": "Month",
+      "week": "Week",
+      "day": "Day"
+    },
+    "views": {
+      "dayGridMonth": "Month",
+      "timeGridWeek": "Week",
+      "timeGridDay": "Day"
+    },
+    "events": {
+      "noTitle": "No Title",
+      "moreEvents": "+ {{count}} more",
+      "allDay": "All day"
+    },
+    "dateClick": {
+      "alert": "Date clicked: {{date}}"
+    },
+    "modal": {
+      "close": "Close",
+      "title": "Event Details",
+      "sections": {
+        "dateTime": "Date & Time",
+        "description": "Description",
+        "details": "Details",
+        "notes": "Notes",
+        "metadata": "Event Information"
+      },
+      "fields": {
+        "start": "Start",
+        "end": "End",
+        "eventType": "Event Type",
+        "team": "Team",
+        "status": "Status",
+        "reminder": "Reminder",
+        "createdBy": "Created by",
+        "created": "Created",
+        "lastModified": "Last modified",
+        "category": "Category",
+        "accessLevel": "Access Level"
+      }
+    },
+    "categories": {
+      "meeting": "Meeting",
+      "conference": "Conference",
+      "audit": "Audit",
+      "training": "Training",
+      "holiday": "Holiday",
+      "celebration": "Celebration",
+      "workshop": "Workshop",
+      "mistery_shop": "Mistery Shop",
+      "review": "Review"
+    },
+    "eventTypes": {
+      "internal": "Internal - (PCX)",
+      "external": "External",
+      "client": "Client",
+      "personal": "Personal",
+      "company": " Company - (Africell)"
+    },
+    "status": {
+      "scheduled": "Scheduled",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "postponed": "Postponed"
+    },
+    "errors": {
+      "loadEvents": "Error loading events",
+      "noEventsFound": "No events found",
+      "connectionError": "Unable to connect to server"
+    },
+    "fallbackEvents": {
+      "meeting": "Meeting",
+      "conference": "Conference",
+      "deadline": "Deadline"
+    }
+  },
+  "modal": {
+    "contactInfo": "Contact Information",
+    "phone": "Phone",
+    "email": "Email",
+    "employmentDetails": "Employment Details",
+    "team": "Team",
+    "reportTo": "Reports To",
+    "startDate": "Start Date",
+    "type": "Type"
+  },
+  "searchTeam": {
+    "placeholder": "Search by name or email...",
+    "search": "Search",
+    "clean": "Clear"
+  },
+  "teams": {
+    "title": "Team Management",
+    "table": {
+      "headers": {
+        "name": "Name",
+        "team": "Team",
+        "reportTo": "Reports To",
+        "email": "Email",
+        "msisdn": "Phone Number",
+        "startDate": "Start Date"
+      }
+    },
+    "emptyState": "No team members found"
+  },
+  "teamForm": {
+    "validation": {
+      "nameRequired": "Name is required",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Please enter a valid email address",
+      "departmentRequired": "Department is required",
+      "functionRequired": "Function is required",
+      "teamRequired": "Team is required",
+      "typeRequired": "Employment type is required"
+    },
+    "buttons": {
+      "save": "Save Member",
+      "update": "Update Member",
+      "saving": "Saving...",
+      "updating": "Updating..."
+    },
+    "messages": {
+      "saveSuccess": "Team member saved successfully",
+      "saveError": "Failed to save team member. Please try again.",
+      "fetchError": "Failed to load team member data"
+    }
+  },
+  "navigationTeams": {
+    "goBack": "Go Back",
+    "backToTeams": "Back to Teams",
+    "viewMode": "Switch to View Mode",
+    "editMode": "Switch to Edit Mode",
+    "switchToViewMode": "Switch to View Mode",
+    "switchToEditMode": "Switch to Edit Mode"
+  },
+  "employeeForm": {
+    "titles": {
+      "employeeDetails": "Employee Details",
+      "editEmployee": "Edit Employee",
+      "addNewEmployee": "Add New Employee"
+    },
+    "sections": {
+      "personalInformation": "Personal Information",
+      "organizationInformation": "Organization Information",
+      "contactEmploymentDetails": "Contact & Employment Details"
+    },
+    "fields": {
+      "fullName": "Full Name",
+      "emailAddress": "Email Address",
+      "department": "Department",
+      "team": "Team",
+      "functionPosition": "Function/Position",
+      "reportsTo": "Reports To",
+      "phoneNumber": "Phone Number (MSISDN)",
+      "startDate": "Start Date",
+      "currentType": "Current Type",
+      "imageProfile": "Image Profile",
+      "section": "Section",
+      "ranking": "Ranking",
+      "kpi": "KPI"
+    },
+    "placeholders": {
+      "fullName": "Enter employee's full name",
+      "email": "employee@company.com",
+      "phone": "+244 999 999 999",
+      "managerName": "Manager's name",
+      "selectOption": "Select"
+    },
+    "validation": {
+      "nameRequired": "Name is required",
+      "departmentRequired": "Department is required",
+      "teamRequired": "Team is required",
+      "functionRequired": "Function is required",
+      "reportToRequired": "Report to is required",
+      "phoneRequired": "Phone number is required",
+      "phoneInvalid": "Please enter a valid phone number",
+      "emailRequired": "Email is required",
+      "emailInvalid": "Please enter a valid email address",
+      "startDateRequired": "Start date is required",
+      "currentTypeRequired": "Current type is required"
+    },
+    "status": {
+      "notSpecified": "Not specified"
+    },
+    "departments": [
+      {
+        "value": "PCX - Projects & Customer Experience",
+        "label": "PCX - Projects & Customer Experience"
+      }
+    ],
+    "teams": [
+      {
+        "value": "Customer Experience",
+        "label": "Customer Experience"
+      },
+      {
+        "value": "Corporate Customer Support",
+        "label": "Corporate Customer Support"
+      },
+      {
+        "value": "Residential Customer Support",
+        "label": "Residential Customer Support"
+      },
+      {
+        "value": "Hybrid Customer Support Luanda",
+        "label": "Hybrid Customer Support Luanda"
+      },
+      {
+        "value": "Hybrid Customer Support Huambo",
+        "label": "Hybrid Customer Support Huambo"
+      },
+      {
+        "value": "Hybrid Customer Support Huila",
+        "label": "Hybrid Customer Support Huila"
+      },
+      {
+        "value": "Project Innovation Developers",
+        "label": "Project Innovation Developers"
+      },
+      {
+        "value": "Project Managers",
+        "label": "Project Managers"
+      },
+      {
+        "value": "Quality Assurance",
+        "label": "Quality Assurance"
+      },
+      {
+        "value": "PCX",
+        "label": "PCX"
+      }
+    ],
+    "functions": [
+      {
+        "value": "Customer Support Agent",
+        "label": "Customer Support Agent"
+      },
+      {
+        "value": "Developer",
+        "label": "Developer"
+      },
+      {
+        "value": "Team Lead",
+        "label": "Team Lead"
+      },
+      {
+        "value": "Manager",
+        "label": "Manager"
+      },
+      {
+        "value": "Director",
+        "label": "Director"
+      },
+      {
+        "value": "Chief Projects & Customer Experience Officer",
+        "label": "Chief Projects & Customer Experience Officer"
+      }
+    ],
+    "employeeTypes": [
+      {
+        "value": "HRD - Full Time",
+        "label": "HRD - Full Time"
+      },
+      {
+        "value": "Africell -FT",
+        "label": "Africell -FT"
+      }
+    ]
+  },
+  "feedback": {
+    "pageTitle": "Feedback Management",
+    "pageSubtitle": "Manage user feedback and suggestions to improve your platform",
+    "title": "Feedbacks",
+    "subtitle": "Manage user feedback and suggestions",
+    "formSubtitle": "Submit or manage feedback to help us improve",
+    "bannerAlt": "Feedback management banner",
+    "loadingMessage": "Loading feedback...",
+    "showingResults": "Showing {start} to {end} of {total} results",
+    "titles": {
+      "create": "Submit New Feedback",
+      "edit": "Edit Feedback",
+      "view": "View Feedback"
+    },
+    "sections": {
+      "basicInfo": "Basic Information",
+      "attachments": "Attachments"
+    },
+    "fields": {
+      "titleRequired": "Title *",
+      "titlePlaceholder": "Enter a brief summary of your feedback",
+      "feedbackTypeRequired": "Feedback Type *",
+      "feedbackTypePlaceholder": "Select feedback type",
+      "descriptionRequired": "Description *",
+      "descriptionPlaceholder": "Describe your feedback in detail",
+      "priorityRequired": "Priority *",
+      "priorityPlaceholder": "Select priority level",
+      "statusRequired": "Status *",
+      "statusPlaceholder": "Select status",
+      "image": "Screenshot/Image",
+      "imageHelp": "Upload screenshots or images to help explain your feedback (Max 5MB, PNG/JPG only)"
+    },
+    "types": {
+      "bugReport": "Bug Report",
+      "featureRequest": "Feature Request",
+      "generalSuggestion": "General Suggestion",
+      "usabilityIssue": "Usability Issue",
+      "performanceIssue": "Performance Issue"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "status": {
+      "new": "New",
+      "inReview": "In Review",
+      "inProgress": "In Progress",
+      "resolved": "Resolved",
+      "closed": "Closed",
+      "wontFix": "Won't Fix"
+    },
+    "table": {
+      "headers": {
+        "title": "Title",
+        "type": "Type",
+        "priority": "Priority",
+        "status": "Status",
+        "author": "Author",
+        "date": "Date",
+        "attachment": "Attachment"
+      }
+    },
+    "actions": {
+      "view": "View",
+      "edit": "Edit",
+      "delete": "Delete",
+      "resolve": "Resolve",
+      "close": "Close",
+      "markInReview": "Mark In Review",
+      "markInProgress": "Mark In Progress",
+      "markResolved": "Mark Resolved",
+      "markClosed": "Mark Closed",
+      "markWontFix": "Mark Won't Fix"
+    },
+    "buttons": {
+      "save": "Submit Feedback",
+      "update": "Update Feedback",
+      "saving": "Submitting...",
+      "updating": "Updating...",
+      "selectImage": "Select Image",
+      "removeImage": "Remove Image"
+    },
+    "labels": {
+      "preview": "Preview",
+      "attachedImage": "Attached Image",
+      "noAttachment": "No attachment"
+    },
+    "validation": {
+      "titleRequired": "Title is required",
+      "feedbackTypeRequired": "Feedback type is required",
+      "descriptionRequired": "Description is required",
+      "priorityRequired": "Priority is required",
+      "statusRequired": "Status is required",
+      "invalidImageType": "Please select a valid image file (PNG, JPG, GIF)",
+      "imageTooLarge": "Image file is too large. Maximum size is 5MB"
+    },
+    "messages": {
+      "fetchError": "Error loading feedback: {error}",
+      "saveSuccess": "Feedback saved successfully!",
+      "saveError": "Error saving feedback. Please try again.",
+      "deleteConfirm": "Are you sure you want to delete '{title}'?",
+      "bulkDeleteConfirm": "Are you sure you want to delete {count} feedback items?",
+      "emptyState": "No feedback found",
+      "loadingArticles": "Loading feedback items..."
+    }
+  }
+}

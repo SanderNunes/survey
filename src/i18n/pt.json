@@ -1,0 +1,1389 @@
+{
+  "lang": "pt",
+  "welcome": "Bem-vindo",
+  "Language": "Idioma",
+  "description": "Esta é uma descrição em inglês.",
+  "searchSuggestions": {
+    "extension": "Extensão",
+    "category": "Categoria",
+    "noCategory": "Sem Categoria",
+    "lastModified": "Última Modificação"
+  },
+  "search": {
+    "resultsFor": "Resultados de pesquisa para",
+    "noResults": "Nenhum resultado encontrado.",
+    "error": "Falha na pesquisa",
+    "uncategorized": "Sem categoria",
+    "placeholder": "Pesquisar documentos, artigos e FAQs...",
+    "tabs": {
+      "article": "Artigos",
+      "books": "Livros",
+      "videos": "Vídeos",
+      "courses": "Cursos"
+    },
+    "pagination": "Página {{current}} de {{total}}"
+  },
+  "modal": {
+    "team": "Equipe",
+    "reportTo": "Reporta a",
+    "msisdn": "Telefone",
+    "email": "Email",
+    "phone": "Telefone",
+    "contactInfo": "Informações de Contato",
+    "employmentDetails": "Detalhes do Emprego",
+    "editDetails": "Editar Detalhes",
+    "add": "Adicionar a Linha hierárquica",
+    "startDate": "Data de Início",
+    "type": "Tipo",
+    "ranking": "Classificação",
+    "kpi": "Indicador (KPI)",
+    "close": "Fechar"
+  },
+  "searchTeam": {
+    "placeholder": "Pesquisar pessoa por nome ou email",
+    "search": "Pesquisar",
+    "clean": "Limpar"
+  },
+  "zoom": {
+    "center": "Centrar"
+  },
+  "loading": {
+    "loadingData": "Carregando organograma..."
+  },
+  "home": {
+    "quiklinks": {
+      "home": "Início",
+      "whoarewe": "Cellito",
+      "news": "Notícias",
+      "africelluniversity": "Universidade Africell",
+      "orgchart": "Nossa Equipa",
+      "articles": "Artigos",
+      "calendar": "Calendário",
+      "team": "Nossa Equipa"
+    },
+    "menu": {
+      "searchbartext": "Obtenha respostas, explore FAQs, descubra...",
+      "profile": "Perfil",
+      "analytics": "Análises e relatórios",
+      "notifications": "Notificações",
+      "contentmanagement": "Gestão de conteúdo",
+      "courses": "Cursos",
+      "articles": "Artigos",
+      "events": "Eventos",
+      "team": "Equipa",
+      "feedback": "Feedback",
+      "documents": "Documentos",
+      "audit": "Auditoria do sistema",
+      "settings": "Configurações",
+      "logout": "Sair"
+    },
+    "submenu": {
+      "kuyuyu": "Kuyuyu SIM/eSIM",
+      "dataplans": "Pacotes de Dados",
+      "voiceandsmsplans": "Pacotes de Voz e SMS",
+      "socializaplans": "Pacotes Socializa",
+      "comboplans": "Pacotes Combo",
+      "regionsplans": "Pacotes Regionais",
+      "roaming": "Roaming",
+      "internationalcalling": "Chamadas Internacionais",
+      "konekta": "Konekta",
+      "campaignsnadpromotions": "Campanhas e Promoções"
+    },
+    "welcome": "Bem-vindo à nossa",
+    "subtitle": "Base de Conhecimento",
+    "content": "Como podemos ajudar?",
+    "populararticles": "Artigos populares",
+    "helpfullarticles": "As pessoas acharam este guia útil - {{helpfull}}/5 estrelas",
+    "explore": "Explorar",
+    "allacategories": "Todas as categorias",
+    "browsebytopic": "Explorar por tópico",
+    "satisfiedclients": "Clientes satisfeitos",
+    "projectcompleted": "Projetos concluídos",
+    "supportteam": "Equipe de suporte",
+    "gottohistory": "Ver quadro",
+    "eficacy": "Eficácia",
+    "tma": "Tempo Médio de Atendimento (TMA)",
+    "callsperday": "Chamadas Apresentadas por Dia",
+    "viewBoard": "Ir para o painel &",
+    "viewMore": "Ver mais"
+  },
+  "navigation": {
+    "goBack": "Voltar",
+    "edit": "Editar",
+    "view": "Visualizar",
+    "feature": "Destacar",
+    "backToArticles": "Voltar aos artigos",
+    "switchToViewMode": "Alternar para modo de visualização",
+    "switchToEditMode": "Alternar para modo de edição"
+  },
+  "cellito": {
+    "initializing": "Inicializando Cellito...",
+    "gettingReady": "Cellito está se preparando...",
+    "loadingDocuments": "Carregando documentos...",
+    "greetings": "Olá!",
+    "welcomeMessage": "Sou o Cellito",
+    "description": "Seu assistente pessoal. Como posso ajudar hoje?",
+    "askQuestion": "Faça-me uma pergunta",
+    "askQuestionPlaceholder": "Digite sua pergunta aqui...",
+    "thinking": "Cellito está pensando...",
+    "baseonknowledge": "Baseado na nossa base de conhecimento",
+    "socializa_pack": "Quais são os pacotes Socializa?",
+    "weekend_bundles": "Quais são os pacotes de fim de semana?",
+    "konektas_devices": "Quais são as características do Konekta 5G?",
+    "konekta_plans": "Quais são os pacotes do Konekta 5G?",
+    "confidence_percentage": "% Confiança",
+    "verified_docs": "Fontes consultadas:",
+    "source_web": "Internet",
+    "source_internal": "Interna",
+    "search_hybrid": "Híbrido",
+    "search_internal": "Interno",
+    "usefull_answer": "Resposta foi útil",
+    "non_usefull_response": "Resposta não foi útil",
+    "thanks_feedback": "Obrigado pelo feedback!",
+    "search_hybrid_description": "Modo híbrido: busca interna + web",
+    "search_internal_description": "Modo interno: busca apenas na base de conhecimento",
+    "footertext": "O Cellito pode cometer erros. Considere verificar informações importantes."
+  },
+  "footer": {
+    "help": "Precisa de ajuda?",
+    "more": "Fale com Cellito",
+    "productsServices": "Produtos e Serviços",
+    "kuyuyuTariffs": "Kuyuyu SIM/eSIM & Tarifas",
+    "dataVoiceSmsPlans": "Dados, Voz e SMS",
+    "socialComboPlans": "Socializa & Combo",
+    "roamingIntlCalling": "Regiões, Roaming & Chamadas Internacionais",
+    "konekta": "Konekta",
+    "campaignsPromotions": "Campanhas e Promoções",
+    "helpGuides": "Ajuda & Guias",
+    "networkSimIssues": "Rede & Problemas com SIM",
+    "dataVoiceSmsHelp": "Ajuda com Dados, Voz e SMS",
+    "esimRouterGuides": "Guias de eSIM & Roteadores",
+    "rechargeHelp": "Ajuda com Recarga",
+    "accountManagement": "Gestão da Conta",
+    "checkNumberBalance": "Verificar Número & Saldo",
+    "managePlansServices": "Gerir Pacotes & Serviços",
+    "simSwapOwnership": "Troca de SIM & Propriedade",
+    "transferBalanceUssd": "Transferência de Saldo & USSD",
+    "termsConditions": "Termos & Condições",
+    "core": "Principal",
+    "simTariffs": "SIM/eSIM & Tarifas",
+    "dataPlans": "Pacotes de Dados",
+    "voiceSmsPlans": "Pacotes de Voz e SMS",
+    "roaming": "Roaming",
+    "copyright": "©2024 Africell. Todos os direitos reservados.",
+    "termsOfService": "Termos de Serviço",
+    "privacyPolicy": "Política de Privacidade",
+    "cookiePolicy": "Política de Cookies"
+  },
+  "common": {
+    "loading": "Carregando...",
+    "search": "Pesquisar",
+    "previous": "Anterior",
+    "next": "Próximo",
+    "clearSearch": "Limpar pesquisa",
+    "home": "Início",
+    "articles": "Artigos"
+  },
+  "articlesFeed": {
+    "pageTitle": "Todos os Artigos",
+    "loadingMessage": "Carregando artigos do conhecimento...",
+    "loadingArticles": "Carregando artigos...",
+    "searchResultsFor": "Resultados da pesquisa para",
+    "articlesFound": "{{count}} artigo encontrado",
+    "articlesFound_plural": "{{count}} artigos encontrados",
+    "showingResults": "Mostrando {{start}} a {{end}} de {{total}} artigos",
+    "noSearchResults": "Nenhum resultado de pesquisa encontrado",
+    "noArticlesFound": "Nenhum artigo de conhecimento encontrado",
+    "noSearchResultsMessage": "Nenhum artigo corresponde à sua pesquisa por \"{{query}}\". Tente palavras-chave diferentes ou limpe sua pesquisa.",
+    "noArticlesMessage": "Nenhum artigo está disponível no momento"
+  },
+  "sidebar": {
+    "searchHere": "Pesquisar Aqui",
+    "searchPlaceholder": "Pesquisar artigos, categorias, tags...",
+    "clearSearchTitle": "Limpar pesquisa",
+    "searchTitle": "Pesquisar",
+    "found": "Encontrado {{count}} artigo para \"{{query}}\"",
+    "found_plural": "Encontrados {{count}} artigos para \"{{query}}\"",
+    "noResultsFor": "Nenhum resultado encontrado para \"{{query}}\"",
+    "searchResults": "Resultados da Pesquisa",
+    "popularPosts": "Posts Populares",
+    "noArticlesFound": "Nenhum artigo encontrado para sua pesquisa.",
+    "noArticlesAvailable": "Nenhum artigo disponível ainda.",
+    "moreTagsCount": "+{{count}}"
+  },
+  "analytics": {
+    "pageTitle": "Painel de Análises",
+    "metrics": {
+      "totalArticles": "Total de Artigos",
+      "totalCourses": "Total de Cursos",
+      "recentArticles": "Artigos Recentes",
+      "contentFreshness": "Atualização de Conteúdo",
+      "last30Days": "Últimos 30 dias",
+      "recentContentRatio": "Proporção de conteúdo recente",
+      "fromLastMonth": "em relação ao mês passado"
+    },
+    "errors": {
+      "failedToFetch": "Falha ao buscar dados",
+      "loadingError": "Ocorreu um erro ao carregar os dados de análise"
+    },
+    "loading": {
+      "fetchingData": "Buscando dados de análise...",
+      "calculatingMetrics": "Calculando métricas..."
+    }
+  },
+  "quickLinks": {
+    "title": "Links Rápidos",
+    "actions": {
+      "createCourse": "Criar Curso",
+      "createArticle": "Criar Artigo",
+      "uploadDocument": "Carregar Documento"
+    },
+    "descriptions": {
+      "createCourseDesc": "Criar um novo curso",
+      "createArticleDesc": "Criar um novo artigo",
+      "uploadDocumentDesc": "Carregar ou gerenciar documentos"
+    },
+    "users": {
+      "quickAction": "Ação Rápida",
+      "contentHub": "Central de Conteúdo",
+      "system": "Sistema"
+    }
+  },
+  "topContent": {
+    "title": "Artigos Recentes",
+    "viewAll": "Ver Todos",
+    "metrics": {
+      "views": "visualizações",
+      "totalArticles": "Total de artigos"
+    },
+    "timeAgo": {
+      "justNow": "agora mesmo",
+      "minuteAgo": "há um minuto",
+      "minutesAgo": "há {{count}} minutos",
+      "hourAgo": "há uma hora",
+      "hoursAgo": "há {{count}} horas",
+      "dayAgo": "há um dia",
+      "daysAgo": "há {{count}} dias",
+      "weekAgo": "há uma semana",
+      "weeksAgo": "há {{count}} semanas",
+      "monthAgo": "há um mês",
+      "monthsAgo": "há {{count}} meses",
+      "yearAgo": "há um ano",
+      "yearsAgo": "há {{count}} anos"
+    },
+    "noContent": "Nenhum artigo recente disponível",
+    "loadingContent": "Carregando artigos recentes..."
+  },
+  "activityFeed": {
+    "title": "Atividades Recentes",
+    "viewAll": "Ver Todas",
+    "actions": {
+      "created": "criou",
+      "updated": "atualizou",
+      "deleted": "excluiu",
+      "uploaded": "carregou",
+      "downloaded": "baixou",
+      "shared": "compartilhou",
+      "commented": "comentou em",
+      "assigned": "atribuiu",
+      "completed": "completou",
+      "viewed": "visualizou"
+    },
+    "actionTypes": {
+      "Create": "Criar",
+      "Update": "Atualizar",
+      "Delete": "Excluir",
+      "Upload": "Carregar",
+      "Download": "Baixar",
+      "Share": "Compartilhar",
+      "Comment": "Comentar",
+      "Assign": "Atribuir",
+      "Complete": "Completar",
+      "View": "Visualizar"
+    },
+    "labels": {
+      "by": "por",
+      "userPerformed": "{{user}} {{action}} {{content}}",
+      "noActivities": "Nenhuma atividade recente disponível",
+      "loadingActivities": "Carregando atividades recentes..."
+    },
+    "sampleActivities": {
+      "createProject": "criou um novo projeto",
+      "completeTask": "completou tarefa",
+      "commentOn": "comentou em",
+      "uploadFile": "carregou arquivo",
+      "assignTask": "atribuiu tarefa"
+    }
+  },
+  "courses": {
+    "title": "Gerenciamento de Cursos",
+    "rateCourse": "Por favor, avalie o curso!",
+    "subtitle": "Gerencie todos os cursos no sistema da academia",
+    "actions": {
+      "create": "Criar Curso",
+      "edit": "Editar Curso",
+      "delete": "Excluir Curso",
+      "view": "Visualizar Curso",
+      "createNew": "Criar Novo Curso",
+      "goBack": "Voltar",
+      "startCourse": "Iniciar Curso",
+      "continueCourse": "Continuar Curso",
+      "reviewCourse": "Revisar Curso",
+      "checkingEnrollment": "Verificando Matrícula...",
+      "takeExam": "Iniciar Exame"
+    },
+    "details": {
+      "title": "Detalhes do Curso",
+      "loading": "Carregando detalhes do curso...",
+      "error": "Erro ao carregar curso",
+      "notFound": "Curso não encontrado",
+      "missingId": "ID do curso está ausente"
+    },
+    "metadata": {
+      "duration": "Duração",
+      "format": "Formato",
+      "level": "Nível",
+      "rating": "Avaliação",
+      "ratingOutOf": "{{rating}} / 5"
+    },
+    "enrollment": {
+      "enrolled": "Matriculado",
+      "notEnrolled": "Não Matriculado",
+      "completed": "Concluído",
+      "inProgress": "Em Andamento"
+    },
+    "sections": {
+      "whatYouLearn": "O que Você Vai Aprender",
+      "curriculum": "Currículo do Curso",
+      "assessment": "Avaliação do Curso",
+      "preview": "Prévia do Curso"
+    },
+    "emptyMessages": {
+      "noOutcomes": "Nenhum resultado de aprendizagem disponível para este curso.",
+      "noCurriculum": "Nenhum detalhe de currículo disponível para este curso.",
+      "noAssessment": "Nenhuma avaliação disponível para este curso."
+    },
+    "dialog": {
+      "assessmentTitle": "Avaliação do Curso",
+      "close": "Fechar"
+    },
+    "table": {
+      "headers": {
+        "courseTitle": "Título do Curso",
+        "category": "Categoria",
+        "duration": "Duração",
+        "reviews": "Avaliações",
+        "rating": "Classificação",
+        "createdDate": "Data de Criação",
+        "level": "Nível",
+        "status": "Status",
+        "tags": "Tags"
+      },
+      "values": {
+        "noReviews": "Sem avaliações",
+        "notRated": "Não avaliado",
+        "reviews": "{{count}} avaliação",
+        "reviews_plural": "{{count}} avaliações"
+      }
+    },
+    "filters": {
+      "level": {
+        "beginner": "Iniciante",
+        "intermediate": "Intermediário",
+        "advanced": "Avançado"
+      }
+    },
+    "bulkActions": {
+      "publishSelected": "Publicar Selecionados",
+      "archiveSelected": "Arquivar Selecionados",
+      "deleteSelected": "Excluir Selecionados",
+      "exportSelected": "Exportar Selecionados"
+    },
+    "status": {
+      "published": "Publicado",
+      "draft": "Rascunho",
+      "archived": "Arquivado",
+      "scheduled": "Agendado"
+    },
+    "messages": {
+      "loadingCourses": "Carregando cursos...",
+      "loadingCourse": "Carregando curso...",
+      "addCourses": "Adicionar cursos",
+      "noCoursesFound": "Sem cursos",
+      "errorLoading": "Erro ao carregar cursos",
+      "deleteConfirm": "Tem certeza de que deseja excluir \"{{title}}\"?",
+      "deleteSuccess": "Curso excluído com sucesso",
+      "deleteFailed": "Falha ao excluir curso. Tente novamente.",
+      "bulkDeleteConfirm": "Excluir {{count}} curso?",
+      "bulkDeleteConfirm_plural": "Excluir {{count}} cursos?",
+      "bulkActionFailed": "Ação em lote falhou. Tente novamente.",
+      "saveCourseFailed": "Falha ao salvar curso. Tente novamente.",
+      "emptyState": "Nenhum curso encontrado. Crie seu primeiro curso para começar.",
+      "startExam": "Agora que completaste todas as lições, estás pronto para o exame. Inicie o exame por favor.",
+      "courseProgress": "Completadas",
+      "lessonsComplete": "Parabéns!",
+      "chapters": "Capítulos"
+    },
+    "exams": {
+      "actions": {
+        "previous": "Anterior",
+        "next": "Próximo",
+        "complete": "Completar"
+      },
+      "messages": {
+        "examComplete": "Assina a mais cursos",
+        "thankYou": "Obrigado e parabéns por continuares nesta jornada e terminares o exame do curso",
+        "questions": "Questões",
+        "correct": "correcto de",
+        "passingScore": "A nota mínima para aprovares é {{score}}",
+        "yourResults": "Seus resultados",
+        "yourScore": "Pontos",
+        "complete": "Completado",
+        "startExam": "Iniciar",
+        "getStarted": "Estás pronto, Iniciar o seu exame",
+        "welcome": "Bem-vindo ao Exame de"
+      }
+    }
+  },
+  "table": {
+    "search": {
+      "placeholder": "Pesquisar...",
+      "noResults": "Nenhum resultado encontrado",
+      "noResultsDesc": "Tente ajustar seus critérios de pesquisa ou filtro",
+      "noData": "Nenhum dado disponível"
+    },
+    "filters": {
+      "title": "Filtros",
+      "all": "Todos",
+      "allLevel": "Todos os Níveis",
+      "allStatus": "Todos os Status",
+      "allCategory": "Todas as Categorias",
+      "clearFilters": "Limpar Filtros"
+    },
+    "bulk": {
+      "selected": "{{count}} item selecionado",
+      "selected_plural": "{{count}} itens selecionados",
+      "chooseAction": "Escolher ação...",
+      "apply": "Aplicar"
+    },
+    "actions": {
+      "view": "Visualizar",
+      "edit": "Editar",
+      "delete": "Excluir",
+      "create": "Criar"
+    },
+    "pagination": {
+      "showing": "Mostrando",
+      "to": "até",
+      "of": "de",
+      "results": "resultados",
+      "previous": "Anterior",
+      "next": "Próximo"
+    },
+    "values": {
+      "yes": "Sim",
+      "no": "Não",
+      "dash": "—",
+      "ratings": "{{count}} avaliação",
+      "ratings_plural": "{{count}} avaliações"
+    },
+    "loading": "Carregando..."
+  },
+  "courseForm": {
+    "titles": {
+      "view": "Visualizar Curso",
+      "edit": "Editar Curso",
+      "create": "Criar Novo Curso"
+    },
+    "buttons": {
+      "lesson": "Lição",
+      "exam": "Exame",
+      "save": "Salvar",
+      "update": "Atualizar",
+      "saving": "Salvando...",
+      "editing": "Editando...",
+      "addLearningOutcome": "Adicionar Resultado de Aprendizagem",
+      "addCurriculumItem": "Adicionar Item do Currículo",
+      "addOption": "Adicionar Opção",
+      "addNewQuestion": "Adicionar Nova Pergunta"
+    },
+    "fields": {
+      "courseTitle": "Título do Curso",
+      "courseTitleRequired": "Título do Curso *",
+      "description": "Descrição",
+      "authorBio": "Biografia do Autor",
+      "duration": "Duração",
+      "durationPlaceholder": "ex: 4 semanas",
+      "format": "Formato",
+      "selectFormat": "Selecionar Formato",
+      "level": "Nível",
+      "selectLevel": "Selecionar Nível",
+      "tags": "Tags",
+      "tagsPlaceholder": "Tags separadas por vírgula",
+      "language": "Idioma",
+      "languagePlaceholder": "ex: Português",
+      "category": "Categoria",
+      "selectCategory": "Selecionar Categoria",
+      "learningOutcomes": "Resultados de Aprendizagem",
+      "learningOutcomePlaceholder": "Resultado de aprendizagem {{index}}",
+      "curriculum": "Currículo",
+      "curriculumPlaceholder": "Item do currículo {{index}}",
+      "assessmentQuestions": "Perguntas de Avaliação",
+      "imageUrl": "URL da Imagem",
+      "imageUrlPlaceholder": "https://exemplo.com/imagem.jpg"
+    },
+    "assessment": {
+      "question": "Pergunta",
+      "questionNumber": "Pergunta {{number}}",
+      "stepTitle": "Título da Etapa",
+      "stepTitlePlaceholder": "ex: Etapa 1",
+      "questionId": "ID da Pergunta",
+      "questionIdPlaceholder": "ex: q1",
+      "questionPlaceholder": "Digite sua pergunta aqui...",
+      "answerOptions": "Opções de Resposta",
+      "optionPlaceholder": "Opção {{number}}",
+      "noQuestions": "Nenhuma pergunta de avaliação adicionada"
+    },
+    "formats": {
+      "online": "Online",
+      "inPerson": "Presencial",
+      "hybrid": "Híbrido",
+      "selfPaced": "Ritmo Próprio"
+    },
+    "levels": {
+      "beginner": "Iniciante",
+      "intermediate": "Intermediário",
+      "advanced": "Avançado"
+    },
+    "categories": {
+      "customerExperience": "Experiência do Cliente"
+    },
+    "messages": {
+      "courseSaved": "Curso salvo com sucesso!",
+      "courseUpdated": "Curso atualizado com sucesso!",
+      "errorSaving": "Erro ao salvar curso: {{error}}",
+      "courseNotFound": "Curso não encontrado",
+      "errorParsing": "Erro ao analisar perguntas de avaliação",
+      "fetchError": "Falha ao buscar cursos: {{error}}"
+    }
+  },
+  "articles": {
+    "title": "Gerenciamento de Artigos",
+    "articleHelpfulness": "Quão útil foi o artigo?",
+    "subtitle": "Gerencie os artigos do seu portal de conhecimento",
+    "table": {
+      "headers": {
+        "title": "Título",
+        "status": "Status",
+        "category": "Categoria",
+        "tags": "Tags",
+        "date": "Data",
+        "statistics": "Estatísticas"
+      }
+    },
+    "status": {
+      "published": "Publicado",
+      "draft": "Rascunho",
+      "archived": "Arquivado",
+      "scheduled": "Agendado"
+    },
+    "actions": {
+      "publish": "Publicar",
+      "draft": "Rascunho",
+      "archive": "Arquivar",
+      "publishSelected": "Publicar Selecionados",
+      "moveToDraft": "Mover para Rascunho",
+      "archiveSelected": "Arquivar Selecionados"
+    },
+    "messages": {
+      "deleteConfirm": "Tem certeza de que deseja excluir \"{{title}}\"?",
+      "bulkDeleteConfirm": "Excluir {{count}} artigo?",
+      "bulkDeleteConfirm_plural": "Excluir {{count}} artigos?",
+      "emptyState": "Nenhum artigo encontrado. Crie seu primeiro artigo para começar.",
+      "ratings": "{{count}} avaliação",
+      "ratings_plural": "{{count}} avaliações"
+    }
+  },
+  "createArticle": {
+    "titles": {
+      "create": "Criar novo artigo",
+      "edit": "Editar Artigo"
+    },
+    "buttons": {
+      "save": "Salvar",
+      "update": "Atualizar",
+      "saving": "Salvando...",
+      "updating": "Atualizando...",
+      "contentEditor": "Editor de Conteúdo"
+    },
+    "sections": {
+      "basicInfo": "Informações Básicas",
+      "classification": "Classificação"
+    },
+    "fields": {
+      "title": "Título",
+      "titleRequired": "Título *",
+      "titlePlaceholder": "Digite o título do artigo...",
+      "summary": "Resumo",
+      "summaryRequired": "Resumo *",
+      "summaryPlaceholder": "Digite o resumo do artigo...",
+      "featured": "Destacado",
+      "notFeatured": "Não Destacado",
+      "slug": "Slug",
+      "slugRequired": "Slug *",
+      "slugPlaceholder": "slug-do-artigo",
+      "coverImage": "URL da Imagem de Capa",
+      "coverImageRequired": "URL da Imagem de Capa *",
+      "coverImagePlaceholder": "https://exemplo.com/imagem.jpg",
+      "category": "Categoria",
+      "categoryRequired": "Categoria *",
+      "categoryPlaceholder": "Selecionar categoria...",
+      "type": "Tipo",
+      "typeRequired": "Tipo *",
+      "typePlaceholder": "Selecionar tipo...",
+      "level": "Nível",
+      "levelRequired": "Nível *",
+      "levelPlaceholder": "Selecionar nível...",
+      "tags": "Tags",
+      "tagsPlaceholder": "Adicionar uma tag...",
+      "readTime": "Tempo de Leitura (minutos)",
+      "readTimePlaceholder": "5"
+    },
+    "categories": {
+      "customerExperience": "Experiência do Cliente"
+    },
+    "types": {
+      "tutorial": "Tutorial",
+      "guide": "Guia",
+      "news": "Notícias",
+      "review": "Avaliação",
+      "opinion": "Opinião",
+      "caseStudy": "Estudo de Caso",
+      "bestPractice": "Melhores Práticas",
+      "framework": "Framework",
+      "template": "Modelo"
+    },
+    "levels": {
+      "beginner": "Iniciante",
+      "intermediate": "Intermediário",
+      "advanced": "Avançado",
+      "expert": "Especialista"
+    },
+    "validation": {
+      "titleRequired": "Título é obrigatório",
+      "summaryRequired": "Resumo é obrigatório",
+      "categoryRequired": "Categoria é obrigatória",
+      "typeRequired": "Tipo é obrigatório",
+      "levelRequired": "Nível é obrigatório",
+      "slugRequired": "Slug é obrigatório"
+    },
+    "messages": {
+      "saveSuccess": "Artigo salvo com sucesso!",
+      "updateSuccess": "Artigo atualizado com sucesso!",
+      "saveError": "Erro ao salvar artigo: {{error}}",
+      "fetchError": "Erro ao buscar artigo: {{error}}"
+    }
+  },
+  "editor": {
+    "buttons": {
+      "goBack": "Voltar",
+      "save": "Salvar",
+      "publish": "Publicar",
+      "publishing": "Publicando..."
+    },
+    "status": {
+      "autoSaving": "Salvando automaticamente...",
+      "lastSaved": "Última gravação: {{time}}",
+      "manualSaveCompleted": "Salvamento manual concluído",
+      "autoSavedAt": "Salvo automaticamente em: {{time}}"
+    },
+    "messages": {
+      "publishSuccess": "Artigo publicado com sucesso!",
+      "publishError": "Falha ao publicar artigo. Tente novamente.",
+      "saveError": "Erro ao salvar artigo: {{error}}",
+      "autoSaveError": "Falha no salvamento automático: {{error}}"
+    },
+    "tooltips": {
+      "goBack": "Voltar",
+      "saveArticle": "Salvar Artigo",
+      "publishArticle": "Publicar Artigo",
+      "lastSavedTime": "Última gravação: {{time}}"
+    }
+  },
+  "documents": {
+    "title": "Gerenciamento de Documentos",
+    "subtitle": "Gerencie e organize documentos por categoria",
+    "breadcrumb": {
+      "allCategories": "Todas as Categorias"
+    },
+    "search": {
+      "placeholder": "Pesquisar arquivos e categorias...",
+      "placeholderInCategory": "Pesquisar em {{category}}...",
+      "clearSearch": "Limpar pesquisa"
+    },
+    "viewModes": {
+      "grid": "Visualização em grade",
+      "list": "Visualização em lista"
+    },
+    "categories": {
+      "uncategorized": "Sem Categoria"
+    },
+    "fileCount": {
+      "single": "{{count}} arquivo",
+      "plural": "{{count}} arquivos"
+    },
+    "stats": {
+      "filesInCategory": "{{count}} arquivos em {{category}}",
+      "categoriesAndFiles": "{{categoryCount}} categorias • {{fileCount}} arquivos no total"
+    },
+    "emptyState": {
+      "noFiles": "Nenhum arquivo encontrado",
+      "noFilesInCategory": "Nenhum arquivo nesta categoria",
+      "searchHint": "Tente ajustar os termos de pesquisa ou navegar por uma categoria diferente",
+      "categoryEmpty": "Esta categoria parece estar vazia"
+    },
+    "table": {
+      "headers": {
+        "name": "Nome",
+        "type": "Tipo",
+        "modified": "Modificado"
+      }
+    },
+    "actions": {
+      "upload": "Enviar Arquivo",
+      "download": "Baixar",
+      "preview": "Visualizar",
+      "delete": "Excluir"
+    }
+  },
+  "emptyState": {
+    "auditLogs": {
+      "title": "Nenhum log de auditoria encontrado",
+      "description": "Tente ajustar seus filtros para ver mais resultados."
+    },
+    "noData": {
+      "title": "Nenhum dado disponível",
+      "description": "Não há nada para exibir no momento."
+    },
+    "noSearchResults": {
+      "title": "Nenhum resultado de pesquisa",
+      "description": "Tente termos de pesquisa diferentes ou limpe seus filtros."
+    },
+    "noFiles": {
+      "title": "Nenhum arquivo encontrado",
+      "description": "Envie arquivos para começar ou ajuste seus critérios de pesquisa."
+    },
+    "noArticles": {
+      "title": "Nenhum artigo encontrado",
+      "description": "Crie seu primeiro artigo para começar."
+    },
+    "generic": {
+      "title": "Nada para mostrar",
+      "description": "Verifique novamente mais tarde ou tente atualizar a página."
+    }
+  },
+  "audit": {
+    "title": "Logs de Auditoria",
+    "subtitle": "Monitore e acompanhe atividades do sistema",
+    "filters": {
+      "activityType": "Tipo de Atividade",
+      "dateRange": "Período",
+      "selectActivity": "Selecionar Tipo de Atividade",
+      "selectDateRange": "Selecionar Período"
+    },
+    "status": {
+      "loading": "Carregando...",
+      "noEntries": "Nenhuma entrada",
+      "totalEntries": "{{count}} entrada total",
+      "totalEntries_plural": "{{count}} entradas no total",
+      "pageInfo": "Página {{page}}"
+    },
+    "actions": {
+      "refresh": "Atualizar",
+      "export": "Exportar",
+      "clearFilters": "Limpar Filtros"
+    },
+    "dateRanges": {
+      "today": "Hoje",
+      "yesterday": "Ontem",
+      "last7Days": "Últimos 7 dias",
+      "last30Days": "Últimos 30 dias",
+      "thisMonth": "Este mês",
+      "lastMonth": "Mês passado",
+      "custom": "Período personalizado"
+    },
+    "activities": {
+      "all": "Todas as Atividades",
+      "login": "Login",
+      "logout": "Logout",
+      "create": "Criar",
+      "update": "Atualizar",
+      "delete": "Excluir",
+      "view": "Visualizar",
+      "download": "Baixar"
+    }
+  },
+  "knowledgeBase": {
+    "bannerAlt": "Banner da Base de Conhecimento"
+  },
+  "pagination": {
+    "ellipsis": "...",
+    "page": "Página",
+    "totalEntries": "{{count}} entrada total",
+    "totalEntries_plural": "{{count}} entradas no total",
+    "pageInfo": "Página {{page}}",
+    "pageInfoWithTotal": "Página {{page}} ({{total}} entradas no total)",
+    "previous": "Anterior",
+    "next": "Próximo",
+    "loading": "Carregando...",
+    "noResults": "Nenhum resultado encontrado"
+  },
+  "createEvent": {
+    "team": {
+      "pcx": "PCX - Geral",
+      "quality_assurance": "Garantia de Qualidade",
+      "hybrid": "Híbrido",
+      "residential": " Residencial",
+      "corporate": "Corporativo",
+      "projects": "Projectos",
+      "external": "Externo"
+    },
+    "titles": {
+      "create": "Criar Evento",
+      "edit": "Editar Evento"
+    },
+    "sections": {
+      "basicInfo": "Informações Básicas",
+      "classification": "Classificação do Evento"
+    },
+    "fields": {
+      "titleRequired": "Título *",
+      "titlePlaceholder": "Digite o título do evento",
+      "description": "Descrição",
+      "descriptionPlaceholder": "Digite a descrição do evento",
+      "startDateRequired": "Data de Início *",
+      "endDate": "Data de Fim",
+      "categoryRequired": "Categoria *",
+      "categoryPlaceholder": "Selecione a categoria",
+      "eventTypeRequired": "Tipo de Evento *",
+      "eventTypePlaceholder": "Selecione o tipo de evento",
+      "statusRequired": "Status *",
+      "statusPlaceholder": "Selecione o status",
+      "team": "Equipe",
+      "teamPlaceholder": "Digite o nome da equipe",
+      "accessLevel": "Nível de Acesso",
+      "accessLevelPlaceholder": "Selecione o nível de acesso",
+      "reminder": "Lembrete",
+      "reminderPlaceholder": "Selecione o lembrete",
+      "recurrenceType": "Recorrência",
+      "recurrenceTypePlaceholder": "Selecione a recorrência",
+      "notes": "Notas",
+      "notesPlaceholder": "Notas adicionais ou comentários"
+    },
+    "categories": {
+      "meeting": "Reunião",
+      "training": "Treinamento",
+      "conference": "Conferência",
+      "workshop": "Workshop",
+      "mistery_shop": "Cliente Misterio",
+      "deadline": "Prazo",
+      "holiday": "Feriado",
+      "celebration": "Celebração",
+      "review": "Revisão",
+      "others": "Outras Marcações"
+    },
+    "types": {
+      "internal": "Interno",
+      "external": "Externo",
+      "client": "Cliente",
+      "personal": "Pessoal",
+      "company": "Empresa"
+    },
+    "accessLevels": {
+      "public": "Público",
+      "private": "Privado",
+      "restricted": "Restrito",
+      "confidential": "Confidencial"
+    },
+    "status": {
+      "scheduled": "Agendado",
+      "confirmed": "Confirmado",
+      "cancelled": "Cancelado",
+      "completed": "Concluído",
+      "postponed": "Adiado"
+    },
+    "reminders": {
+      "none": "Sem Lembrete",
+      "fifteenMinutes": "15 minutos antes",
+      "thirtyMinutes": "30 minutos antes",
+      "oneHour": "1 hora antes",
+      "twoHours": "2 horas antes",
+      "oneDay": "1 dia antes",
+      "oneWeek": "1 semana antes"
+    },
+    "recurrence": {
+      "none": "Sem Recorrência",
+      "daily": "Diário",
+      "weekly": "Semanal",
+      "monthly": "Mensal",
+      "quarterly": "Trimestral",
+      "semestral": "Semestral",
+      "yearly": "Anual"
+    },
+    "validation": {
+      "titleRequired": "Título é obrigatório",
+      "categoryRequired": "Categoria é obrigatória",
+      "startDateRequired": "Data de início é obrigatória",
+      "eventTypeRequired": "Tipo de evento é obrigatório",
+      "statusRequired": "Status é obrigatório",
+      "endDateAfterStart": "Data de fim deve ser após a data de início"
+    },
+    "buttons": {
+      "save": "Salvar Evento",
+      "update": "Atualizar Evento",
+      "saving": "Salvando...",
+      "updating": "Atualizando..."
+    },
+    "messages": {
+      "saveSuccess": "Evento salvo com sucesso",
+      "saveError": "Falha ao salvar evento",
+      "fetchError": "Falha ao buscar evento: {error}"
+    }
+  },
+  "events": {
+    "title": "Gerenciamento de Eventos",
+    "subtitle": "Gerencie e organize todos os eventos",
+    "status": {
+      "scheduled": "Agendado",
+      "confirmed": "Confirmado",
+      "cancelled": "Cancelado",
+      "completed": "Concluído",
+      "postponed": "Adiado"
+    },
+    "types": {
+      "internal": "Interno",
+      "external": "Externo",
+      "client": "Cliente",
+      "personal": "Pessoal",
+      "company": "Empresa"
+    },
+    "table": {
+      "headers": {
+        "title": "Evento",
+        "status": "Status",
+        "category": "Categoria",
+        "eventType": "Tipo",
+        "dateTime": "Data e Hora",
+        "team": "Equipe",
+        "reminder": "Lembrete"
+      },
+      "duration": "Duração"
+    },
+    "actions": {
+      "confirm": "Confirmar",
+      "cancel": "Cancelar",
+      "complete": "Concluir",
+      "postpone": "Adiar",
+      "confirmSelected": "Confirmar Selecionados",
+      "cancelSelected": "Cancelar Selecionados",
+      "completeSelected": "Concluir Selecionados",
+      "postponeSelected": "Adiar Selecionados"
+    },
+    "messages": {
+      "deleteConfirm": "Tem certeza de que deseja excluir '{title}'?",
+      "bulkDeleteConfirm": "Tem certeza de que deseja excluir {count} eventos?",
+      "emptyState": "Nenhum evento encontrado"
+    }
+  },
+  "events.navigation": {
+    "backToCalendar": "Voltar ao Calendário",
+    "feature": "Destacar Evento"
+  },
+  "calendar": {
+    "loading": {
+      "events": "A carregar eventos...",
+      "text": "A carregar..."
+    },
+    "navigation": {
+      "today": "Hoje",
+      "prev": "Anterior",
+      "next": "Seguinte",
+      "month": "Mês",
+      "week": "Semana",
+      "day": "Dia"
+    },
+    "views": {
+      "dayGridMonth": "Mês",
+      "timeGridWeek": "Semana",
+      "timeGridDay": "Dia"
+    },
+    "events": {
+      "noTitle": "Sem Título",
+      "moreEvents": "+ {{count}} mais",
+      "allDay": "Todo o dia"
+    },
+    "dateClick": {
+      "alert": "Data clicada: {{date}}"
+    },
+    "modal": {
+      "close": "Fechar",
+      "title": "Detalhes do Evento",
+      "sections": {
+        "dateTime": "Data e Hora",
+        "description": "Descrição",
+        "details": "Detalhes",
+        "notes": "Notas",
+        "metadata": "Informações do Evento"
+      },
+      "fields": {
+        "start": "Início",
+        "end": "Fim",
+        "eventType": "Tipo de Evento",
+        "team": "Equipa",
+        "status": "Estado",
+        "reminder": "Lembrete",
+        "createdBy": "Criado por",
+        "created": "Criado",
+        "lastModified": "Última modificação",
+        "category": "Categoria",
+        "accessLevel": "Nível de Acesso"
+      }
+    },
+    "categories": {
+      "meeting": "Reunião",
+      "conference": "Conferência",
+      "audit": "Auditoria",
+      "training": "Formação",
+      "holiday": "Feriado",
+      "celebration": "Celebração",
+      "workshop": "Workshop",
+      "mistery_shop": "Cliente Misterio",
+      "review": "Revisão"
+    },
+    "eventTypes": {
+      "internal": "Interno",
+      "external": "Externo",
+      "client": "Cliente",
+      "personal": "Pessoal",
+      "company": "Empresa"
+    },
+    "status": {
+      "scheduled": "Agendado",
+      "confirmed": "Confirmado",
+      "cancelled": "Cancelado",
+      "completed": "Concluído",
+      "postponed": "Adiado"
+    },
+    "errors": {
+      "loadEvents": "Erro ao carregar eventos",
+      "noEventsFound": "Nenhum evento encontrado",
+      "connectionError": "Não foi possível conectar ao servidor"
+    },
+    "fallbackEvents": {
+      "meeting": "Reunião",
+      "conference": "Conferência",
+      "deadline": "Prazo"
+    }
+  },
+  "modal": {
+    "contactInfo": "Informações de Contato",
+    "phone": "Telefone",
+    "email": "E-mail",
+    "employmentDetails": "Detalhes do Emprego",
+    "team": "Equipe",
+    "reportTo": "Reporta Para",
+    "startDate": "Data de Início",
+    "type": "Tipo"
+  },
+  "searchTeam": {
+    "placeholder": "Pesquisar por nome ou e-mail...",
+    "search": "Pesquisar",
+    "clean": "Limpar"
+  },
+  "teams": {
+    "title": "Gestão de Equipe",
+    "table": {
+      "headers": {
+        "name": "Nome",
+        "team": "Equipe",
+        "reportTo": "Reporta Para",
+        "email": "E-mail",
+        "msisdn": "Número de Telefone",
+        "startDate": "Data de Início"
+      }
+    },
+    "emptyState": "Nenhum membro da equipe encontrado"
+  },
+  "teamForm": {
+    "validation": {
+      "nameRequired": "Nome é obrigatório",
+      "emailRequired": "E-mail é obrigatório",
+      "emailInvalid": "Por favor, insira um endereço de e-mail válido",
+      "departmentRequired": "Departamento é obrigatório",
+      "functionRequired": "Função é obrigatória",
+      "teamRequired": "Equipe é obrigatória",
+      "typeRequired": "Tipo de emprego é obrigatório"
+    },
+    "buttons": {
+      "save": "Salvar Membro",
+      "update": "Atualizar Membro",
+      "saving": "Salvando...",
+      "updating": "Atualizando..."
+    },
+    "messages": {
+      "saveSuccess": "Membro da equipe salvo com sucesso",
+      "saveError": "Falha ao salvar membro da equipe. Tente novamente.",
+      "fetchError": "Falha ao carregar dados do membro da equipe"
+    }
+  },
+  "navigationTeams": {
+    "goBack": "Voltar",
+    "backToTeams": "Voltar para Equipes",
+    "viewMode": "Alternar para Modo de Visualização",
+    "editMode": "Alternar para Modo de Edição",
+    "switchToViewMode": "Alternar para Modo de Visualização",
+    "switchToEditMode": "Alternar para Modo de Edição"
+  },
+  "employeeForm": {
+    "titles": {
+      "employeeDetails": "Detalhes do Funcionário",
+      "editEmployee": "Editar Funcionário",
+      "addNewEmployee": "Adicionar Novo Funcionário"
+    },
+    "sections": {
+      "personalInformation": "Informações Pessoais",
+      "organizationInformation": "Informações da Organização",
+      "contactEmploymentDetails": "Detalhes de Contato e Emprego"
+    },
+    "fields": {
+      "fullName": "Nome Completo",
+      "emailAddress": "Endereço de E-mail",
+      "department": "Departamento",
+      "team": "Equipe",
+      "functionPosition": "Função/Posição",
+      "reportsTo": "Reporta Para",
+      "phoneNumber": "Número de Telefone (MSISDN)",
+      "startDate": "Data de Início",
+      "currentType": "Tipo Atual",
+      "imageProfile": "Imagem do Perfil",
+      "section": "Seção",
+      "ranking": "Classificação",
+      "kpi": "KPI"
+    },
+    "placeholders": {
+      "fullName": "Digite o nome completo do funcionário",
+      "email": "funcionario@empresa.com",
+      "phone": "+244 999 999 999",
+      "managerName": "Nome do gerente",
+      "selectOption": "Selecionar"
+    },
+    "validation": {
+      "nameRequired": "Nome é obrigatório",
+      "departmentRequired": "Departamento é obrigatório",
+      "teamRequired": "Equipe é obrigatória",
+      "functionRequired": "Função é obrigatória",
+      "reportToRequired": "Reportar para é obrigatório",
+      "phoneRequired": "Número de telefone é obrigatório",
+      "phoneInvalid": "Por favor, insira um número de telefone válido",
+      "emailRequired": "E-mail é obrigatório",
+      "emailInvalid": "Por favor, insira um endereço de e-mail válido",
+      "startDateRequired": "Data de início é obrigatória",
+      "currentTypeRequired": "Tipo atual é obrigatório"
+    },
+    "status": {
+      "notSpecified": "Não especificado"
+    },
+    "departments": [
+      {
+        "value": "PCX - Projects & Customer Experience",
+        "label": "PCX - Projetos & Experiência do Cliente"
+      }
+    ],
+    "teams": [
+      {
+        "value": "Customer Experience",
+        "label": "Experiência do Cliente"
+      },
+      {
+        "value": "Corporate Customer Support",
+        "label": "Suporte ao Cliente Corporativo"
+      },
+      {
+        "value": "Residential Customer Support",
+        "label": "Suporte ao Cliente Residencial"
+      },
+      {
+        "value": "Hybrid Customer Support Luanda",
+        "label": "Suporte ao Cliente Híbrido Luanda"
+      },
+      {
+        "value": "Hybrid Customer Support Huambo",
+        "label": "Suporte ao Cliente Híbrido Huambo"
+      },
+      {
+        "value": "Hybrid Customer Support Huila",
+        "label": "Suporte ao Cliente Híbrido Huila"
+      },
+      {
+        "value": "Project Innovation Developers",
+        "label": "Desenvolvedores de Inovação de Projetos"
+      },
+      {
+        "value": "Project Managers",
+        "label": "Gestores de Projetos"
+      },
+      {
+        "value": "Quality Assurance",
+        "label": "Garantia de Qualidade"
+      },
+      {
+        "value": "PCX",
+        "label": "PCX"
+      }
+    ],
+    "functions": [
+      {
+        "value": "Customer Support Agent",
+        "label": "Agente de Suporte ao Cliente"
+      },
+      {
+        "value": "Developer",
+        "label": "Desenvolvedor"
+      },
+      {
+        "value": "Team Lead",
+        "label": "Líder de Equipa"
+      },
+      {
+        "value": "Manager",
+        "label": "Gestor"
+      },
+      {
+        "value": "Director",
+        "label": "Diretor"
+      },
+      {
+        "value": "Chief Projects & Customer Experience Officer",
+        "label": "Chefe de Projetos & Experiência do Cliente"
+      }
+    ],
+    "employeeTypes": [
+      {
+        "value": "HRD - Full Time",
+        "label": "HRD - Tempo Integral"
+      },
+      {
+        "value": "Africell -FT",
+        "label": "Africell - Tempo Integral"
+      }
+    ]
+  },
+  "feedback": {
+    "pageTitle": "Gestão de Feedback",
+    "pageSubtitle": "Gerencie feedback e sugestões dos usuários para melhorar sua plataforma",
+    "title": "Gestão de Feedback",
+    "subtitle": "Gerencie feedback e sugestões dos usuários",
+    "formSubtitle": "Envie ou gerencie feedback para nos ajudar a melhorar",
+    "bannerAlt": "Banner de gestão de feedback",
+    "loadingMessage": "Carregando feedback...",
+    "showingResults": "Mostrando {start} a {end} de {total} resultados",
+    "titles": {
+      "create": "Enviar Novo Feedback",
+      "edit": "Editar Feedback",
+      "view": "Visualizar Feedback"
+    },
+    "sections": {
+      "basicInfo": "Informações Básicas",
+      "attachments": "Anexos"
+    },
+    "fields": {
+      "titleRequired": "Título *",
+      "titlePlaceholder": "Digite um resumo breve do seu feedback",
+      "feedbackTypeRequired": "Tipo de Feedback *",
+      "feedbackTypePlaceholder": "Selecione o tipo de feedback",
+      "descriptionRequired": "Descrição *",
+      "descriptionPlaceholder": "Descreva seu feedback em detalhes",
+      "priorityRequired": "Prioridade *",
+      "priorityPlaceholder": "Selecione o nível de prioridade",
+      "statusRequired": "Status *",
+      "statusPlaceholder": "Selecione o status",
+      "image": "Captura de Tela/Imagem",
+      "imageHelp": "Carregue capturas de tela ou imagens para ajudar a explicar seu feedback (Máx 5MB, apenas PNG/JPG)"
+    },
+    "types": {
+      "bugReport": "Relatório de Bug",
+      "featureRequest": "Solicitação de Funcionalidade",
+      "generalSuggestion": "Sugestão Geral",
+      "usabilityIssue": "Problema de Usabilidade",
+      "performanceIssue": "Problema de Performance"
+    },
+    "priority": {
+      "low": "Baixa",
+      "medium": "Média",
+      "high": "Alta",
+      "critical": "Crítica"
+    },
+    "status": {
+      "new": "Novo",
+      "inReview": "Em Análise",
+      "inProgress": "Em Progresso",
+      "resolved": "Resolvido",
+      "closed": "Fechado",
+      "wontFix": "Não Será Corrigido"
+    },
+    "table": {
+      "headers": {
+        "title": "Título",
+        "type": "Tipo",
+        "priority": "Prioridade",
+        "status": "Status",
+        "author": "Autor",
+        "date": "Data",
+        "attachment": "Anexo"
+      }
+    },
+    "actions": {
+      "view": "Visualizar",
+      "edit": "Editar",
+      "delete": "Excluir",
+      "resolve": "Resolver",
+      "close": "Fechar",
+      "markInReview": "Marcar Em Análise",
+      "markInProgress": "Marcar Em Progresso",
+      "markResolved": "Marcar Resolvido",
+      "markClosed": "Marcar Fechado",
+      "markWontFix": "Marcar Não Será Corrigido"
+    },
+    "buttons": {
+      "save": "Enviar Feedback",
+      "update": "Atualizar Feedback",
+      "saving": "Enviando...",
+      "updating": "Atualizando...",
+      "selectImage": "Selecionar Imagem",
+      "removeImage": "Remover Imagem"
+    },
+    "labels": {
+      "preview": "Visualizar",
+      "attachedImage": "Imagem Anexada",
+      "noAttachment": "Nenhum anexo"
+    },
+    "validation": {
+      "titleRequired": "Título é obrigatório",
+      "feedbackTypeRequired": "Tipo de feedback é obrigatório",
+      "descriptionRequired": "Descrição é obrigatória",
+      "priorityRequired": "Prioridade é obrigatória",
+      "statusRequired": "Status é obrigatório",
+      "invalidImageType": "Por favor, selecione um arquivo de imagem válido (PNG, JPG, GIF)",
+      "imageTooLarge": "O arquivo de imagem é muito grande. O tamanho máximo é 5MB"
+    },
+    "messages": {
+      "fetchError": "Erro ao carregar feedback: {error}",
+      "saveSuccess": "Feedback salvo com sucesso!",
+      "saveError": "Erro ao salvar feedback. Tente novamente.",
+      "deleteConfirm": "Tem certeza de que deseja excluir '{title}'?",
+      "bulkDeleteConfirm": "Tem certeza de que deseja excluir {count} itens de feedback?",
+      "emptyState": "Nenhum feedback encontrado",
+      "loadingArticles": "Carregando itens de feedback..."
+    }
+  }
+}
