@@ -20,11 +20,7 @@ export const loginRequest = {scopes : [
     "files.readwrite",
     "sites.readwrite.all",
     "User.Read",
-    "Directory.Read.All",
     "User.ReadBasic.All",
-    'Mail.Read',
-    'Mail.ReadWrite',
-    'Calendars.Read'
   ]};
 
 
