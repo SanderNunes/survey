@@ -876,9 +876,14 @@ const AfricellSurvey = () => {
     }
   };
 
-  const isStepComplete = () => {
+const isStepComplete = () => {
     const question = getCurrentQuestion();
     const value = responses[question.id];
+
+    // Prevent moving to next question if currently recording
+    if (isRecording) {
+      return false;
+    }
 
     if (!value) return false;
 
