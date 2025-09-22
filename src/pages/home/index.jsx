@@ -45,7 +45,7 @@ const AfricellSurvey = () => {
     };
   }, []);
 
-  // Auto-sync when coming back online
+  // Auto-sync when coming back online with progress tracking
   useEffect(() => {
     if (isOnline && pendingSurveys.length > 0) {
       const timer = setTimeout(() => {
@@ -54,6 +54,9 @@ const AfricellSurvey = () => {
       return () => clearTimeout(timer);
     }
   }, [isOnline, pendingSurveys.length]);
+
+  // Add sync progress state
+  const [syncProgress, setSyncProgress] = useState({ isActive: false, current: 0, total: 0 });
 
   // Survey data
   const surveyData = {
@@ -135,6 +138,58 @@ const AfricellSurvey = () => {
     }
   };
 
+  // DUPLICATE PREVENTION FUNCTIONS
+  
+  // Generate unique survey ID
+  const generateSurveyId = () => {
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 8);
+    const userAgent = navigator.userAgent.substring(0, 10);
+    return `${timestamp}-${randomStr}-${btoa(userAgent).substring(0, 6)}`;
+  };
+
+  // Generate device fingerprint
+  const generateFingerprint = () => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.textBaseline = 'top';
+    ctx.font = '14px Arial';
+    ctx.fillText('Survey fingerprint', 2, 2);
+    
+    const fingerprint = {
+      screen: `${screen.width}x${screen.height}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      language: navigator.language,
+      canvas: canvas.toDataURL(),
+      userAgent: navigator.userAgent.substring(0, 50)
+    };
+    
+    return btoa(JSON.stringify(fingerprint)).substring(0, 20);
+  };
+
+  // Check for duplicate submissions
+  const checkForDuplicates = (newSurveyData) => {
+    const existingSurveys = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    
+    // Check for exact response matches
+    const duplicateByResponses = existingSurveys.find(survey => {
+      return JSON.stringify(survey.responses) === JSON.stringify(newSurveyData.responses);
+    });
+    
+    // Check for recent submissions (within last 5 minutes)
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+    const recentDuplicate = existingSurveys.find(survey => {
+      const surveyTime = new Date(survey.timestamp).getTime();
+      return surveyTime > fiveMinutesAgo;
+    });
+    
+    return {
+      hasExactDuplicate: !!duplicateByResponses,
+      hasRecentSubmission: !!recentDuplicate,
+      duplicateId: duplicateByResponses?.id || recentDuplicate?.id
+    };
+  };
+
   // Convert audio blob to base64 for storage
   const convertBlobToBase64 = (blob) => {
     return new Promise((resolve) => {
@@ -144,10 +199,40 @@ const AfricellSurvey = () => {
     });
   };
 
-  // Save survey offline
+  // Enhanced save survey offline with duplicate prevention
   const saveOffline = async (surveyData) => {
     try {
+      // Generate unique identifiers
+      const surveyId = generateSurveyId();
+      const fingerprint = generateFingerprint();
       const timestamp = new Date().toISOString();
+      
+      // Check for duplicates
+      const duplicateCheck = checkForDuplicates(surveyData);
+      
+      if (duplicateCheck.hasExactDuplicate) {
+        return {
+          success: false,
+          message: 'Este inquérito já foi submetido anteriormente.',
+          isDuplicate: true,
+          duplicateId: duplicateCheck.duplicateId
+        };
+      }
+      
+      if (duplicateCheck.hasRecentSubmission) {
+        // Ask user for confirmation
+        const confirm = window.confirm(
+          'Detectámos uma submissão recente. Tem certeza que deseja submeter outro inquérito?'
+        );
+        
+        if (!confirm) {
+          return {
+            success: false,
+            message: 'Submissão cancelada pelo utilizador.',
+            wasCancelled: true
+          };
+        }
+      }
       
       // Convert audio recordings to base64
       const audioData = {};
@@ -159,10 +244,20 @@ const AfricellSurvey = () => {
 
       const offlineData = {
         ...surveyData,
-        id: Date.now(),
+        id: surveyId,
         timestamp,
+        fingerprint,
         status: 'pending',
-        audioData
+        audioData,
+        metadata: {
+          ...surveyData.metadata,
+          submissionMethod: 'offline',
+          deviceInfo: {
+            userAgent: navigator.userAgent,
+            screen: `${screen.width}x${screen.height}`,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          }
+        }
       };
 
       const existing = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
@@ -173,7 +268,8 @@ const AfricellSurvey = () => {
       return {
         success: true,
         message: 'Inquérito guardado localmente. Será sincronizado quando houver conexão.',
-        itemId: `OFFLINE_${offlineData.id}`
+        itemId: `OFFLINE_${surveyId}`,
+        surveyId: surveyId
       };
     } catch (error) {
       return {
@@ -184,12 +280,16 @@ const AfricellSurvey = () => {
     }
   };
 
-  // Real SharePoint save function using your hook
+  // Enhanced SharePoint save function with duplicate prevention
   const saveToSharePoint = useCallback(async (surveyData) => {
     try {
-      console.log('Saving to SharePoint...', surveyData);
+      console.log('Saving to SharePoint with duplicate check...', surveyData);
 
-      // Structure data to match what your saveSurveyResponse function expects
+      // Generate unique identifiers
+      const surveyId = generateSurveyId();
+      const fingerprint = generateFingerprint();
+
+      // Structure data with duplicate prevention info
       const formattedSurveyData = {
         responses: responses,
         customInputs: customInputs,
@@ -197,7 +297,15 @@ const AfricellSurvey = () => {
         metadata: {
           section: currentSection,
           completedAt: new Date().toISOString(),
-          userType: responses.operadora === 'Africell' ? 'Africell User' : 'Non-Africell User'
+          userType: responses.operadora === 'Africell' ? 'Africell User' : 'Non-Africell User',
+          surveyId: surveyId,
+          fingerprint: fingerprint,
+          submissionMethod: 'online',
+          deviceInfo: {
+            userAgent: navigator.userAgent,
+            screen: `${screen.width}x${screen.height}`,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          }
         }
       };
 
@@ -216,13 +324,18 @@ const AfricellSurvey = () => {
       console.log('SharePoint save successful:', result);
 
       if (!result.success) {
+        // Check if it's a duplicate error from server
+        if (result.message?.includes('duplicate') || result.message?.includes('já existe')) {
+          throw new Error('Inquérito duplicado detectado no servidor.');
+        }
         throw new Error(result.message || 'SharePoint save failed');
       }
 
       return {
         success: true,
         message: result.message || 'Inquérito enviado com sucesso para SharePoint!',
-        itemId: result.itemId || `SP_${Date.now()}`,
+        itemId: result.itemId || `SP_${surveyId}`,
+        surveyId: surveyId,
         details: {
           responsesCount: Object.keys(responses).length,
           audioRecordings: Object.keys(audioRecordings).length,
@@ -238,27 +351,50 @@ const AfricellSurvey = () => {
     }
   }, [responses, customInputs, audioRecordings, currentSection, saveSurveyResponse]);
 
-  // Sync pending surveys
-// Replace the syncPendingSurveys function with this corrected version:
-
+  // Enhanced sync function with progress tracking
   const syncPendingSurveys = async () => {
     if (!isOnline || pendingSurveys.length === 0) return;
 
-    console.log('Starting sync of pending surveys:', pendingSurveys.length);
-  
+    console.log('Starting sync of pending surveys with duplicate check:', pendingSurveys.length);
+
+    // Set sync progress
+    setSyncProgress({ isActive: true, current: 0, total: pendingSurveys.length });
+
     try {
       const syncResults = [];
-    
-      for (const survey of pendingSurveys) {
-        try {
-          console.log('Syncing survey:', survey.id);
+      const processedFingerprints = new Set();
+
+      for (let i = 0; i < pendingSurveys.length; i++) {
+        const survey = pendingSurveys[i];
         
+        // Update progress
+        setSyncProgress({ isActive: true, current: i + 1, total: pendingSurveys.length });
+
+        try {
+          // Skip if we've already processed a survey with this fingerprint in this batch
+          if (survey.fingerprint && processedFingerprints.has(survey.fingerprint)) {
+            console.log('Skipping duplicate survey in batch:', survey.id);
+            syncResults.push({ 
+              surveyId: survey.id, 
+              success: false, 
+              error: 'Duplicate in batch',
+              skipped: true 
+            });
+            continue;
+          }
+
+          console.log('Syncing survey:', survey.id);
+
+          // Add to processed set
+          if (survey.fingerprint) {
+            processedFingerprints.add(survey.fingerprint);
+          }
+
           // Convert base64 audio data back to blobs if needed
           const audioRecordingsToSync = {};
           if (survey.audioData) {
             for (const [key, base64Data] of Object.entries(survey.audioData)) {
               try {
-                // Convert base64 back to blob
                 const response = await fetch(base64Data);
                 const blob = await response.blob();
                 const audioUrl = URL.createObjectURL(blob);
@@ -269,17 +405,19 @@ const AfricellSurvey = () => {
             }
           }
 
-          // Structure the data properly for SharePoint
+          // Structure the data properly for SharePoint with duplicate prevention
           const formattedSurveyData = {
             responses: survey.responses || {},
             customInputs: survey.customInputs || {},
             audioRecordings: audioRecordingsToSync,
             metadata: {
+              ...survey.metadata,
               section: survey.metadata?.section || 'unknown',
               completedAt: survey.timestamp || new Date().toISOString(),
               userType: survey.responses?.operadora === 'Africell' ? 'Africell User' : 'Non-Africell User',
               syncedAt: new Date().toISOString(),
-              originalOfflineId: survey.id
+              originalOfflineId: survey.id,
+              fingerprint: survey.fingerprint
             }
           };
 
@@ -296,11 +434,11 @@ const AfricellSurvey = () => {
 
           // Call SharePoint save function
           const result = await saveSurveyResponse(formattedSurveyData);
-        
+
           if (result.success) {
             console.log('Successfully synced survey:', survey.id, 'SharePoint ID:', result.itemId);
             syncResults.push({ surveyId: survey.id, success: true, sharePointId: result.itemId });
-          
+
             // Clean up audio URLs to prevent memory leaks
             Object.values(audioRecordingsToSync).forEach(recording => {
               if (recording.url) {
@@ -308,58 +446,65 @@ const AfricellSurvey = () => {
               }
             });
           } else {
-            throw new Error(result.message || 'SharePoint save failed');
+            // Check if it's a duplicate error
+            if (result.message?.includes('duplicate') || result.message?.includes('já existe')) {
+              console.log('Survey already exists on server, marking as synced:', survey.id);
+              syncResults.push({ 
+                surveyId: survey.id, 
+                success: true, 
+                sharePointId: 'DUPLICATE',
+                wasDuplicate: true 
+              });
+            } else {
+              throw new Error(result.message || 'SharePoint save failed');
+            }
           }
-        
+
         } catch (syncError) {
           console.error('Failed to sync survey:', survey.id, syncError);
           syncResults.push({ surveyId: survey.id, success: false, error: syncError.message });
-          // Don't break the loop, continue with other surveys
         }
       }
 
-      // Check if all surveys were synced successfully
+      // Process results
       const successfulSyncs = syncResults.filter(r => r.success);
-      const failedSyncs = syncResults.filter(r => !r.success);
+      const failedSyncs = syncResults.filter(r => !r.success && !r.skipped);
+      const skippedSyncs = syncResults.filter(r => r.skipped);
 
       if (successfulSyncs.length > 0) {
         console.log(`Successfully synced ${successfulSyncs.length} surveys`);
-      
+
         // Remove successfully synced surveys from pending list
         const remainingPending = pendingSurveys.filter(survey =>
           !successfulSyncs.some(sync => sync.surveyId === survey.id)
         );
-      
+
         // Update localStorage and state
         localStorage.setItem('offline-surveys', JSON.stringify(remainingPending));
         setPendingSurveys(remainingPending);
-      
+
         // Show success message
-        if (remainingPending.length === 0) {
-          setSaveResult({
-            success: true,
-            message: `Todos os ${successfulSyncs.length} inquéritos foram sincronizados com sucesso!`
-          });
-        } else {
-          setSaveResult({
-            success: true,
-            message: `${successfulSyncs.length} inquéritos sincronizados. ${failedSyncs.length} falharam.`
-          });
+        let message = `${successfulSyncs.length} inquéritos sincronizados com sucesso!`;
+        if (skippedSyncs.length > 0) {
+          message += ` ${skippedSyncs.length} duplicados removidos.`;
         }
+        if (failedSyncs.length > 0) {
+          message += ` ${failedSyncs.length} falharam.`;
+        }
+
+        setSaveResult({
+          success: true,
+          message: message
+        });
       }
 
-      if (failedSyncs.length > 0) {
-        console.error('Some surveys failed to sync:', failedSyncs);
-        if (successfulSyncs.length === 0) {
-          setSaveResult({
-            success: false,
-            message: `Falha na sincronização de ${failedSyncs.length} inquéritos. Tente novamente.`
-          });
-        }
-      }
+      // Clear sync progress after completion
+      setTimeout(() => {
+        setSyncProgress({ isActive: false, current: 0, total: 0 });
+      }, 2000);
 
       return successfulSyncs.length > 0;
-    
+
     } catch (error) {
       console.error('Sync process failed:', error);
       setSaveResult({
@@ -367,6 +512,9 @@ const AfricellSurvey = () => {
         message: 'Erro durante a sincronização. Tente novamente.',
         error: error.message
       });
+      
+      // Clear sync progress on error
+      setSyncProgress({ isActive: false, current: 0, total: 0 });
       return false;
     }
   };
@@ -383,7 +531,7 @@ const AfricellSurvey = () => {
     setIsSaving(false);
   };
 
-  // Main save function
+  // Main save function with duplicate prevention (timer removed)
   const handleSaveSurvey = useCallback(async () => {
     // Prevent saving if no responses
     if (Object.keys(responses).length === 0) {
@@ -393,6 +541,9 @@ const AfricellSurvey = () => {
       });
       return;
     }
+
+    // TIMER REMOVED - only keep content-based duplicate detection
+    // The saveOffline function already checks for exact duplicates and recent submissions
 
     setIsSaving(true);
     setSaveResult(null);
@@ -551,6 +702,12 @@ const AfricellSurvey = () => {
   };
 
   const nextStep = () => {
+    // Check if currently recording and prevent navigation
+    if (isRecording) {
+      alert('Por favor, pare a gravação antes de continuar para a próxima pergunta.');
+      return;
+    }
+
     const currentSectionData = sections[currentSection];
 
     if (currentStep < currentSectionData.questions.length - 1) {
@@ -574,6 +731,12 @@ const AfricellSurvey = () => {
   };
 
   const prevStep = () => {
+    // Check if currently recording and prevent navigation
+    if (isRecording) {
+      alert('Por favor, pare a gravação antes de voltar para a pergunta anterior.');
+      return;
+    }
+
     if (currentStep > 0) {
       setCurrentStep(currentStep - 1);
     } else if (currentSection === 'focusGroup') {
@@ -876,7 +1039,7 @@ const AfricellSurvey = () => {
     }
   };
 
-const isStepComplete = () => {
+  const isStepComplete = () => {
     const question = getCurrentQuestion();
     const value = responses[question.id];
 
@@ -914,18 +1077,18 @@ const isStepComplete = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 py-4 px-3 sm:py-8 sm:px-4">
-      {/* Floating Connection Status Badge */}
+      {/* Connection Status Badge with Sync Progress */}
       <div className={`fixed bottom-4 right-4 z-40 px-3 py-2 rounded-full shadow-lg transition-all duration-300 ${
         isOnline ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-      } ${pendingSurveys.length > 0 ? 'animate-pulse' : ''}`}>
+      } ${(pendingSurveys.length > 0 || syncProgress.isActive) ? 'animate-pulse' : ''}`}>
         <div className="flex items-center gap-2 text-xs sm:text-sm">
           {isOnline ? <Wifi className="w-3 h-3 sm:w-4 sm:h-4" /> : <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />}
           <span className="hidden sm:inline">
             {isOnline ? 'Online' : 'Offline'}
           </span>
-          {pendingSurveys.length > 0 && (
+          {(pendingSurveys.length > 0 || syncProgress.isActive) && (
             <span className="px-2 py-1 bg-white bg-opacity-20 rounded-full text-xs">
-              {pendingSurveys.length}
+              {syncProgress.isActive ? `${syncProgress.current}/${syncProgress.total}` : pendingSurveys.length}
             </span>
           )}
         </div>
@@ -972,8 +1135,9 @@ const isStepComplete = () => {
           <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-0">
             <button
               onClick={prevStep}
-              disabled={currentStep === 0 && currentSection === 'demographic'}
+              disabled={currentStep === 0 && currentSection === 'demographic' || isRecording}
               className="flex items-center justify-center px-4 py-3 sm:px-6 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors order-2 sm:order-1"
+              title={isRecording ? "Pare a gravação para navegar" : ""}
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
               Anterior
@@ -981,8 +1145,9 @@ const isStepComplete = () => {
 
             <button
               onClick={nextStep}
-              disabled={!isStepComplete()}
+              disabled={!isStepComplete() || isRecording}
               className="flex items-center justify-center px-4 py-3 sm:px-6 bg-primary text-white rounded-lg hover:bg-primaryDark disabled:opacity-50 disabled:cursor-not-allowed transition-colors order-1 sm:order-2"
+              title={isRecording ? "Pare a gravação para continuar" : ""}
             >
               {isLastSection ? (
                 <>
@@ -997,6 +1162,18 @@ const isStepComplete = () => {
               )}
             </button>
           </div>
+
+          {/* Recording Warning Message */}
+          {isRecording && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center text-yellow-800">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse mr-2"></div>
+                <p className="text-sm font-medium">
+                  Gravação em progresso. Pare a gravação para navegar entre perguntas.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Success message with option to start new survey */}
@@ -1019,22 +1196,45 @@ const isStepComplete = () => {
           </div>
         )}
 
-        {/* Sync Button for Pending Surveys */}
-        {isOnline && pendingSurveys.length > 0 && (
+        {/* Auto-sync Status Display (no manual sync button) */}
+        {isOnline && (pendingSurveys.length > 0 || syncProgress.isActive) && (
           <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-blue-800">
-                  {pendingSurveys.length} inquérito{pendingSurveys.length > 1 ? 's' : ''} pendente{pendingSurveys.length > 1 ? 's' : ''}
-                </p>
-                <p className="text-xs text-blue-600">Clique para sincronizar com SharePoint</p>
+              <div className="flex-1">
+                {syncProgress.isActive ? (
+                  <>
+                    <p className="text-sm font-medium text-blue-800">
+                      Sincronizando inquéritos...
+                    </p>
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs text-blue-600 mb-1">
+                        <span>Progresso: {syncProgress.current} de {syncProgress.total}</span>
+                        <span>{Math.round((syncProgress.current / syncProgress.total) * 100)}%</span>
+                      </div>
+                      <div className="w-full bg-blue-200 rounded-full h-2">
+                        <div 
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                          style={{ width: `${(syncProgress.current / syncProgress.total) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-blue-800">
+                      {pendingSurveys.length} inquérito{pendingSurveys.length > 1 ? 's' : ''} pendente{pendingSurveys.length > 1 ? 's' : ''}
+                    </p>
+                    <p className="text-xs text-blue-600">Sincronização automática iniciada...</p>
+                  </>
+                )}
               </div>
-              <button
-                onClick={syncPendingSurveys}
-                className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-              >
-                Sincronizar
-              </button>
+              
+              {/* Loading indicator */}
+              {syncProgress.isActive && (
+                <div className="ml-3 flex items-center">
+                  <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1107,6 +1307,9 @@ const isStepComplete = () => {
                     {saveResult.itemId && (
                       <p className="text-xs mt-1">ID: {saveResult.itemId}</p>
                     )}
+                    {saveResult.isDuplicate && (
+                      <p className="text-xs mt-1 font-medium">Inquérito duplicado detectado</p>
+                    )}
                   </div>
 
                   {saveResult.success ? (
@@ -1132,12 +1335,14 @@ const isStepComplete = () => {
                       >
                         Fechar
                       </button>
-                      <button
-                        onClick={handleSaveSurvey}
-                        className="flex-1 px-4 py-2 bg-primary text-white rounded hover:bg-primaryDark"
-                      >
-                        Tentar Novamente
-                      </button>
+                      {!saveResult.isDuplicate && !saveResult.wasCancelled && (
+                        <button
+                          onClick={handleSaveSurvey}
+                          className="flex-1 px-4 py-2 bg-primary text-white rounded hover:bg-primaryDark"
+                        >
+                          Tentar Novamente
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
