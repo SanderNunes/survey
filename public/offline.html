@@ -1,15 +1,997 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-PT">
 
 <head>
-    <title>Offline - Africell Survey</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Africell Survey - Offline Mode</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #fed7aa 0%, #fecaca 100%);
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 32rem;
+            margin: 0 auto;
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .container {
+                max-width: 42rem;
+                padding: 2rem;
+            }
+        }
+
+        .header {
+            margin-bottom: 1.5rem;
+        }
+
+        @media (min-width: 640px) {
+            .header {
+                margin-bottom: 2rem;
+            }
+        }
+
+        .header-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .header-row {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                gap: 0;
+            }
+        }
+
+        .title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #ea580c;
+            text-align: center;
+        }
+
+        @media (min-width: 640px) {
+            .title {
+                font-size: 1.5rem;
+                text-align: left;
+            }
+        }
+
+        .step-counter {
+            font-size: 0.875rem;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        @media (min-width: 640px) {
+            .step-counter {
+                text-align: right;
+            }
+        }
+
+        .progress-container {
+            width: 100%;
+            background: #e5e7eb;
+            border-radius: 9999px;
+            height: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .progress-bar {
+            background: #f97316;
+            height: 0.5rem;
+            border-radius: 9999px;
+            width: 16.67%;
+            transition: width 0.3s;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ea580c;
+            text-align: center;
+        }
+
+        @media (min-width: 640px) {
+            .section-title {
+                font-size: 1.125rem;
+            }
+        }
+
+        .question-container {
+            margin-bottom: 1.5rem;
+        }
+
+        @media (min-width: 640px) {
+            .question-container {
+                margin-bottom: 2rem;
+            }
+        }
+
+        .question {
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #ea580c;
+            margin-bottom: 1rem;
+            text-align: center;
+            padding: 0 0.5rem;
+        }
+
+        @media (min-width: 640px) {
+            .question {
+                font-size: 1.25rem;
+                margin-bottom: 1.5rem;
+            }
+        }
+
+        .answer-container {
+            max-width: 28rem;
+            margin: 0 auto;
+        }
+
+        .dropdown,
+        .textarea,
+        .text-input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        @media (min-width: 640px) {
+
+            .dropdown,
+            .textarea,
+            .text-input {
+                padding: 1rem;
+            }
+        }
+
+        .dropdown:focus,
+        .textarea:focus,
+        .text-input:focus {
+            outline: none;
+            border-color: #f97316;
+        }
+
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        @media (min-width: 640px) {
+            .radio-group {
+                flex-direction: row;
+                gap: 1rem;
+            }
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            padding: 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .radio-option:hover {
+            background: #f9fafb;
+        }
+
+        .radio-option input {
+            margin-right: 0.75rem;
+            transform: scale(1.25);
+            accent-color: #f97316;
+        }
+
+        .radio-option span {
+            font-size: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .radio-option span {
+                font-size: 1.125rem;
+            }
+        }
+
+        .navigation {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        @media (min-width: 640px) {
+            .navigation {
+                flex-direction: row;
+                justify-content: space-between;
+                gap: 0;
+            }
+        }
+
+        .nav-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-size: 1rem;
+        }
+
+        @media (min-width: 640px) {
+            .nav-button {
+                padding: 0.75rem 1.5rem;
+            }
+        }
+
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .nav-button.prev {
+            color: #6b7280;
+            border: 1px solid #d1d5db;
+            background: white;
+            order: 2;
+        }
+
+        @media (min-width: 640px) {
+            .nav-button.prev {
+                order: 1;
+            }
+        }
+
+        .nav-button.prev:hover:not(:disabled) {
+            background: #f9fafb;
+        }
+
+        .nav-button.next {
+            background: #f97316;
+            color: white;
+            order: 1;
+        }
+
+        @media (min-width: 640px) {
+            .nav-button.next {
+                order: 2;
+            }
+        }
+
+        .nav-button.next:hover:not(:disabled) {
+            background: #ea580c;
+        }
+
+        .connection-status {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            padding: 0.75rem;
+            border-radius: 9999px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+            z-index: 1000;
+            transition: all 0.3s;
+        }
+
+        @media (min-width: 640px) {
+            .connection-status {
+                font-size: 0.875rem;
+            }
+        }
+
+        .connection-status.offline {
+            background: #ef4444;
+            color: white;
+        }
+
+        .connection-status.online {
+            background: #10b981;
+            color: white;
+        }
+
+        .connection-status.animate-pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .save-dialog {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            z-index: 50;
+        }
+
+        .save-dialog-content {
+            background: white;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            max-width: 28rem;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .save-dialog h3 {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .save-dialog-buttons {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .save-dialog-buttons button {
+            flex: 1;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .save-dialog-buttons .cancel {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .save-dialog-buttons .save {
+            background: #f97316;
+            color: white;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .success-message {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #d1fae5;
+            border: 1px solid #10b981;
+            border-radius: 0.5rem;
+        }
+
+        .success-message p {
+            color: #065f46;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .offline-banner {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .offline-banner p {
+            color: #92400e;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+    </style>
 </head>
 
 <body>
-    <h1>You're offline</h1>
-    <p>The survey app is not available while offline. Please check your connection.</p>
+    <!-- Connection Status Badge -->
+    <div id="connectionStatus" class="connection-status offline">
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-12.728 12.728">
+            </path>
+        </svg>
+        <span class="hidden sm:inline">Offline</span>
+    </div>
+
+    <div class="container">
+        <!-- Offline Banner -->
+        <div id="offlineBanner" class="offline-banner">
+            <p>💾 Modo Offline - Os dados serão guardados localmente e sincronizados quando voltar online</p>
+        </div>
+
+        <!-- Header -->
+        <div class="header">
+            <div class="header-row">
+                <h1 class="title">Inquérito Africell</h1>
+                <div class="step-counter" id="stepCounter">1 de 6</div>
+            </div>
+
+            <div class="progress-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <h2 class="section-title" id="sectionTitle">Secção 1: Dados Demográficos</h2>
+        </div>
+
+        <!-- Question Container -->
+        <div class="question-container">
+            <h3 class="question" id="questionText">Bairro/Zona</h3>
+
+            <div class="answer-container" id="answerContainer">
+                <select class="dropdown" id="currentAnswer">
+                    <option value="">Selecione uma opção</option>
+                    <option value="Lubango">Lubango</option>
+                    <option value="Matala">Matala</option>
+                    <option value="Chibia">Chibia</option>
+                    <option value="Caluquembe">Caluquembe</option>
+                    <option value="Quipungo">Quipungo</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="navigation">
+            <button class="nav-button prev" id="prevButton" onclick="prevStep()" disabled>
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+                Anterior
+            </button>
+
+            <button class="nav-button next" id="nextButton" onclick="nextStep()" disabled>
+                Próxima
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Save Dialog -->
+    <div id="saveDialog" class="save-dialog hidden">
+        <div class="save-dialog-content">
+            <h3>Guardar Inquérito</h3>
+            <p>Deseja guardar as respostas do inquérito agora?</p>
+
+            <div style="margin: 1rem 0; padding: 1rem; background: #f3f4f6; border-radius: 0.5rem;">
+                <h4 style="font-size: 0.875rem; font-weight: 500; margin-bottom: 0.75rem;">Resumo do Inquérito:</h4>
+                <div id="surveySummary" style="font-size: 0.875rem; color: #6b7280;">
+                    <p>• Respostas: <span id="responseCount">0</span></p>
+                    <p>• Status: Offline - Guardado localmente</p>
+                </div>
+            </div>
+
+            <div class="save-dialog-buttons">
+                <button class="cancel" onclick="closeSaveDialog()">Cancelar</button>
+                <button class="save" onclick="saveSurvey()">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Message -->
+    <div id="successMessage" class="hidden">
+        <div class="success-message">
+            <p>✓ Inquérito guardado com sucesso offline!</p>
+            <button onclick="startNewSurvey()"
+                style="margin-top: 0.5rem; padding: 0.5rem 1rem; background: #10b981; color: white; border: none; border-radius: 0.25rem; cursor: pointer;">
+                Novo Inquérito
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Survey data and state
+        let currentStep = 0;
+        let currentSection = 'demographic';
+        let responses = {};
+        let customInputs = {};
+
+        const surveyData = {
+            bairros: ['Lubango', 'Matala', 'Chibia', 'Caluquembe', 'Quipungo'],
+            idades: ['18–24', '25–34', '35–44', '45+'],
+            generos: ['Masculino', 'Feminino'],
+            ocupacoes: [
+                'Estudante', 'Desempregado(a)', 'Doméstico(a) / Dona de Casa', 'Comércio / Negócios / Empresário(a)',
+                'Educação / Professor(a) / Académico(a)', 'Funcionário(a) Público(a) / Governo',
+                'Profissional de Saúde (Médico(a), Enfermeiro(a), etc.)', 'Reformado(a) / Aposentado(a)',
+                'Agricultura / Pecuária', 'Gestão Administrativa / Administração-Privado', 'Outro (especificar)'
+            ],
+            operadoras: ['Africell', 'Unitel', 'Movicel', 'Outros'],
+            servicosAfricell: ['Voz', 'Dados', 'SMS', 'Afrimoney'],
+            gastosMensais: [
+                'Menos de 1.000 Kz', '1.001 – 3.000 Kz', '3.001 – 5.000 Kz',
+                '5.001 – 10.000 Kz', '10.001 – 20.000 Kz', 'Mais de 20.000 Kz'
+            ],
+            melhorias: [
+                'Pacotes/Planos mais baratos', 'Melhor cobertura', 'Mais lojas na Huíla',
+                'Melhor atendimento ao cliente', 'Novos serviços como Afrimoney', 'Outro (especificar)'
+            ],
+            operadorasAtuais: ['Unitel', 'Movicel', 'Outros'],
+            classificacoes: ['Muito positivo', 'Positivo', 'Neutro', 'Negativo', 'Muito negativo']
+        };
+
+        const sections = {
+            demographic: {
+                title: 'Secção 1: Dados Demográficos',
+                questions: [
+                    { id: 'bairro', text: 'Bairro/Zona', type: 'dropdown', options: surveyData.bairros },
+                    { id: 'idade', text: 'Faixa etária', type: 'dropdown', options: surveyData.idades },
+                    { id: 'genero', text: 'Género', type: 'dropdown', options: surveyData.generos },
+                    { id: 'ocupacao', text: 'Ocupação', type: 'dropdown', options: surveyData.ocupacoes, hasOther: true },
+                    { id: 'operadora', text: 'Qual é a sua principal operadora de telemóvel?', type: 'dropdown', options: surveyData.operadoras },
+                    { id: 'multipleSim', text: 'Utiliza mais do que um cartão SIM?', type: 'yesno', followUp: 'Se sim, porquê?' }
+                ]
+            },
+            africellUser: {
+                title: 'Secção 2A: Utilizadores Africell',
+                questions: [
+                    { id: 'satisfacao', text: 'Numa escala de 1 a 5 (sendo 1 muito satisfeito e 5 muito insatisfeito), qual é o seu nível de satisfação com a Africell?', type: 'likert', scale: 5 },
+                    { id: 'servicoMaisUsado', text: 'O que é que mais utiliza no serviço Africell?', type: 'dropdown', options: surveyData.servicosAfricell },
+                    { id: 'gastoMensal', text: 'Quanto costuma gastar por mês com serviços da Africell?', type: 'dropdown', options: surveyData.gastosMensais },
+                    { id: 'razaoEscolha', text: 'Por que escolheu a Africell em vez da concorrência?', type: 'textarea' },
+                    { id: 'recomendacao', text: 'Recomendaria a Africell a amigos/familiares?', type: 'yesnomaybe', followUp: 'Justificação' }
+                ]
+            },
+            nonAfricellUser: {
+                title: 'Secção 2B: Não Utilizadores Africell',
+                questions: [
+                    { id: 'operadoraAtual', text: 'Qual é a sua actual operadora?', type: 'dropdown', options: surveyData.operadorasAtuais },
+                    { id: 'razaoOperadoraAtual', text: 'Por que é que escolheu essa operadora em vez da Africell?', type: 'textarea' },
+                    { id: 'experimentouAfricell', text: 'Já alguma vez experimentou os produtos e serviços da Africell?', type: 'yesno', followUp: 'Se sim, o que o levou a parar?' },
+                    { id: 'opiniao', text: 'No geral, como classificaria a sua opinião sobre a Africell?', type: 'dropdown', options: surveyData.classificacoes }
+                ]
+            },
+            focusGroup: {
+                title: 'Secção 3: Grupo Focal',
+                questions: [
+                    {
+                        id: 'interesseGrupoFocal',
+                        text: 'Estaria interessado(a) em participar numa discussão de grupo focal por um prémio de 30.000 Kz?',
+                        type: 'yesno',
+                        followUp: 'Se sim, por favor forneça o seu nome e contacto'
+                    }
+                ]
+            }
+        };
+
+        // Initialize the survey
+        function init() {
+            updateDisplay();
+            checkConnection();
+
+            // Check connection periodically
+            setInterval(checkConnection, 5000);
+
+            // Load any existing data
+            loadSavedData();
+        }
+
+        function getCurrentQuestion() {
+            const currentSectionData = sections[currentSection];
+            return currentSectionData.questions[currentStep];
+        }
+
+        function updateDisplay() {
+            const currentSectionData = sections[currentSection];
+            const question = getCurrentQuestion();
+            const totalSteps = currentSectionData.questions.length;
+
+            // Update headers
+            document.getElementById('stepCounter').textContent = `${currentStep + 1} de ${totalSteps}`;
+            document.getElementById('sectionTitle').textContent = currentSectionData.title;
+            document.getElementById('questionText').textContent = question.text;
+
+            // Update progress bar
+            const progress = ((currentStep + 1) / totalSteps) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+
+            // Render question
+            renderQuestion(question);
+
+            // Update navigation
+            updateNavigation();
+        }
+
+        function renderQuestion(question) {
+            const container = document.getElementById('answerContainer');
+            const currentValue = responses[question.id] || '';
+
+            let html = '';
+
+            switch (question.type) {
+                case 'dropdown':
+                    html = `<select class="dropdown" id="currentAnswer" onchange="handleResponse('${question.id}', this.value)">
+                        <option value="">Selecione uma opção</option>`;
+
+                    question.options.forEach(option => {
+                        html += `<option value="${option}" ${currentValue === option ? 'selected' : ''}>${option}</option>`;
+                    });
+
+                    html += '</select>';
+
+                    if (question.hasOther && currentValue === 'Outro (especificar)') {
+                        html += `<input type="text" class="text-input" style="margin-top: 1rem;" placeholder="Por favor, especifique" 
+                                value="${customInputs[question.id] || ''}" 
+                                onchange="handleCustomInput('${question.id}', this.value)">`;
+                    }
+                    break;
+
+                case 'yesno':
+                case 'yesnomaybe':
+                    const options = question.type === 'yesno' ? ['Sim', 'Não'] : ['Sim', 'Não', 'Talvez'];
+                    html = '<div class="radio-group">';
+
+                    options.forEach(option => {
+                        html += `<label class="radio-option">
+                            <input type="radio" name="${question.id}" value="${option}" 
+                                   ${currentValue === option ? 'checked' : ''} 
+                                   onchange="handleResponse('${question.id}', this.value)">
+                            <span>${option}</span>
+                        </label>`;
+                    });
+
+                    html += '</div>';
+
+                    if (currentValue && (currentValue === 'Sim' || question.type === 'yesnomaybe') && question.followUp) {
+                        html += `<textarea class="textarea" style="margin-top: 1rem;" placeholder="${question.followUp}" 
+                                onchange="handleCustomInput('${question.id}', this.value)">${customInputs[question.id] || ''}</textarea>`;
+                    }
+                    break;
+
+                case 'likert':
+                    html = `<div style="margin-bottom: 1rem;">
+                        <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; margin-bottom: 0.75rem; padding: 0 0.5rem;">
+                            <span>Muito Satisfeito</span>
+                            <span>Muito Insatisfeito</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 0 0.5rem;">`;
+
+                    for (let i = 1; i <= 5; i++) {
+                        html += `<label style="display: flex; flex-direction: column; align-items: center; cursor: pointer; padding: 0.5rem;">
+                            <input type="radio" name="${question.id}" value="${i}" 
+                                   ${currentValue === i.toString() ? 'checked' : ''} 
+                                   onchange="handleResponse('${question.id}', this.value)"
+                                   style="margin-bottom: 0.5rem; transform: scale(1.25); accent-color: #f97316;">
+                            <span style="font-weight: bold;">${i}</span>
+                        </label>`;
+                    }
+
+                    html += '</div></div>';
+                    break;
+
+                case 'textarea':
+                    html = `<textarea class="textarea" placeholder="Digite sua resposta aqui..." 
+                            onchange="handleResponse('${question.id}', this.value)">${currentValue}</textarea>`;
+                    break;
+            }
+
+            container.innerHTML = html;
+        }
+
+        function handleResponse(questionId, value) {
+            responses[questionId] = value;
+            saveToLocal();
+            updateNavigation();
+
+            // Re-render if needed (for follow-up questions)
+            const question = getCurrentQuestion();
+            if (question.id === questionId && (question.hasOther || question.followUp)) {
+                renderQuestion(question);
+            }
+        }
+
+        function handleCustomInput(questionId, value) {
+            customInputs[questionId] = value;
+            saveToLocal();
+            updateNavigation();
+        }
+
+        function updateNavigation() {
+            const prevButton = document.getElementById('prevButton');
+            const nextButton = document.getElementById('nextButton');
+
+            // Update prev button
+            prevButton.disabled = currentStep === 0 && currentSection === 'demographic';
+
+            // Update next button
+            const canProceed = isStepComplete();
+            nextButton.disabled = !canProceed;
+
+            // Update next button text
+            const isLastSection = currentSection === 'focusGroup' && currentStep === sections.focusGroup.questions.length - 1;
+            nextButton.innerHTML = isLastSection ?
+                `<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg> Finalizar` :
+                `Próxima <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>`;
+        }
+
+        function isStepComplete() {
+            const question = getCurrentQuestion();
+            const value = responses[question.id];
+
+            if (!value) return false;
+
+            if ((question.hasOther && value === 'Outro (especificar)') ||
+                (question.type === 'yesno' && value === 'Sim' && question.followUp) ||
+                (question.type === 'yesnomaybe' && question.followUp)) {
+                return !!customInputs[question.id]?.trim();
+            }
+
+            return true;
+        }
+
+        function nextStep() {
+            const currentSectionData = sections[currentSection];
+
+            if (currentStep < currentSectionData.questions.length - 1) {
+                currentStep++;
+            } else {
+                if (currentSection === 'demographic') {
+                    const operadora = responses.operadora;
+                    if (operadora === 'Africell') {
+                        currentSection = 'africellUser';
+                    } else {
+                        currentSection = 'nonAfricellUser';
+                    }
+                    currentStep = 0;
+                } else if (currentSection === 'africellUser' || currentSection === 'nonAfricellUser') {
+                    currentSection = 'focusGroup';
+                    currentStep = 0;
+                } else {
+                    showSaveDialog();
+                    return;
+                }
+            }
+
+            updateDisplay();
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                currentStep--;
+            } else if (currentSection === 'focusGroup') {
+                const operadora = responses.operadora;
+                if (operadora === 'Africell') {
+                    currentSection = 'africellUser';
+                    currentStep = sections.africellUser.questions.length - 1;
+                } else {
+                    currentSection = 'nonAfricellUser';
+                    currentStep = sections.nonAfricellUser.questions.length - 1;
+                }
+            } else if (currentSection !== 'demographic') {
+                currentSection = 'demographic';
+                currentStep = sections.demographic.questions.length - 1;
+            }
+
+            updateDisplay();
+        }
+
+        function showSaveDialog() {
+            document.getElementById('responseCount').textContent = Object.keys(responses).length;
+            document.getElementById('saveDialog').classList.remove('hidden');
+        }
+
+        function closeSaveDialog() {
+            document.getElementById('saveDialog').classList.add('hidden');
+        }
+
+        function saveSurvey() {
+            try {
+                const surveyData = {
+                    responses: responses,
+                    customInputs: customInputs,
+                    metadata: {
+                        section: currentSection,
+                        completedAt: new Date().toISOString(),
+                        userType: responses.operadora === 'Africell' ? 'Africell User' : 'Non-Africell User'
+                    }
+                };
+
+                // Add focus group contact if provided
+                if (responses.interesseGrupoFocal === 'Sim' && customInputs.interesseGrupoFocal) {
+                    const contactParts = customInputs.interesseGrupoFocal.split('|');
+                    surveyData.focusGroupContact = {
+                        name: contactParts[0]?.trim() || '',
+                        phone: contactParts[1]?.trim() || ''
+                    };
+                }
+
+                // Save to localStorage for offline storage
+                const existingSurveys = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+                const newSurvey = {
+                    ...surveyData,
+                    id: Date.now(),
+                    timestamp: new Date().toISOString(),
+                    status: 'pending'
+                };
+
+                existingSurveys.push(newSurvey);
+                localStorage.setItem('offline-surveys', JSON.stringify(existingSurveys));
+
+                closeSaveDialog();
+                showSuccessMessage();
+
+            } catch (error) {
+                alert('Erro ao guardar o inquérito: ' + error.message);
+            }
+        }
+
+        function showSuccessMessage() {
+            document.getElementById('successMessage').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('successMessage').classList.add('hidden');
+            }, 5000);
+        }
+
+        function startNewSurvey() {
+            responses = {};
+            customInputs = {};
+            currentStep = 0;
+            currentSection = 'demographic';
+            localStorage.removeItem('current-survey');
+            document.getElementById('successMessage').classList.add('hidden');
+            updateDisplay();
+        }
+
+        function saveToLocal() {
+            const currentData = {
+                responses: responses,
+                customInputs: customInputs,
+                currentStep: currentStep,
+                currentSection: currentSection
+            };
+            localStorage.setItem('current-survey', JSON.stringify(currentData));
+        }
+
+        function loadSavedData() {
+            const saved = localStorage.getItem('current-survey');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    responses = data.responses || {};
+                    customInputs = data.customInputs || {};
+                    currentStep = data.currentStep || 0;
+                    currentSection = data.currentSection || 'demographic';
+                } catch (error) {
+                    console.warn('Failed to load saved data:', error);
+                }
+            }
+        }
+
+        function checkConnection() {
+            const statusElement = document.getElementById('connectionStatus');
+            const bannerElement = document.getElementById('offlineBanner');
+
+            if (navigator.onLine) {
+                statusElement.className = 'connection-status online';
+                statusElement.innerHTML = `
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"></path>
+                    </svg>
+                    <span class="hidden sm:inline">Online</span>
+                `;
+                bannerElement.innerHTML = '<p>🌐 Online - Tentando carregar versão completa...</p>';
+
+                // Try to redirect to main app
+                setTimeout(() => {
+                    fetch('/home', { cache: 'no-cache' })
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.href = '/home';
+                            }
+                        })
+                        .catch(() => {
+                            // Still can't reach main app
+                            bannerElement.innerHTML = '<p>💾 Modo Offline - Os dados serão guardados localmente</p>';
+                        });
+                }, 2000);
+
+                // Try to sync pending surveys
+                syncPendingSurveys();
+            } else {
+                statusElement.className = 'connection-status offline';
+                statusElement.innerHTML = `
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-12.728 12.728"></path>
+                    </svg>
+                    <span class="hidden sm:inline">Offline</span>
+                `;
+                bannerElement.innerHTML = '<p>💾 Modo Offline - Os dados serão guardados localmente e sincronizados quando voltar online</p>';
+            }
+        }
+
+        function syncPendingSurveys() {
+            if (!navigator.onLine) return;
+
+            const pendingSurveys = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+            if (pendingSurveys.length === 0) return;
+
+            // Try to sync with your SharePoint endpoint
+            fetch('/api/survey', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    surveys: pendingSurveys
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Clear synced surveys
+                        localStorage.removeItem('offline-surveys');
+
+                        // Show sync success
+                        const banner = document.getElementById('offlineBanner');
+                        banner.style.background = '#d1fae5';
+                        banner.style.borderColor = '#10b981';
+                        banner.innerHTML = `<p style="color: #065f46;">✓ ${pendingSurveys.length} inquérito(s) sincronizado(s) com sucesso!</p>`;
+
+                        setTimeout(() => {
+                            banner.style.background = '#fef3c7';
+                            banner.style.borderColor = '#f59e0b';
+                            checkConnection();
+                        }, 3000);
+                    }
+                })
+                .catch(error => {
+                    console.log('Sync failed, keeping surveys in local storage:', error);
+                });
+        }
+
+        // Listen for online/offline events
+        window.addEventListener('online', checkConnection);
+        window.addEventListener('offline', checkConnection);
+
+        // Initialize when page loads
+        window.addEventListener('load', init);
+
+        // Auto-save periodically
+        setInterval(saveToLocal, 10000); // Save every 10 seconds
+    </script>
 </body>
 
 </html>
