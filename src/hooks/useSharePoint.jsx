@@ -4865,6 +4865,19 @@ const saveSurveyResponse = useCallback(
         MudariaAfricell: getVoiceQuestionValue('mudaria'),
         ServicosDesejados: surveyData.responses?.servicosDesejados || '',
         ServicosDesejadosOutro: surveyData.customInputs?.servicosDesejados || '',
+//        InteresseGrupoFocal: surveyData.responses?.interesseGrupoFocal || '',
+        interesseGrupoFocal: surveyData.responses?.interesseGrupoFocal || '',
+          dadosContactoGrupoFocal: (() => {
+            // If there's a structured focusGroupContact object
+            if (surveyData.focusGroupContact?.name && surveyData.focusGroupContact?.phone) {
+              return `${surveyData.focusGroupContact.name} | ${surveyData.focusGroupContact.phone}`;
+            }
+            // If it's in the customInputs (pipe-separated format)
+            if (surveyData.responses?.interesseGrupoFocal === 'Sim' && surveyData.customInputs?.interesseGrupoFocal) {
+              return surveyData.customInputs.interesseGrupoFocal;
+            }
+            return '';
+          })(),
 
         // Metadata
         DataPreenchimento: new Date().toISOString(),
