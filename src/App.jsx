@@ -42,6 +42,7 @@ import { getMsalInstance } from "./utils/msal-config";
 import { MsalProvider } from "@azure/msal-react";
 import LoadingSkeleton from "./components/LoadingSkeleton";
 import { useAuth } from "./hooks/useAuth";
+import { Toaster } from "react-hot-toast";
 
 // Loader component for handling MSAL initialization
 function AuthLoader({ children }) {
@@ -115,7 +116,12 @@ useEffect(() => {
     );
   }
 
-  return <MsalProvider instance={msalInstance}>{children}</MsalProvider>;
+  return (
+    <MsalProvider instance={msalInstance}>
+      {children}
+      <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+    </MsalProvider>
+  );
 }
 
 // Main App component

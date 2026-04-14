@@ -1,1 +1,0 @@
-export { ArticleText } from './ArticleText';

@@ -4,7 +4,7 @@ import { useSharePoint } from './useSharePoint';
 export const useOfflineStorage = () => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingData, setPendingData] = useState([]);
-  const { createListItem } = useSharePoint();
+  const { saveSurveyResponse } = useSharePoint();
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -63,12 +63,7 @@ export const useOfflineStorage = () => {
           Status: 'Synced'
         };
 
-        // Use your SharePoint hook to save
-        await createListItem(
-          'https://africellcloud.sharepoint.com/sites/KnowledgeBase',
-          'Huila_CustumerExp_Survey', // Your SharePoint list name
-          listItem
-        );
+        await saveSurveyResponse({ responses: survey.responses, customInputs: survey.customInputs || {}, audioRecordings: {} });
       }
 
       localStorage.removeItem('offline-surveys');
