@@ -1,1 +1,0 @@
-export { ArticleHeader } from './ArticleHeader';
