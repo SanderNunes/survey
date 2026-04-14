@@ -1457,7 +1457,9 @@
       "orWrite": "Or write your answer:",
       "writePlaceholder": "Type your answer here…",
       "warning": "Recording in progress. Stop the recording to navigate between questions.",
-      "micError": "Could not access the microphone. Please check permissions."
+      "micError": "Could not access the microphone. Please check permissions.",
+      "transcribing": "Transcribing…",
+      "waitingVoice": "Waiting for voice…"
     },
     "form": {
       "selectOption": "Select an option",
@@ -1512,6 +1514,7 @@
       "audio": "Audio"
     },
     "listNotFound": "The list {{list}} does not yet exist in SharePoint.",
+    "transcribeAll": "Transcribe missing",
     "noResults": "No results for \"{{term}}\"",
     "records": "{{count}} record(s)",
     "recordsFiltered": "{{filtered}} of {{total}} records",

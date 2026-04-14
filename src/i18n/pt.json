@@ -1412,7 +1412,9 @@
       "orWrite": "Ou escreva sua resposta:",
       "writePlaceholder": "Digite sua resposta aqui…",
       "warning": "Gravação em progresso. Pare a gravação para navegar entre perguntas.",
-      "micError": "Erro ao acessar o microfone. Por favor, verifique as permissões."
+      "micError": "Erro ao acessar o microfone. Por favor, verifique as permissões.",
+      "transcribing": "A transcrever…",
+      "waitingVoice": "À espera de voz…"
     },
     "form": {
       "selectOption": "Selecione uma opção",
@@ -1467,6 +1469,7 @@
       "audio": "Áudio"
     },
     "listNotFound": "A lista {{list}} ainda não existe no SharePoint.",
+    "transcribeAll": "Transcrever em falta",
     "noResults": "Nenhum resultado para \"{{term}}\"",
     "records": "{{count}} registo(s)",
     "recordsFiltered": "{{filtered}} de {{total}} registos",

@@ -467,7 +467,8 @@ const CabindaSurvey = () => {
           try {
             const transcriber = assemblyClient.streaming.transcriber({
               sampleRate: 16000,
-              speechModel: 'u3-rt-pro',
+              speechModels: ['u3-rt-pro'],
+              languageCode: 'pt',
             });
 
             transcriber.on('turn', (turn) => {
@@ -826,11 +827,18 @@ const CabindaSurvey = () => {
                           <Square className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                           <span className="text-sm sm:text-base">{t('cabinda.recording.stop')}</span>
                         </button>
-                        {liveTranscripts[question.id] && (
-                          <p className="mt-2 text-xs text-gray-500 italic leading-relaxed max-w-xs text-center">
-                            {liveTranscripts[question.id]}
+                        <div className="mt-3 w-full max-w-sm mx-auto bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 min-h-[48px] text-left">
+                          <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block"></span>
+                            {t('cabinda.recording.transcribing')}
                           </p>
-                        )}
+                          <p className="text-sm text-gray-700 leading-relaxed break-words">
+                            {liveTranscripts[question.id]
+                              ? <>{liveTranscripts[question.id]}<span className="inline-block w-0.5 h-4 bg-primary align-middle ml-0.5 animate-pulse" /></>
+                              : <span className="text-gray-400 italic text-xs">{t('cabinda.recording.waitingVoice')}</span>
+                            }
+                          </p>
+                        </div>
                       </div>
                     )}
                   </>
