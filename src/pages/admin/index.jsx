@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import * as XLSX from 'xlsx';
 import JSZip from 'jszip';
 import toast from 'react-hot-toast';
@@ -14,11 +15,387 @@ import {
   Table2,
   FileAudio,
   Mic,
+  X,
+  User,
+  Smartphone,
+  Signal,
+  CreditCard,
+  Heart,
+  MessageSquare,
+  Phone,
 } from 'lucide-react';
 import { assemblyClient } from '@/config/assemblyai';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import Analytics from './Analytics';
+
+// ── Record detail sections (uses i18n keys for title + field labels) ──────────
+const DETAIL_SECTIONS = [
+  {
+    titleKey: 'survey.sections.demographics', icon: User, fields: [
+      { key: 'Provincia',     labelKey: 'survey.fields.Provincia'     },
+      { key: 'Municipio',     labelKey: 'survey.fields.Municipio'     },
+      { key: 'FaixaEtaria',   labelKey: 'survey.fields.FaixaEtaria'   },
+      { key: 'Genero',        labelKey: 'survey.fields.Genero'        },
+      { key: 'Ocupacao',      labelKey: 'survey.fields.Ocupacao'      },
+      { key: 'OcupacaoOutro', labelKey: 'survey.fields.OcupacaoOutro' },
+    ],
+  },
+  {
+    titleKey: 'survey.sections.device', icon: Smartphone, fields: [
+      { key: 'TipoTelefone',    labelKey: 'survey.fields.TipoTelefone'    },
+      { key: 'Suporta4G',       labelKey: 'survey.fields.Suporta4G'       },
+      { key: 'ConfiguracaoSIM', labelKey: 'survey.fields.ConfiguracaoSIM' },
+    ],
+  },
+  {
+    titleKey: 'survey.sections.operator', icon: Signal, fields: [
+      { key: 'OperadorAtual',           labelKey: 'survey.fields.OperadorAtual'           },
+      { key: 'SatisfacaoOperador',      labelKey: 'survey.fields.SatisfacaoOperador',      type: 'rating' },
+      { key: 'CoberturaDaRede',         labelKey: 'survey.fields.CoberturaDaRede',         type: 'rating' },
+      { key: 'OperadorMaisVisivel',     labelKey: 'survey.fields.OperadorMaisVisivel'     },
+      { key: 'ZonasPiorCobertura',      labelKey: 'survey.fields.ZonasPiorCobertura'      },
+      { key: 'ZonasPiorCoberturaOutro', labelKey: 'survey.fields.ZonasPiorCoberturaOutro' },
+    ],
+  },
+  {
+    titleKey: 'survey.sections.usage', icon: CreditCard, fields: [
+      { key: 'UsoTelefone',       labelKey: 'survey.fields.UsoTelefone'       },
+      { key: 'FrequenciaRecarga', labelKey: 'survey.fields.FrequenciaRecarga' },
+      { key: 'ValorRecarga',      labelKey: 'survey.fields.ValorRecarga'      },
+      { key: 'LocalRecarga',      labelKey: 'survey.fields.LocalRecarga'      },
+      { key: 'LocalRecargaOutro', labelKey: 'survey.fields.LocalRecargaOutro' },
+      { key: 'RazaoRecarga',      labelKey: 'survey.fields.RazaoRecarga'      },
+      { key: 'RazaoRecargaOutro', labelKey: 'survey.fields.RazaoRecargaOutro' },
+      { key: 'UsaMobileMoney',    labelKey: 'survey.fields.UsaMobileMoney'    },
+    ],
+  },
+  {
+    titleKey: 'survey.sections.preferences', icon: Heart, fields: [
+      { key: 'PacotePreferido',        labelKey: 'survey.fields.PacotePreferido'        },
+      { key: 'MudariaOperador',        labelKey: 'survey.fields.MudariaOperador'        },
+      { key: 'OfertaDificilAbandonar', labelKey: 'survey.fields.OfertaDificilAbandonar' },
+      { key: 'OfertaEspecifica',       labelKey: 'survey.fields.OfertaEspecifica'       },
+      { key: 'FontePromocoes',         labelKey: 'survey.fields.FontePromocoes'         },
+      { key: 'FontePromocoesOutro',    labelKey: 'survey.fields.FontePromocoesOutro'    },
+      { key: 'FontesConfianca',        labelKey: 'survey.fields.FontesConfianca'        },
+      { key: 'FontesConfiancaOutro',   labelKey: 'survey.fields.FontesConfiancaOutro'   },
+    ],
+  },
+  {
+    titleKey: 'survey.sections.insights', icon: MessageSquare, fields: [
+      { key: 'LocalNovasLojas',  labelKey: 'survey.fields.LocalNovasLojas',  type: 'note' },
+      { key: 'InsightPrincipal', labelKey: 'survey.fields.InsightPrincipal', type: 'note' },
+    ],
+  },
+  {
+    titleKey: 'survey.sections.contact', icon: Phone, fields: [
+      { key: 'InteresseDiscussao', labelKey: 'survey.fields.InteresseDiscussao' },
+      { key: 'NumeroTelefone',     labelKey: 'survey.fields.NumeroTelefone'     },
+    ],
+  },
+];
+
+// Strip SharePoint ExternalClass HTML wrappers and decode HTML entities
+function stripSharePointHtml(raw) {
+  if (!raw) return '';
+  const str = String(raw);
+  if (!str.includes('<')) return str; // fast path: no HTML
+  try {
+    const doc = new DOMParser().parseFromString(str, 'text/html');
+    return (doc.body.textContent || '').trim();
+  } catch {
+    return str.replace(/<[^>]+>/g, '').replace(/&#(\d+);/g, (_, c) => String.fromCharCode(Number(c))).trim();
+  }
+}
+
+function FieldTooltip({ fieldKey, children }) {
+  const { t } = useTranslation();
+  const question = t(`survey.questions.${fieldKey}`, { defaultValue: '' });
+  const [show, setShow] = useState(false);
+  if (!question) return children;
+  return (
+    <span
+      className="relative inline-flex items-center gap-1 cursor-default group"
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      {children}
+      <span className="text-gray-300 group-hover:text-primary transition-colors text-[10px] leading-none">▲</span>
+      {show && (
+        <span className="absolute bottom-full left-0 mb-1.5 z-50 w-64 bg-gray-900 text-white text-xs leading-snug rounded-lg px-3 py-2 shadow-xl pointer-events-none">
+          {question}
+          <span className="absolute top-full left-4 border-4 border-transparent border-t-gray-900" />
+        </span>
+      )}
+    </span>
+  );
+}
+
+function RatingDots({ value }) {
+  const { t } = useTranslation();
+  const n     = Number(value) || 0;
+  const label = n > 0 ? t(`survey.ratings.${n}`, { defaultValue: String(n) }) : '';
+  return (
+    <span className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map(i => (
+        <span key={i} className={`w-3 h-3 rounded-full ${i <= n ? 'bg-primary' : 'bg-gray-200'}`} />
+      ))}
+      {label && <span className="ml-1 text-xs text-gray-500">{label}</span>}
+    </span>
+  );
+}
+
+function FieldValue({ value, type }) {
+  const { t } = useTranslation();
+
+  // Translate a single cleaned Portuguese value → active language
+  const tv = (raw) => {
+    const s = stripSharePointHtml(raw ?? '').trim();
+    return t(`survey.values.${s}`, { defaultValue: s });
+  };
+
+  if (type === 'rating') return <RatingDots value={value} />;
+
+  const clean = stripSharePointHtml(value ?? '').trim();
+
+  if (type === 'note') {
+    return <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{clean}</p>;
+  }
+
+  // Multi-value: split on newline OR comma, translate each chip
+  const parts = clean.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+  if (parts.length > 1) {
+    return (
+      <div className="flex flex-wrap gap-1">
+        {parts.map((p, i) => (
+          <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-md text-xs bg-gray-100 text-gray-700">
+            {tv(p)}
+          </span>
+        ))}
+      </div>
+    );
+  }
+
+  const translated = tv(clean);
+
+  // Boolean badges (match on the original Portuguese to avoid false positives)
+  if (clean === 'Sim')              return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">{translated}</span>;
+  if (clean === 'Não' || clean === 'Nao') return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">{translated}</span>;
+
+  return <span className="text-sm text-gray-800">{translated}</span>;
+}
+
+// Audio question ID → i18n key
+const AUDIO_Q_LABEL_KEYS = {
+  mainInsight:     'survey.audio.insight',
+  newShopLocation: 'survey.audio.newShop',
+};
+
+function RecordDetailModal({ record, onClose, province, getItemAttachments, downloadAttachment }) {
+  const { t } = useTranslation();
+  const [audioFiles, setAudioFiles]   = useState([]); // [{ label, url, fileName }]
+  const [audioLoading, setAudioLoading] = useState(false);
+
+  // Fetch audio attachments whenever the record changes
+  React.useEffect(() => {
+    // Revoke any previous blob URLs
+    setAudioFiles(prev => { prev.forEach(f => URL.revokeObjectURL(f.url)); return []; });
+
+    if (!record || record.TemGravacoes !== 'Sim' || !getItemAttachments) return;
+
+    let cancelled = false;
+    setAudioLoading(true);
+
+    (async () => {
+      try {
+        const atts = await getItemAttachments(province, record.Id);
+        const files = [];
+        for (const att of atts) {
+          if (cancelled) break;
+          const name = att.FileName;
+          const qId  = name.startsWith('mainInsight')     ? 'mainInsight'
+                     : name.startsWith('newShopLocation')  ? 'newShopLocation'
+                     : name.includes('_mainInsight')        ? 'mainInsight'
+                     : name.includes('_newShopLocation')    ? 'newShopLocation'
+                     : null;
+          try {
+            const buf  = await downloadAttachment(att.ServerRelativeUrl);
+            const blob = new Blob([buf], { type: 'audio/wav' });
+            const url  = URL.createObjectURL(blob);
+            const labelKey = AUDIO_Q_LABEL_KEYS[qId];
+            files.push({ labelKey: labelKey || null, fallbackLabel: name, url, fileName: name });
+          } catch { /* skip unreadable file */ }
+        }
+        if (!cancelled) setAudioFiles(files);
+      } catch { /* attachments unavailable */ }
+      if (!cancelled) setAudioLoading(false);
+    })();
+
+    return () => { cancelled = true; };
+  }, [record?.Id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Revoke URLs on unmount
+  React.useEffect(() => {
+    return () => setAudioFiles(prev => { prev.forEach(f => URL.revokeObjectURL(f.url)); return []; });
+  }, []);
+
+  if (!record) return null;
+
+  const isHidden = (v) => {
+    if (v === undefined || v === null || v === '') return true;
+    const s = stripSharePointHtml(v).trim();
+    if (s === '') return true;
+    if (s.includes('[Gravação de Áudio')) return true;
+    if (s.startsWith('Audio recording captured at')) return true;
+    return false;
+  };
+
+  const hasValue = (v) => !isHidden(v);
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[88vh] flex flex-col animate-fadeIn"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                #{record.Id}
+              </span>
+              {record.Provincia && (
+                <span className="text-xs text-gray-400">{record.Provincia}</span>
+              )}
+              {record.TemGravacoes === 'Sim' && (
+                <span className="inline-flex items-center gap-1 text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                  <Mic className="w-3 h-3" /> Áudio
+                </span>
+              )}
+            </div>
+            <h2 className="text-lg font-semibold text-gray-800">
+              {record.Municipio || t('survey.modal.unknown')}
+            </h2>
+            {record.DataPreenchimento && (
+              <p className="text-xs text-gray-400">
+                {new Date(record.DataPreenchimento).toLocaleString('pt-AO', {
+                  day: '2-digit', month: 'long', year: 'numeric',
+                  hour: '2-digit', minute: '2-digit',
+                })}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors flex-shrink-0"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
+
+          {/* Survey answer sections */}
+          {DETAIL_SECTIONS.map(({ titleKey, icon: Icon, fields }) => {
+            const visibleFields = fields.filter(f => hasValue(record[f.key]));
+            if (visibleFields.length === 0) return null;
+
+            const gridFields = visibleFields.filter(f => f.type !== 'note');
+            const noteFields = visibleFields.filter(f => f.type === 'note');
+
+            return (
+              <div key={titleKey}>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-6 h-6 rounded-md bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    {t(titleKey)}
+                  </p>
+                </div>
+
+                {gridFields.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                    {gridFields.map(({ key, labelKey, type }) => (
+                      <div key={key} className="bg-gray-50 rounded-xl px-3 py-2.5">
+                        <p className="text-xs text-gray-400 mb-1">
+                          <FieldTooltip fieldKey={key}>{t(labelKey)}</FieldTooltip>
+                        </p>
+                        <FieldValue value={record[key]} type={type} />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {noteFields.map(({ key, labelKey }) => (
+                  <div key={key} className="bg-gray-50 rounded-xl px-4 py-3 mb-3 last:mb-0">
+                    <p className="text-xs text-gray-400 mb-1.5">
+                      <FieldTooltip fieldKey={key}>{t(labelKey)}</FieldTooltip>
+                    </p>
+                    <FieldValue value={record[key]} type="note" />
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+
+          {/* Audio files section — always shown when TemGravacoes = Sim */}
+          {record.TemGravacoes === 'Sim' && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded-md bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <Mic className="w-3.5 h-3.5 text-blue-500" />
+                </div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  {t('survey.sections.audio')}
+                </p>
+              </div>
+
+              {audioLoading ? (
+                <div className="bg-gray-50 rounded-xl px-4 py-4 flex items-center gap-2 text-gray-400">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span className="text-sm">{t('survey.audio.loading')}</span>
+                </div>
+              ) : audioFiles.length > 0 ? (
+                <div className="space-y-3">
+                  {audioFiles.map((f, i) => (
+                    <div key={i} className="bg-gray-50 rounded-xl px-4 py-3">
+                      <p className="text-xs text-gray-400 mb-2">
+                        {f.labelKey ? t(f.labelKey) : f.fallbackLabel}
+                      </p>
+                      <audio controls src={f.url} className="w-full" style={{ height: '36px' }} />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-gray-50 rounded-xl px-4 py-3 text-sm text-gray-400">
+                  {t('survey.audio.notFound')}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-3 border-t border-gray-100 flex-shrink-0 flex items-center justify-between">
+          <p className="text-xs text-gray-400 truncate">
+            {t('survey.modal.surveyId')}: <span className="font-mono">{record.SurveyId || '—'}</span>
+          </p>
+          <button
+            onClick={onClose}
+            className="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            {t('survey.modal.close')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const PROVINCES = ['Cabinda', 'Bié', 'Zaire'];
 
@@ -65,6 +442,7 @@ export default function AdminPage() {
   const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null); // { itemId }
+  const [selectedRecord, setSelectedRecord] = useState(null);
   const [mainTab, setMainTab] = useState('data'); // 'data' | 'analytics'
   const [exportingTranscript, setExportingTranscript] = useState(false);
   const [transcriptProgress, setTranscriptProgress] = useState({ current: 0, total: 0 });
@@ -456,7 +834,11 @@ export default function AdminPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map(row => (
-                    <tr key={row.Id} className="hover:bg-gray-50 transition-colors">
+                    <tr
+                      key={row.Id}
+                      onClick={() => setSelectedRecord(row)}
+                      className="hover:bg-blue-50/40 cursor-pointer transition-colors"
+                    >
                       {TABLE_COLS.map(col => (
                         <td key={col.key} className="px-4 py-3 text-gray-700 whitespace-nowrap max-w-48 truncate">
                           {col.key === 'DataPreenchimento' && row[col.key]
@@ -469,7 +851,7 @@ export default function AdminPage() {
                           }
                         </td>
                       ))}
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-2">
                           {row.TemGravacoes === 'Sim' && (
                             <button
@@ -512,6 +894,15 @@ export default function AdminPage() {
 
         </> /* end data tab */}
       </div>
+
+      {/* Record detail modal */}
+      <RecordDetailModal
+        record={selectedRecord}
+        onClose={() => setSelectedRecord(null)}
+        province={activeProvince}
+        getItemAttachments={getItemAttachments}
+        downloadAttachment={downloadAttachment}
+      />
 
       {/* Delete confirmation modal */}
       {confirmDelete && (

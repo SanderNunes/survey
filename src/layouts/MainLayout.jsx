@@ -5,10 +5,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import { LogOut, Settings, WifiOff } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 export default function MainLayout() {
   const { userProfile, logout } = useAuth();
   const { sp, checkIsOwner } = useSharePoint();
+  const { i18n } = useTranslation();
   const [isOwner, setIsOwner] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -91,6 +93,23 @@ export default function MainLayout() {
                     Admin
                   </Link>
                 )}
+
+                {/* Language toggle */}
+                <div className="flex items-center bg-white/10 rounded-full p-0.5">
+                  {['pt', 'en'].map(lang => (
+                    <button
+                      key={lang}
+                      onClick={() => i18n.changeLanguage(lang)}
+                      className={`px-2.5 py-1 text-xs font-semibold rounded-full transition-all ${
+                        i18n.language === lang
+                          ? 'bg-white text-primary shadow-sm'
+                          : 'text-white/70 hover:text-white'
+                      }`}
+                    >
+                      {lang.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
 
                 {/* Avatar button */}
                 <div className="relative" ref={menuRef}>
