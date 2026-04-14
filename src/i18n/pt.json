@@ -211,26 +211,6 @@
     "noArticlesAvailable": "Nenhum artigo disponível ainda.",
     "moreTagsCount": "+{{count}}"
   },
-  "analytics": {
-    "pageTitle": "Painel de Análises",
-    "metrics": {
-      "totalArticles": "Total de Artigos",
-      "totalCourses": "Total de Cursos",
-      "recentArticles": "Artigos Recentes",
-      "contentFreshness": "Atualização de Conteúdo",
-      "last30Days": "Últimos 30 dias",
-      "recentContentRatio": "Proporção de conteúdo recente",
-      "fromLastMonth": "em relação ao mês passado"
-    },
-    "errors": {
-      "failedToFetch": "Falha ao buscar dados",
-      "loadingError": "Ocorreu um erro ao carregar os dados de análise"
-    },
-    "loading": {
-      "fetchingData": "Buscando dados de análise...",
-      "calculatingMetrics": "Calculando métricas..."
-    }
-  },
   "quickLinks": {
     "title": "Links Rápidos",
     "actions": {
@@ -1384,6 +1364,204 @@
       "bulkDeleteConfirm": "Tem certeza de que deseja excluir {count} itens de feedback?",
       "emptyState": "Nenhum feedback encontrado",
       "loadingArticles": "Carregando itens de feedback..."
+    }
+  },
+  "nav": {
+    "admin": "Admin",
+    "adminPanel": "Painel de Administração",
+    "logout": "Terminar sessão",
+    "administrator": "Administrador"
+  },
+  "session": {
+    "expired": "Sessão expirada",
+    "expiredMessage": "Não foi possível comunicar com o servidor. A sua sessão expirou ou não há ligação à internet.",
+    "logoutAndLogin": "Terminar sessão e voltar a entrar"
+  },
+  "ui": {
+    "online": "Online",
+    "offline": "Offline",
+    "save": "Guardar",
+    "saving": "A guardar…",
+    "cancel": "Cancelar",
+    "close": "Fechar",
+    "confirm": "Confirmar",
+    "delete": "Eliminar",
+    "retry": "Tentar Novamente",
+    "refresh": "Atualizar",
+    "search": "Pesquisar",
+    "previous": "Anterior",
+    "next": "Próxima",
+    "finish": "Finalizar",
+    "newSurvey": "Novo Inquérito",
+    "optional": "Este campo é opcional",
+    "yes": "Sim",
+    "no": "Não",
+    "maybe": "Talvez"
+  },
+  "cabinda": {
+    "title": "Inquérito Africell — Regiões",
+    "recording": {
+      "start": "Começar Gravação",
+      "stop": "Parar Gravação",
+      "reRecord": "Gravar Novamente",
+      "done": "Gravação concluída",
+      "inProgress": "Gravando…",
+      "otherRecording": "Outro áudio gravando…",
+      "instruction": "Clique para começar a gravar sua resposta",
+      "subInstruction": "Pressione o botão do microfone e fale claramente",
+      "orWrite": "Ou escreva sua resposta:",
+      "writePlaceholder": "Digite sua resposta aqui…",
+      "warning": "Gravação em progresso. Pare a gravação para navegar entre perguntas.",
+      "micError": "Erro ao acessar o microfone. Por favor, verifique as permissões."
+    },
+    "form": {
+      "selectOption": "Selecione uma opção",
+      "specifyOther": "Por favor, especifique",
+      "selectProvince": "Por favor selecione primeiro a Província na pergunta anterior.",
+      "selectMunicipality": "Selecione o município",
+      "textPlaceholder": "Digite aqui…"
+    },
+    "pending": {
+      "savedAt": "Guardado em: ",
+      "status": "Pendente",
+      "syncing": "A sincronizar… ",
+      "syncStarted": "Sincronização automática iniciada.",
+      "progress": "% concluído"
+    },
+    "saveDialog": {
+      "title": "Guardar Inquérito",
+      "question": "Deseja guardar as respostas do inquérito agora?",
+      "summary": "Resumo do Inquérito:",
+      "province": "• Província: ",
+      "municipality": "• Município: ",
+      "operator": "• Operador: ",
+      "responses": "• Respostas: ",
+      "recordings": "• Gravações: ",
+      "statusOnline": "Online — SharePoint",
+      "statusOffline": "Offline — Local",
+      "status": "• Status: ",
+      "focusGroup": "• Grupo focal: Interessado"
+    },
+    "result": {
+      "success": "✓ Sucesso!",
+      "error": "✗ Erro",
+      "duplicate": "Inquérito duplicado detectado"
+    },
+    "validation": {
+      "noAnswers": "Nenhuma resposta encontrada. Complete pelo menos uma pergunta antes de guardar.",
+      "unexpected": "Erro inesperado ao guardar o inquérito."
+    }
+  },
+  "admin": {
+    "title": "Painel de Administração",
+    "tabs": {
+      "data": "Dados",
+      "analytics": "Análise"
+    },
+    "access": "Acesso negado. Esta área é reservada aos administradores do site.",
+    "responses": "respostas",
+    "search": "Pesquisar município, operador, género…",
+    "cols": {
+      "createdBy": "Criado por",
+      "date": "Data",
+      "audio": "Áudio"
+    },
+    "listNotFound": "A lista {{list}} ainda não existe no SharePoint.",
+    "noResults": "Nenhum resultado para \"{{term}}\"",
+    "records": "{{count}} registo(s)",
+    "recordsFiltered": "{{filtered}} de {{total}} registos",
+    "export": {
+      "excel": "Exportar Excel",
+      "zip": "Exportar Áudio (ZIP)",
+      "transcript": "Exportar Transcrição",
+      "exporting": "A exportar…",
+      "audioProgress": "Áudio {{current}}/{{total}}…",
+      "preparingPackage": "A preparar pacote de transcrição…",
+      "packageDone": "Pacote exportado: {{count}} ficheiro(s) de áudio.",
+      "noRecords": "Nenhum registo para exportar.",
+      "noAudio": "Nenhum registo com gravações de áudio.",
+      "audioExporting": "A exportar áudio de {{count}} registo(s)…",
+      "excelDone": "Ficheiro Excel exportado.",
+      "zipDone": "ZIP de áudio exportado.",
+      "errorZip": "Erro ao exportar ZIP: ",
+      "errorPackage": "Erro ao exportar: ",
+      "transcribeProgress": "A transcrever registo #{{id}}…",
+      "transcribeDone": "Transcrição concluída para #{{id}}.",
+      "noAudioToTranscribe": "Nenhum áudio reconhecido para transcrever.",
+      "transcribeError": "Erro ao transcrever #{{id}}: "
+    },
+    "delete": {
+      "title": "Eliminar registo",
+      "confirm": "Tem a certeza que pretende eliminar o registo #{{id}}? Esta ação é irreversível.",
+      "success": "Registo eliminado.",
+      "error": "Erro ao eliminar: "
+    },
+    "load": {
+      "error": "Erro ao carregar registos: "
+    },
+    "allAnswers": {
+      "all": "Todas",
+      "title": "Todas as Respostas",
+      "total": "Total de respostas em todas as províncias",
+      "loadBtn": "Carregar todas as respostas",
+      "loading": "A carregar todas as respostas…",
+      "noResults": "Nenhum resultado para \"{{term}}\"",
+      "searchPlaceholder": "Pesquisar província, município, operador…",
+      "records": "{{count}} resposta(s)",
+      "recordsFiltered": "{{filtered}} de {{total}} respostas"
+    }
+  },
+  "analytics": {
+    "noData": "Nenhum dado disponível. Carregue as respostas primeiro.",
+    "retry": "Tentar novamente",
+    "filter": "Filtrar por província:",
+    "all": "Todas",
+    "refresh": "Atualizar",
+    "kpi": {
+      "totalResponses": "Total de Respostas",
+      "allProvinces": "Todas as províncias",
+      "province": "Província: ",
+      "withAudio": "Com Gravação de Áudio",
+      "percentOfTotal": "% do total",
+      "avgSatisfaction": "Satisfação Média Operador",
+      "avgCoverage": "Cobertura de Rede Média",
+      "scale": "Escala 1–5"
+    },
+    "charts": {
+      "responsesOverTime": "Respostas ao longo do tempo",
+      "responsesByDay": "Respostas por dia (últimos 30 dias)",
+      "responses": "Respostas",
+      "provinceOverview": "Visão geral por província",
+      "byProvince": "Respostas por província",
+      "distributionByProvince": "Distribuição por província",
+      "municipalities": "Municípios — {{province}}",
+      "municipalitiesAll": "Top municípios (todas as províncias)",
+      "byMunicipality": "Respostas por município (top 10)",
+      "demographics": "Perfil demográfico",
+      "gender": "Género",
+      "ageGroup": "Faixa etária",
+      "occupation": "Ocupação",
+      "deviceConnectivity": "Dispositivo e conectividade",
+      "phoneType": "Tipo de telefone",
+      "supports4G": "Suporta 4G",
+      "simConfig": "Configuração SIM",
+      "operatorNetwork": "Operador e rede",
+      "topOperators": "Operador atual (top 6)",
+      "satisfactionCoverage": "Médias de satisfação e cobertura",
+      "operatorSatisfaction": "Satisfação com operador",
+      "networkCoverage": "Cobertura de rede",
+      "wouldSwitch": "Mudaria de operador?",
+      "usageRecharges": "Uso e recargas",
+      "rechargeFrequency": "Frequência de recarga",
+      "rechargeAmount": "Valor de recarga habitual",
+      "mobileMoney": "Usa Mobile Money?",
+      "preferencesOffers": "Preferências e oferta",
+      "preferredBundle": "Pacote preferido",
+      "audioByProvince": "Gravações de áudio por província",
+      "withAudio": "Com áudio",
+      "withoutAudio": "Sem áudio",
+      "people": "Pessoas",
+      "unknown": "Não informado"
     }
   },
   "survey": {

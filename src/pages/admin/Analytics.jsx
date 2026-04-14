@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   PieChart, Pie, Cell, ResponsiveContainer,
@@ -160,10 +161,10 @@ function DrilldownTable({ allRecords }) {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function freq(records, key) {
+function freq(records, key, unknown = 'N/A') {
   const map = {};
   records.forEach(r => {
-    const v = r[key] || 'Não informado';
+    const v = r[key] || unknown;
     map[v] = (map[v] || 0) + 1;
   });
   return Object.entries(map)
@@ -193,6 +194,7 @@ function responsesByDay(records) {
 // ── Main analytics component ─────────────────────────────────────────────────
 
 export default function Analytics({ isOwner }) {
+  const { t } = useTranslation();
   const { sp, getProvinceRecords } = useSharePoint();
   const [allRecords, setAllRecords] = useState([]);
   const [loading, setLoading]       = useState(false);
@@ -244,23 +246,24 @@ export default function Analytics({ isOwner }) {
     [allRecords]
   );
 
-  const genderData      = useMemo(() => freq(view, 'Genero'), [view]);
-  const operatorData    = useMemo(() => freq(view, 'OperadorAtual').slice(0, 6), [view]);
-  const ageData         = useMemo(() => freq(view, 'FaixaEtaria'), [view]);
-  const phoneTypeData   = useMemo(() => freq(view, 'TipoTelefone').slice(0, 5), [view]);
-  const sim4GData       = useMemo(() => freq(view, 'Suporta4G'), [view]);
-  const simConfigData   = useMemo(() => freq(view, 'ConfiguracaoSIM'), [view]);
-  const rechargeFreqData= useMemo(() => freq(view, 'FrequenciaRecarga'), [view]);
-  const rechargeValData = useMemo(() => freq(view, 'ValorRecarga').slice(0, 6), [view]);
-  const switchData      = useMemo(() => freq(view, 'MudariaOperador'), [view]);
-  const mobileMoneyData = useMemo(() => freq(view, 'UsaMobileMoney'), [view]);
-  const occupationData  = useMemo(() => freq(view, 'Ocupacao').slice(0, 6), [view]);
+  const unknown = t('analytics.charts.unknown');
+  const genderData      = useMemo(() => freq(view, 'Genero',           unknown), [view, unknown]);
+  const operatorData    = useMemo(() => freq(view, 'OperadorAtual',    unknown).slice(0, 6), [view, unknown]);
+  const ageData         = useMemo(() => freq(view, 'FaixaEtaria',      unknown), [view, unknown]);
+  const phoneTypeData   = useMemo(() => freq(view, 'TipoTelefone',     unknown).slice(0, 5), [view, unknown]);
+  const sim4GData       = useMemo(() => freq(view, 'Suporta4G',        unknown), [view, unknown]);
+  const simConfigData   = useMemo(() => freq(view, 'ConfiguracaoSIM',  unknown), [view, unknown]);
+  const rechargeFreqData= useMemo(() => freq(view, 'FrequenciaRecarga',unknown), [view, unknown]);
+  const rechargeValData = useMemo(() => freq(view, 'ValorRecarga',     unknown).slice(0, 6), [view, unknown]);
+  const switchData      = useMemo(() => freq(view, 'MudariaOperador',  unknown), [view, unknown]);
+  const mobileMoneyData = useMemo(() => freq(view, 'UsaMobileMoney',   unknown), [view, unknown]);
+  const occupationData  = useMemo(() => freq(view, 'Ocupacao',         unknown).slice(0, 6), [view, unknown]);
   const timelineData    = useMemo(() => responsesByDay(view), [view]);
-  const bundleData      = useMemo(() => freq(view, 'PacotePreferido').slice(0, 6), [view]);
+  const bundleData      = useMemo(() => freq(view, 'PacotePreferido',  unknown).slice(0, 6), [view, unknown]);
 
   const municipioData = useMemo(() =>
-    freq(view, 'Municipio').slice(0, 10),
-    [view]
+    freq(view, 'Municipio', unknown).slice(0, 10),
+    [view, unknown]
   );
 
   const radarData = useMemo(() => [
@@ -280,9 +283,9 @@ export default function Analytics({ isOwner }) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-400 space-y-2">
         <BarChart2 className="w-10 h-10 text-gray-300" />
-        <p className="text-sm">Nenhum dado disponível. Carregue as respostas primeiro.</p>
+        <p className="text-sm">{t('analytics.noData')}</p>
         <button onClick={loadAll} className="text-xs text-primary hover:underline flex items-center gap-1">
-          <RefreshCw className="w-3 h-3" /> Tentar novamente
+          <RefreshCw className="w-3 h-3" /> {t('analytics.retry')}
         </button>
       </div>
     );
@@ -294,14 +297,14 @@ export default function Analytics({ isOwner }) {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-gray-500 font-medium">Filtrar por província:</span>
+          <span className="text-xs text-gray-500 font-medium">{t('analytics.filter')}</span>
           <button
             onClick={() => setDrillProvince(null)}
             className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
               !drillProvince ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            Todas
+            {t('analytics.all')}
           </button>
           {PROVINCES.map(p => (
             <button
@@ -320,35 +323,35 @@ export default function Analytics({ isOwner }) {
           className="flex items-center gap-1.5 text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          Atualizar
+          {t('analytics.refresh')}
         </button>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard title="Total de Respostas" value={total} icon={Users} color="orange"
-          sub={drillProvince ? `Província: ${drillProvince}` : 'Todas as províncias'} />
-        <KPICard title="Com Gravação de Áudio" value={withAudio}
-          sub={`${total ? ((withAudio / total) * 100).toFixed(1) : 0}% do total`}
+        <KPICard title={t('analytics.kpi.totalResponses')} value={total} icon={Users} color="orange"
+          sub={drillProvince ? `${t('analytics.kpi.province')}${drillProvince}` : t('analytics.kpi.allProvinces')} />
+        <KPICard title={t('analytics.kpi.withAudio')} value={withAudio}
+          sub={`${total ? ((withAudio / total) * 100).toFixed(1) : 0}${t('analytics.kpi.percentOfTotal')}`}
           icon={Mic} color="blue" />
-        <KPICard title="Satisfação Média Operador" value={avgSatisf ? `${avgSatisf}/5` : '—'}
-          sub="Escala 1–5" icon={TrendingUp} color="green" />
-        <KPICard title="Cobertura de Rede Média" value={avgCoverage ? `${avgCoverage}/5` : '—'}
-          sub="Escala 1–5" icon={Smartphone} color="purple" />
+        <KPICard title={t('analytics.kpi.avgSatisfaction')} value={avgSatisf ? `${avgSatisf}/5` : '—'}
+          sub={t('analytics.kpi.scale')} icon={TrendingUp} color="green" />
+        <KPICard title={t('analytics.kpi.avgCoverage')} value={avgCoverage ? `${avgCoverage}/5` : '—'}
+          sub={t('analytics.kpi.scale')} icon={Smartphone} color="purple" />
       </div>
 
       {/* Timeline */}
       {timelineData.length > 1 && (
         <div>
-          <SectionTitle>Respostas ao longo do tempo</SectionTitle>
-          <ChartCard title="Respostas por dia (últimos 30 dias)">
+          <SectionTitle>{t('analytics.charts.responsesOverTime')}</SectionTitle>
+          <ChartCard title={t('analytics.charts.responsesByDay')}>
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={timelineData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Line type="monotone" dataKey="count" name="Respostas"
+                <Line type="monotone" dataKey="count" name={t('analytics.charts.responses')}
                   stroke={COLORS.primary} strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -359,16 +362,16 @@ export default function Analytics({ isOwner }) {
       {/* Province overview (only when viewing all) */}
       {!drillProvince && (
         <div>
-          <SectionTitle>Visão geral por província</SectionTitle>
+          <SectionTitle>{t('analytics.charts.provinceOverview')}</SectionTitle>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ChartCard title="Respostas por província">
+            <ChartCard title={t('analytics.charts.byProvince')}>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={provinceData} barSize={36}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="respostas" name="Respostas" radius={[6, 6, 0, 0]}>
+                  <Bar dataKey="respostas" name={t('analytics.charts.responses')} radius={[6, 6, 0, 0]}>
                     {provinceData.map((_, i) => (
                       <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
                     ))}
@@ -377,7 +380,7 @@ export default function Analytics({ isOwner }) {
               </ResponsiveContainer>
             </ChartCard>
 
-            <ChartCard title="Distribuição por província">
+            <ChartCard title={t('analytics.charts.distributionByProvince')}>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
                   <Pie data={provinceData} dataKey="respostas" nameKey="name"
@@ -399,17 +402,17 @@ export default function Analytics({ isOwner }) {
       {/* Drill-down: top municipalities */}
       <div>
         <SectionTitle>
-          {drillProvince ? `Municípios — ${drillProvince}` : 'Top municípios (todas as províncias)'}
+          {drillProvince ? t('analytics.charts.municipalities', { province: drillProvince }) : t('analytics.charts.municipalitiesAll')}
         </SectionTitle>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="Respostas por município (top 10)">
+          <ChartCard title={t('analytics.charts.byMunicipality')}>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={municipioData} layout="vertical" barSize={14}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Respostas" fill={COLORS.primary} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" name={t('analytics.charts.responses')} fill={COLORS.primary} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -422,9 +425,9 @@ export default function Analytics({ isOwner }) {
 
       {/* Demographics */}
       <div>
-        <SectionTitle>Perfil demográfico</SectionTitle>
+        <SectionTitle>{t('analytics.charts.demographics')}</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <ChartCard title="Género">
+          <ChartCard title={t('analytics.charts.gender')}>
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie data={genderData} dataKey="value" nameKey="name"
@@ -438,26 +441,26 @@ export default function Analytics({ isOwner }) {
             </ResponsiveContainer>
           </ChartCard>
 
-          <ChartCard title="Faixa etária">
+          <ChartCard title={t('analytics.charts.ageGroup')}>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={ageData} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 9 }} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Pessoas" fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
 
-          <ChartCard title="Ocupação">
+          <ChartCard title={t('analytics.charts.occupation')}>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={occupationData} layout="vertical" barSize={12}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Pessoas" fill={COLORS.tertiary} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.tertiary} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -466,9 +469,9 @@ export default function Analytics({ isOwner }) {
 
       {/* Device & connectivity */}
       <div>
-        <SectionTitle>Dispositivo e conectividade</SectionTitle>
+        <SectionTitle>{t('analytics.charts.deviceConnectivity')}</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <ChartCard title="Tipo de telefone">
+          <ChartCard title={t('analytics.charts.phoneType')}>
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie data={phoneTypeData} dataKey="value" nameKey="name"
@@ -482,7 +485,7 @@ export default function Analytics({ isOwner }) {
             </ResponsiveContainer>
           </ChartCard>
 
-          <ChartCard title="Suporta 4G">
+          <ChartCard title={t('analytics.charts.supports4G')}>
             <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie data={sim4GData} dataKey="value" nameKey="name"
@@ -496,14 +499,14 @@ export default function Analytics({ isOwner }) {
             </ResponsiveContainer>
           </ChartCard>
 
-          <ChartCard title="Configuração SIM">
+          <ChartCard title={t('analytics.charts.simConfig')}>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={simConfigData} barSize={22}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 9 }} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Pessoas" fill={COLORS.quaternary} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.quaternary} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -512,28 +515,29 @@ export default function Analytics({ isOwner }) {
 
       {/* Operator & network */}
       <div>
-        <SectionTitle>Operador e rede</SectionTitle>
+        <SectionTitle>{t('analytics.charts.operatorNetwork')}</SectionTitle>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="Operador atual (top 6)">
+          <ChartCard title={t('analytics.charts.topOperators')}>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={operatorData} barSize={28}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Pessoas" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="value" name={t('analytics.charts.people')} radius={[6, 6, 0, 0]}>
                   {operatorData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
 
-          <ChartCard title="Médias de satisfação e cobertura">
+          <ChartCard title={t('analytics.charts.satisfactionCoverage')}>
             <div className="grid grid-cols-2 gap-4 mt-2">
               {[
-                { label: 'Satisfação com operador', key: 'SatisfacaoOperador', color: COLORS.primary },
-                { label: 'Cobertura de rede',        key: 'CoberturaDaRede',    color: COLORS.secondary },
-              ].map(({ label, key, color }) => {
+                { labelKey: 'analytics.charts.operatorSatisfaction', key: 'SatisfacaoOperador', color: COLORS.primary },
+                { labelKey: 'analytics.charts.networkCoverage',      key: 'CoberturaDaRede',    color: COLORS.secondary },
+              ].map(({ labelKey, key, color }) => {
+                const label = t(labelKey);
                 const avg = avgNumber(view, key);
                 const pct = avg ? (parseFloat(avg) / 5) * 100 : 0;
                 return (
@@ -549,7 +553,7 @@ export default function Analytics({ isOwner }) {
             </div>
 
             <div className="mt-6">
-              <p className="text-xs text-gray-500 mb-3">Mudaria de operador?</p>
+              <p className="text-xs text-gray-500 mb-3">{t('analytics.charts.wouldSwitch')}</p>
               <ResponsiveContainer width="100%" height={120}>
                 <PieChart>
                   <Pie data={switchData} dataKey="value" nameKey="name"
@@ -568,33 +572,33 @@ export default function Analytics({ isOwner }) {
 
       {/* Usage & recharge */}
       <div>
-        <SectionTitle>Uso e recargas</SectionTitle>
+        <SectionTitle>{t('analytics.charts.usageRecharges')}</SectionTitle>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          <ChartCard title="Frequência de recarga">
+          <ChartCard title={t('analytics.charts.rechargeFrequency')}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={rechargeFreqData} layout="vertical" barSize={14}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Pessoas" fill={COLORS.warning} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.warning} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
 
-          <ChartCard title="Valor de recarga habitual">
+          <ChartCard title={t('analytics.charts.rechargeAmount')}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={rechargeValData} barSize={20}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 9 }} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Pessoas" fill={COLORS.primary} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.primary} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
 
-          <ChartCard title="Usa Mobile Money?">
+          <ChartCard title={t('analytics.charts.mobileMoney')}>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
                 <Pie data={mobileMoneyData} dataKey="value" nameKey="name"
@@ -612,29 +616,29 @@ export default function Analytics({ isOwner }) {
 
       {/* Preferences */}
       <div>
-        <SectionTitle>Preferências e oferta</SectionTitle>
+        <SectionTitle>{t('analytics.charts.preferencesOffers')}</SectionTitle>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartCard title="Pacote preferido">
+          <ChartCard title={t('analytics.charts.preferredBundle')}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={bundleData} layout="vertical" barSize={14}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" name="Pessoas" fill={COLORS.tertiary} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.tertiary} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
 
-          <ChartCard title="Gravações de áudio por província">
+          <ChartCard title={t('analytics.charts.audioByProvince')}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart
                 data={PROVINCES.map(p => {
                   const rows = allRecords.filter(r => (r.Provincia || r._province) === p);
                   return {
                     name: p,
-                    'Com áudio': rows.filter(r => r.TemGravacoes === 'Sim').length,
-                    'Sem áudio': rows.filter(r => r.TemGravacoes !== 'Sim').length,
+                    [t('analytics.charts.withAudio')]: rows.filter(r => r.TemGravacoes === 'Sim').length,
+                    [t('analytics.charts.withoutAudio')]: rows.filter(r => r.TemGravacoes !== 'Sim').length,
                   };
                 })}
                 barSize={24}
@@ -644,8 +648,8 @@ export default function Analytics({ isOwner }) {
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="Com áudio" stackId="a" fill={COLORS.secondary} radius={[0, 0, 0, 0]} />
-                <Bar dataKey="Sem áudio" stackId="a" fill="#E5E7EB" radius={[4, 4, 0, 0]} />
+                <Bar dataKey={t('analytics.charts.withAudio')} stackId="a" fill={COLORS.secondary} radius={[0, 0, 0, 0]} />
+                <Bar dataKey={t('analytics.charts.withoutAudio')} stackId="a" fill="#E5E7EB" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>

@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 export default function MainLayout() {
   const { userProfile, logout } = useAuth();
   const { sp, checkIsOwner } = useSharePoint();
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [isOwner, setIsOwner] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -90,7 +90,7 @@ export default function MainLayout() {
                     to="/home/admin"
                     className="text-white/80 hover:text-white text-sm font-medium transition-colors"
                   >
-                    Admin
+                    {t('nav.admin')}
                   </Link>
                 )}
 
@@ -153,7 +153,7 @@ export default function MainLayout() {
                         </p>
                         {isOwner && (
                           <span className="inline-block mt-1.5 text-xs bg-primary/10 text-primary font-medium px-2 py-0.5 rounded-full">
-                            Administrador
+                            {t('nav.administrator')}
                           </span>
                         )}
                       </div>
@@ -166,7 +166,7 @@ export default function MainLayout() {
                           className="flex items-center space-x-2.5 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                         >
                           <Settings className="w-4 h-4 text-gray-400" />
-                          <span>Painel de Administração</span>
+                          <span>{t('nav.adminPanel')}</span>
                         </Link>
                       )}
 
@@ -175,7 +175,7 @@ export default function MainLayout() {
                         className="flex items-center space-x-2.5 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
-                        <span>Terminar sessão</span>
+                        <span>{t('nav.logout')}</span>
                       </button>
                     </div>
                   )}
@@ -202,10 +202,10 @@ export default function MainLayout() {
             </div>
             <div className="space-y-2">
               <h2 className="text-lg font-semibold text-gray-800">
-                Sessão expirada
+                {t('session.expired')}
               </h2>
               <p className="text-sm text-gray-500">
-                Não foi possível comunicar com o servidor. A sua sessão expirou ou não há ligação à internet.
+                {t('session.expiredMessage')}
               </p>
             </div>
             <button
@@ -213,7 +213,7 @@ export default function MainLayout() {
               className="w-full flex items-center justify-center space-x-2 bg-primary text-white py-2.5 rounded-xl font-medium hover:bg-primary/90 transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              <span>Terminar sessão e voltar a entrar</span>
+              <span>{t('session.logoutAndLogin')}</span>
             </button>
           </div>
         </div>
