@@ -459,6 +459,8 @@ export default function AdminPage() {
   const [exportingTranscript, setExportingTranscript] = useState(false);
   const [transcriptProgress, setTranscriptProgress] = useState({ current: 0, total: 0 });
   const [transcribingRows, setTranscribingRows] = useState({}); // { [itemId]: true }
+  const [transcribingAll, setTranscribingAll] = useState(false);
+  const [transcribeAllProgress, setTranscribeAllProgress] = useState({ current: 0, total: 0 });
 
   // ── load counts — 404 means list not created yet, show 0 silently ─────────
   const refreshCounts = useCallback(async () => {
@@ -629,8 +631,8 @@ export default function AdminPage() {
         const blob   = new Blob([buf], { type: 'audio/wav' });
         const result = await assemblyClient.transcripts.transcribe({
           audio: blob,
-          language_detection: true,
-          speech_model: 'universal-3-pro',
+          language_code: 'pt',
+          speech_models: ['universal-3-pro'],
         });
 
         if (result.text) {
@@ -650,6 +652,30 @@ export default function AdminPage() {
     } finally {
       setTranscribingRows(prev => { const n = { ...prev }; delete n[row.Id]; return n; });
     }
+  };
+
+  // ── records missing transcription ────────────────────────────────────────
+  const noTranscript = (val) => {
+    const v = (val || '').replace(/<[^>]*>/g, '').trim();
+    return !v || v.startsWith('Audio recording captured');
+  };
+  const missingTranscription = records.filter(r =>
+    r.TemGravacoes === 'Sim' && (noTranscript(r.InsightPrincipal) || noTranscript(r.LocalNovasLojas))
+  );
+
+  // ── transcribe all missing ────────────────────────────────────────────────
+  const handleTranscribeAll = async () => {
+    if (missingTranscription.length === 0) return;
+    setTranscribingAll(true);
+    setTranscribeAllProgress({ current: 0, total: missingTranscription.length });
+    let done = 0;
+    for (const row of missingTranscription) {
+      await handleTranscribeRow(row);
+      done += 1;
+      setTranscribeAllProgress({ current: done, total: missingTranscription.length });
+    }
+    setTranscribingAll(false);
+    setTranscribeAllProgress({ current: 0, total: 0 });
   };
 
   // ── transcript export ─────────────────────────────────────────────────────
@@ -825,42 +851,34 @@ export default function AdminPage() {
               <span>{t('ui.refresh')}</span>
             </button>
 
-            <button
-              onClick={exportExcel}
-              disabled={records.length === 0}
-              className="flex items-center space-x-1.5 text-sm text-green-700 border border-green-200 bg-green-50 px-3 py-2 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
-            >
-              <FileSpreadsheet className="w-4 h-4" />
-              <span>{t('admin.export.excel')}</span>
-            </button>
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={exportExcel}
+                disabled={records.length === 0}
+                className="flex items-center space-x-1.5 text-sm text-green-700 border border-green-200 bg-green-50 px-3 py-2 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                <span>{t('admin.export.excel')}</span>
+              </button>
 
-            <button
-              onClick={exportZip}
-              disabled={exporting || records.length === 0}
-              className="flex items-center space-x-1.5 text-sm text-blue-700 border border-blue-200 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
-            >
-              {exporting
-                ? <RefreshCw className="w-4 h-4 animate-spin" />
-                : <Archive className="w-4 h-4" />
-              }
-              <span>{exporting ? t('admin.export.exporting') : t('admin.export.zip')}</span>
-            </button>
+              <button
+                onClick={handleTranscribeAll}
+                disabled={transcribingAll || missingTranscription.length === 0}
+                className="flex items-center space-x-1.5 text-sm text-orange-700 border border-orange-200 bg-orange-50 px-3 py-2 rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
+              >
+                {transcribingAll
+                  ? <RefreshCw className="w-4 h-4 animate-spin" />
+                  : <Mic className="w-4 h-4" />
+                }
+                <span>
+                  {transcribingAll
+                    ? `${transcribeAllProgress.current}/${transcribeAllProgress.total}`
+                    : `${t('admin.transcribeAll')} (${missingTranscription.length})`
+                  }
+                </span>
+              </button>
+            </div>
 
-            <button
-              onClick={handleTranscriptExport}
-              disabled={exportingTranscript || records.length === 0}
-              className="flex items-center space-x-1.5 text-sm text-purple-700 border border-purple-200 bg-purple-50 px-3 py-2 rounded-lg hover:bg-purple-100 disabled:opacity-50 transition-colors"
-            >
-              {exportingTranscript
-                ? <RefreshCw className="w-4 h-4 animate-spin" />
-                : <FileAudio className="w-4 h-4" />
-              }
-              <span>
-                {exportingTranscript
-                  ? t('admin.export.audioProgress', { current: transcriptProgress.current, total: transcriptProgress.total })
-                  : t('admin.export.transcript')}
-              </span>
-            </button>
           </div>
 
           {/* Table */}
