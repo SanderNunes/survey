@@ -286,6 +286,15 @@ function RecordDetailModal({ record, onClose, province, getItemAttachments, down
                 })}
               </p>
             )}
+            {record.Author?.Title && (
+              <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                <User className="w-3 h-3" />
+                <span>{record.Author.Title}</span>
+                {record.Author.EMail && (
+                  <span className="text-gray-300">· {record.Author.EMail}</span>
+                )}
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -408,11 +417,13 @@ const TABLE_COLS = [
   { key: 'Ocupacao',            label: 'Ocupação'    },
   { key: 'OperadorAtual',       label: 'Operador'    },
   { key: 'TipoTelefone',        label: 'Telefone'    },
-  { key: 'TemGravacoes',        label: 'Áudio'       },
-  { key: 'DataPreenchimento',   label: 'Data'        },
+  { key: 'TemGravacoes',        labelKey: 'admin.cols.audio'    },
+  { key: '_author',             labelKey: 'admin.cols.createdBy' },
+  { key: 'DataPreenchimento',   labelKey: 'admin.cols.date'      },
 ];
 
 export default function AdminPage() {
+  const { t } = useTranslation();
   const {
     sp,
     checkIsOwner,
@@ -423,6 +434,7 @@ export default function AdminPage() {
     getItemAttachments,
     downloadAttachment,
     exportProvincePackage,
+    buildExcelWorksheet,
   } = useSharePoint();
 
   // ── access guard ──────────────────────────────────────────────────────────
@@ -434,7 +446,7 @@ export default function AdminPage() {
   }, [sp, checkIsOwner]);
 
   // ── main state ────────────────────────────────────────────────────────────
-  const [activeProvince, setActiveProvince] = useState('Cabinda');
+  const [activeProvince, setActiveProvince] = useState(null); // null = All
   const [counts, setCounts] = useState({ Cabinda: null, 'Bié': null, Zaire: null });
   const [records, setRecords] = useState([]);
   const [listNotFound, setListNotFound] = useState(false);
@@ -474,18 +486,33 @@ export default function AdminPage() {
     setRecords([]);
     setListNotFound(false);
     try {
-      const data = await getProvinceRecords(province);
-      setRecords(data);
+      if (province === null) {
+        // All provinces — fetch in parallel and combine
+        const results = await Promise.allSettled(
+          PROVINCES.map(p =>
+            getProvinceRecords(p, { top: 5000 })
+              .then(rows => rows.map(r => ({ ...r, _province: p })))
+          )
+        );
+        const combined = results
+          .filter(r => r.status === 'fulfilled')
+          .flatMap(r => r.value)
+          .sort((a, b) => new Date(b.DataPreenchimento) - new Date(a.DataPreenchimento));
+        setRecords(combined);
+      } else {
+        const data = await getProvinceRecords(province);
+        setRecords(data);
+      }
     } catch (err) {
       if (err.message?.includes('404') || err.message?.includes('does not exist')) {
         setListNotFound(true);
       } else {
-        toast.error('Erro ao carregar registos: ' + err.message);
+        toast.error(t('admin.load.error') + err.message);
       }
     } finally {
       setLoading(false);
     }
-  }, [getProvinceRecords]);
+  }, [getProvinceRecords, t]);
 
   // Load counts once sp is ready; do NOT auto-load records (lists may not exist yet)
   useEffect(() => {
@@ -502,42 +529,48 @@ export default function AdminPage() {
   }, [activeProvince]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── filtered rows ─────────────────────────────────────────────────────────
+  const totalCount = Object.values(counts).reduce((sum, c) => sum + (Number(c) || 0), 0);
+  const isAllView  = activeProvince === null;
+
   const term = searchTerm.toLowerCase();
   const filtered = term
     ? records.filter(r =>
-        (r.Municipio || '').toLowerCase().includes(term) ||
+        (r.Provincia  || r._province || '').toLowerCase().includes(term) ||
+        (r.Municipio  || '').toLowerCase().includes(term) ||
         (r.OperadorAtual || '').toLowerCase().includes(term) ||
-        (r.Genero || '').toLowerCase().includes(term) ||
-        (r.Ocupacao || '').toLowerCase().includes(term)
+        (r.Genero     || '').toLowerCase().includes(term) ||
+        (r.Ocupacao   || '').toLowerCase().includes(term)
       )
     : records;
 
   // ── export Excel ──────────────────────────────────────────────────────────
   const exportExcel = () => {
     if (records.length === 0) {
-      toast('Nenhum registo para exportar.');
+      toast(t('admin.export.noRecords'));
       return;
     }
-    const ws = XLSX.utils.json_to_sheet(records);
+    const sheetName = activeProvince ?? 'Todas';
+    const ws = buildExcelWorksheet(records);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, activeProvince);
-    XLSX.writeFile(wb, `${activeProvince}_survey_${Date.now()}.xlsx`);
-    toast.success('Ficheiro Excel exportado.');
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, `${sheetName}_survey_${Date.now()}.xlsx`);
+    toast.success(t('admin.export.excelDone'));
   };
 
   // ── export ZIP (audio attachments) ────────────────────────────────────────
   const exportZip = async () => {
     const withAudio = records.filter(r => r.TemGravacoes === 'Sim');
     if (withAudio.length === 0) {
-      toast('Nenhum registo com gravações de áudio.');
+      toast(t('admin.export.noAudio'));
       return;
     }
     setExporting(true);
-    const toastId = toast.loading(`A exportar áudio de ${withAudio.length} registo(s)…`);
+    const toastId = toast.loading(t('admin.export.audioExporting', { count: withAudio.length }));
     try {
       const zip = new JSZip();
       for (const item of withAudio) {
-        const atts = await getItemAttachments(activeProvince, item.Id);
+        const itemProvince = item._province || activeProvince;
+        const atts = await getItemAttachments(itemProvince, item.Id);
         for (const att of atts) {
           const buf = await downloadAttachment(att.ServerRelativeUrl);
           zip.file(`item_${item.Id}/${att.FileName}`, buf);
@@ -547,12 +580,12 @@ export default function AdminPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${activeProvince}_audio_${Date.now()}.zip`;
+      a.download = `${activeProvince ?? 'Todas'}_audio_${Date.now()}.zip`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success('ZIP de áudio exportado.', { id: toastId });
+      toast.success(t('admin.export.zipDone'), { id: toastId });
     } catch (err) {
-      toast.error('Erro ao exportar ZIP: ' + err.message, { id: toastId });
+      toast.error(t('admin.export.errorZip') + err.message, { id: toastId });
     } finally {
       setExporting(false);
     }
@@ -561,14 +594,14 @@ export default function AdminPage() {
   // ── delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!confirmDelete) return;
-    const { itemId } = confirmDelete;
+    const { itemId, province: deleteProvince } = confirmDelete;
     try {
-      await deleteProvinceRecord(activeProvince, itemId);
+      await deleteProvinceRecord(deleteProvince, itemId);
       setRecords(prev => prev.filter(r => r.Id !== itemId));
-      setCounts(prev => ({ ...prev, [activeProvince]: (prev[activeProvince] || 1) - 1 }));
-      toast.success('Registo eliminado.');
+      if (deleteProvince) setCounts(prev => ({ ...prev, [deleteProvince]: (prev[deleteProvince] || 1) - 1 }));
+      toast.success(t('admin.delete.success'));
     } catch (err) {
-      toast.error('Erro ao eliminar: ' + err.message);
+      toast.error(t('admin.delete.error') + err.message);
     } finally {
       setConfirmDelete(null);
     }
@@ -577,9 +610,10 @@ export default function AdminPage() {
   // ── per-row transcription (admin, pre-recorded audio) ─────────────────────
   const handleTranscribeRow = async (row) => {
     setTranscribingRows(prev => ({ ...prev, [row.Id]: true }));
-    const toastId = toast.loading(`A transcrever registo #${row.Id}…`);
+    const toastId = toast.loading(t('admin.export.transcribeProgress', { id: row.Id }));
     try {
-      const atts = await getItemAttachments(activeProvince, row.Id);
+      const rowProvince = row._province || activeProvince;
+      const atts = await getItemAttachments(rowProvince, row.Id);
       const fields = {};
 
       for (const att of atts) {
@@ -605,14 +639,14 @@ export default function AdminPage() {
       }
 
       if (Object.keys(fields).length > 0) {
-        await updateProvinceRecord(activeProvince, row.Id, fields);
+        await updateProvinceRecord(rowProvince, row.Id, fields);
         setRecords(prev => prev.map(r => r.Id === row.Id ? { ...r, ...fields } : r));
-        toast.success(`Transcrição concluída para #${row.Id}.`, { id: toastId });
+        toast.success(t('admin.export.transcribeDone', { id: row.Id }), { id: toastId });
       } else {
-        toast('Nenhum áudio reconhecido para transcrever.', { id: toastId });
+        toast(t('admin.export.noAudioToTranscribe'), { id: toastId });
       }
     } catch (err) {
-      toast.error(`Erro ao transcrever #${row.Id}: ` + err.message, { id: toastId });
+      toast.error(t('admin.export.transcribeError', { id: row.Id }) + err.message, { id: toastId });
     } finally {
       setTranscribingRows(prev => { const n = { ...prev }; delete n[row.Id]; return n; });
     }
@@ -621,15 +655,15 @@ export default function AdminPage() {
   // ── transcript export ─────────────────────────────────────────────────────
   const handleTranscriptExport = async () => {
     setExportingTranscript(true);
-    const toastId = toast.loading('A preparar pacote de transcrição…');
+    const toastId = toast.loading(t('admin.export.preparingPackage'));
     try {
-      const result = await exportProvincePackage(activeProvince, (p) => {
+      const result = await exportProvincePackage(activeProvince ?? PROVINCES[0], (p) => {
         setTranscriptProgress(p);
-        toast.loading(`A exportar áudio ${p.current}/${p.total}…`, { id: toastId });
+        toast.loading(t('admin.export.audioProgress', { current: p.current, total: p.total }), { id: toastId });
       });
-      toast.success(`Pacote exportado: ${result.audioFiles} ficheiro(s) de áudio.`, { id: toastId });
+      toast.success(t('admin.export.packageDone', { count: result.audioFiles }), { id: toastId });
     } catch (err) {
-      toast.error('Erro ao exportar: ' + err.message, { id: toastId });
+      toast.error(t('admin.export.errorPackage') + err.message, { id: toastId });
     } finally {
       setExportingTranscript(false);
       setTranscriptProgress({ current: 0, total: 0 });
@@ -649,7 +683,7 @@ export default function AdminPage() {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-500 space-y-2">
         <Database className="w-10 h-10 text-gray-300" />
-        <p className="text-sm">Acesso negado. Esta área é reservada aos administradores do site.</p>
+        <p className="text-sm">{t('admin.access')}</p>
       </div>
     );
   }
@@ -662,7 +696,7 @@ export default function AdminPage() {
         {/* Header */}
         <div className="flex items-center space-x-3">
           <Database className="w-7 h-7 text-primary" />
-          <h1 className="text-2xl font-semibold text-gray-800">Painel de Administração</h1>
+          <h1 className="text-2xl font-semibold text-gray-800">{t('admin.title')}</h1>
         </div>
 
         {/* Main tab switcher */}
@@ -676,7 +710,7 @@ export default function AdminPage() {
             }`}
           >
             <Table2 className="w-4 h-4" />
-            Dados
+            {t('admin.tabs.data')}
           </button>
           <button
             onClick={() => setMainTab('analytics')}
@@ -687,7 +721,7 @@ export default function AdminPage() {
             }`}
           >
             <BarChart2 className="w-4 h-4" />
-            Análise
+            {t('admin.tabs.analytics')}
           </button>
         </div>
 
@@ -700,7 +734,24 @@ export default function AdminPage() {
         {mainTab === 'data' && <>
 
         {/* Count cards */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
+          {/* All card */}
+          <button
+            onClick={() => setActiveProvince(null)}
+            className={`rounded-xl p-5 text-left shadow-sm border transition-all ${
+              activeProvince === null
+                ? 'bg-primary text-white border-primary'
+                : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
+            }`}
+          >
+            <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${activeProvince === null ? 'text-white/70' : 'text-gray-400'}`}>
+              {t('admin.allAnswers.all')}
+            </p>
+            <p className="text-3xl font-bold">{totalCount}</p>
+            <p className={`text-xs mt-1 ${activeProvince === null ? 'text-white/70' : 'text-gray-400'}`}>
+              {t('admin.responses')}
+            </p>
+          </button>
           {PROVINCES.map(p => (
             <button
               key={p}
@@ -718,7 +769,7 @@ export default function AdminPage() {
                 {counts[p] === null ? '…' : counts[p]}
               </p>
               <p className={`text-xs mt-1 ${activeProvince === p ? 'text-white/70' : 'text-gray-400'}`}>
-                respostas
+                {t('admin.responses')}
               </p>
             </button>
           ))}
@@ -728,6 +779,16 @@ export default function AdminPage() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveProvince(null)}
+              className={`px-6 py-3 text-sm font-medium transition-colors ${
+                activeProvince === null
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {t('admin.allAnswers.all')}
+            </button>
             {PROVINCES.map(p => (
               <button
                 key={p}
@@ -749,7 +810,7 @@ export default function AdminPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Pesquisar município, operador, género…"
+                placeholder={t('admin.search')}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -761,7 +822,7 @@ export default function AdminPage() {
               className="flex items-center space-x-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>Atualizar</span>
+              <span>{t('ui.refresh')}</span>
             </button>
 
             <button
@@ -770,7 +831,7 @@ export default function AdminPage() {
               className="flex items-center space-x-1.5 text-sm text-green-700 border border-green-200 bg-green-50 px-3 py-2 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
             >
               <FileSpreadsheet className="w-4 h-4" />
-              <span>Exportar Excel</span>
+              <span>{t('admin.export.excel')}</span>
             </button>
 
             <button
@@ -782,7 +843,7 @@ export default function AdminPage() {
                 ? <RefreshCw className="w-4 h-4 animate-spin" />
                 : <Archive className="w-4 h-4" />
               }
-              <span>{exporting ? 'A exportar…' : 'Exportar Áudio (ZIP)'}</span>
+              <span>{exporting ? t('admin.export.exporting') : t('admin.export.zip')}</span>
             </button>
 
             <button
@@ -796,8 +857,8 @@ export default function AdminPage() {
               }
               <span>
                 {exportingTranscript
-                  ? `Áudio ${transcriptProgress.current}/${transcriptProgress.total}…`
-                  : 'Exportar Transcrição'}
+                  ? t('admin.export.audioProgress', { current: transcriptProgress.current, total: transcriptProgress.total })
+                  : t('admin.export.transcript')}
               </span>
             </button>
           </div>
@@ -812,21 +873,26 @@ export default function AdminPage() {
               <div className="flex flex-col items-center justify-center h-48 text-gray-400 space-y-3">
                 <Database className="w-8 h-8 text-gray-300" />
                 <p className="text-sm font-medium text-gray-500">
-                  A lista <span className="font-semibold">{activeProvince}_PreLaunch_Survey</span> ainda não existe no SharePoint.
+                  {t('admin.listNotFound', { list: `${activeProvince}_PreLaunch_Survey` })}
                 </p>
               </div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-gray-400 space-y-2">
                 <Search className="w-8 h-8" />
-                <p className="text-sm">Nenhum resultado para &ldquo;{searchTerm}&rdquo;</p>
+                <p className="text-sm">{t('admin.noResults', { term: searchTerm })}</p>
               </div>
             ) : (
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
+                    {isAllView && (
+                      <th className="px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
+                        {t('survey.fields.Provincia')}
+                      </th>
+                    )}
                     {TABLE_COLS.map(col => (
                       <th key={col.key} className="px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
-                        {col.label}
+                        {col.labelKey ? t(col.labelKey) : col.label}
                       </th>
                     ))}
                     <th className="px-4 py-3 font-medium text-gray-600 w-12"></th>
@@ -835,18 +901,27 @@ export default function AdminPage() {
                 <tbody className="divide-y divide-gray-100">
                   {filtered.map(row => (
                     <tr
-                      key={row.Id}
+                      key={`${row._province ?? activeProvince}-${row.Id}`}
                       onClick={() => setSelectedRecord(row)}
                       className="hover:bg-blue-50/40 cursor-pointer transition-colors"
                     >
+                      {isAllView && (
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="inline-block bg-primary/10 text-primary text-xs px-2 py-0.5 rounded-full font-medium">
+                            {row.Provincia || row._province || '—'}
+                          </span>
+                        </td>
+                      )}
                       {TABLE_COLS.map(col => (
                         <td key={col.key} className="px-4 py-3 text-gray-700 whitespace-nowrap max-w-48 truncate">
                           {col.key === 'DataPreenchimento' && row[col.key]
                             ? new Date(row[col.key]).toLocaleDateString('pt-AO')
                             : col.key === 'TemGravacoes'
                               ? row[col.key] === 'Sim'
-                                ? <span className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">Sim</span>
-                                : <span className="inline-block bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">Não</span>
+                                ? <span className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">{t('ui.yes')}</span>
+                                : <span className="inline-block bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">{t('ui.no')}</span>
+                            : col.key === '_author'
+                              ? <span title={row.Author?.EMail || ''} className="text-gray-600">{row.Author?.Title || '—'}</span>
                               : row[col.key] ?? '—'
                           }
                         </td>
@@ -867,7 +942,7 @@ export default function AdminPage() {
                             </button>
                           )}
                           <button
-                            onClick={() => setConfirmDelete({ itemId: row.Id })}
+                            onClick={() => setConfirmDelete({ itemId: row.Id, province: row._province || activeProvince })}
                             className="text-gray-400 hover:text-red-500 transition-colors"
                             title="Eliminar registo"
                           >
@@ -886,8 +961,8 @@ export default function AdminPage() {
           {!loading && records.length > 0 && (
             <div className="px-4 py-2 text-xs text-gray-400 border-t border-gray-100">
               {filtered.length !== records.length
-                ? `${filtered.length} de ${records.length} registos`
-                : `${records.length} registo(s)`}
+                ? t('admin.recordsFiltered', { filtered: filtered.length, total: records.length })
+                : t('admin.records', { count: records.length })}
             </div>
           )}
         </div>
@@ -899,7 +974,7 @@ export default function AdminPage() {
       <RecordDetailModal
         record={selectedRecord}
         onClose={() => setSelectedRecord(null)}
-        province={activeProvince}
+        province={selectedRecord?._province || selectedRecord?.Provincia || activeProvince}
         getItemAttachments={getItemAttachments}
         downloadAttachment={downloadAttachment}
       />
@@ -910,23 +985,23 @@ export default function AdminPage() {
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4">
             <div className="flex items-center space-x-3 text-red-600">
               <Trash2 className="w-6 h-6 flex-shrink-0" />
-              <h2 className="text-base font-semibold">Eliminar registo</h2>
+              <h2 className="text-base font-semibold">{t('admin.delete.title')}</h2>
             </div>
             <p className="text-sm text-gray-600">
-              Tem a certeza que pretende eliminar o registo <span className="font-medium">#{confirmDelete.itemId}</span>? Esta ação é irreversível.
+              {t('admin.delete.confirm', { id: confirmDelete.itemId })}
             </p>
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setConfirmDelete(null)}
                 className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                Cancelar
+                {t('ui.cancel')}
               </button>
               <button
                 onClick={handleDelete}
                 className="px-4 py-2 text-sm text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
               >
-                Eliminar
+                {t('ui.delete')}
               </button>
             </div>
           </div>

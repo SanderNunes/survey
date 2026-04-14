@@ -3,6 +3,7 @@ import { createBrowserRouter } from "react-router-dom";
 import AuthenticationPage from "@/pages/Authentication";
 import MainLayout from "@/layouts/MainLayout";
 import PrivateRoute from "./PrivateRoute";
+import AdminRoute from "./AdminRoute";
 import Survey from "@/pages/home";
 import AdminPage from "@/pages/admin";
 
@@ -25,7 +26,11 @@ const router = createBrowserRouter([
       },
       {
         path: "admin",
-        element: <AdminPage />,
+        element: (
+          <AdminRoute>
+            <AdminPage />
+          </AdminRoute>
+        ),
       },
     ],
   },

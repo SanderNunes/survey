@@ -211,26 +211,6 @@
     "noArticlesAvailable": "No articles available yet.",
     "moreTagsCount": "+{{count}}"
   },
-  "analytics": {
-    "pageTitle": "Analytics Dashboard",
-    "metrics": {
-      "totalArticles": "Total Articles",
-      "totalCourses": "Total Courses",
-      "recentArticles": "Recent Articles",
-      "contentFreshness": "Content Freshness",
-      "last30Days": "Last 30 days",
-      "recentContentRatio": "Recent content ratio",
-      "fromLastMonth": "from last month"
-    },
-    "errors": {
-      "failedToFetch": "Failed to fetch data",
-      "loadingError": "An error occurred while loading the analytics data"
-    },
-    "loading": {
-      "fetchingData": "Fetching analytics data...",
-      "calculatingMetrics": "Calculating metrics..."
-    }
-  },
   "quickLinks": {
     "title": "Quick Links",
     "actions": {
@@ -1429,6 +1409,204 @@
       "bulkDeleteConfirm": "Are you sure you want to delete {count} feedback items?",
       "emptyState": "No feedback found",
       "loadingArticles": "Loading feedback items..."
+    }
+  },
+  "nav": {
+    "admin": "Admin",
+    "adminPanel": "Administration Panel",
+    "logout": "Sign out",
+    "administrator": "Administrator"
+  },
+  "session": {
+    "expired": "Session expired",
+    "expiredMessage": "Could not communicate with the server. Your session has expired or there is no internet connection.",
+    "logoutAndLogin": "Sign out and sign back in"
+  },
+  "ui": {
+    "online": "Online",
+    "offline": "Offline",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "close": "Close",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "retry": "Try again",
+    "refresh": "Refresh",
+    "search": "Search",
+    "previous": "Previous",
+    "next": "Next",
+    "finish": "Finish",
+    "newSurvey": "New Survey",
+    "optional": "This field is optional",
+    "yes": "Yes",
+    "no": "No",
+    "maybe": "Maybe"
+  },
+  "cabinda": {
+    "title": "Africell Survey - Regions",
+    "recording": {
+      "start": "Start Recording",
+      "stop": "Stop Recording",
+      "reRecord": "Record Again",
+      "done": "Recording complete",
+      "inProgress": "Recording…",
+      "otherRecording": "Another audio recording in progress…",
+      "instruction": "Click to start recording your answer",
+      "subInstruction": "Press the microphone button and speak clearly",
+      "orWrite": "Or write your answer:",
+      "writePlaceholder": "Type your answer here…",
+      "warning": "Recording in progress. Stop the recording to navigate between questions.",
+      "micError": "Could not access the microphone. Please check permissions."
+    },
+    "form": {
+      "selectOption": "Select an option",
+      "specifyOther": "Please specify",
+      "selectProvince": "Please select the Province in the previous question first.",
+      "selectMunicipality": "Select municipality",
+      "textPlaceholder": "Type here…"
+    },
+    "pending": {
+      "savedAt": "Saved at: ",
+      "status": "Pending",
+      "syncing": "Syncing… ",
+      "syncStarted": "Auto-sync started.",
+      "progress": "% complete"
+    },
+    "saveDialog": {
+      "title": "Save Survey",
+      "question": "Do you want to save the survey responses now?",
+      "summary": "Survey Summary:",
+      "province": "• Province: ",
+      "municipality": "• Municipality: ",
+      "operator": "• Operator: ",
+      "responses": "• Responses: ",
+      "recordings": "• Recordings: ",
+      "statusOnline": "Online — SharePoint",
+      "statusOffline": "Offline — Local",
+      "status": "• Status: ",
+      "focusGroup": "• Focus group: Interested"
+    },
+    "result": {
+      "success": "✓ Success!",
+      "error": "✗ Error",
+      "duplicate": "Duplicate survey detected"
+    },
+    "validation": {
+      "noAnswers": "No answers found. Complete at least one question before saving.",
+      "unexpected": "Unexpected error saving the survey."
+    }
+  },
+  "admin": {
+    "title": "Administration Panel",
+    "tabs": {
+      "data": "Data",
+      "analytics": "Analytics"
+    },
+    "access": "Access denied. This area is reserved for site administrators.",
+    "responses": "responses",
+    "search": "Search municipality, operator, gender…",
+    "cols": {
+      "createdBy": "Created by",
+      "date": "Date",
+      "audio": "Audio"
+    },
+    "listNotFound": "The list {{list}} does not yet exist in SharePoint.",
+    "noResults": "No results for \"{{term}}\"",
+    "records": "{{count}} record(s)",
+    "recordsFiltered": "{{filtered}} of {{total}} records",
+    "export": {
+      "excel": "Export Excel",
+      "zip": "Export Audio (ZIP)",
+      "transcript": "Export Transcript",
+      "exporting": "Exporting…",
+      "audioProgress": "Audio {{current}}/{{total}}…",
+      "preparingPackage": "Preparing transcript package…",
+      "packageDone": "Package exported: {{count}} audio file(s).",
+      "noRecords": "No records to export.",
+      "noAudio": "No records with audio recordings.",
+      "audioExporting": "Exporting audio from {{count}} record(s)…",
+      "excelDone": "Excel file exported.",
+      "zipDone": "Audio ZIP exported.",
+      "errorZip": "Error exporting ZIP: ",
+      "errorPackage": "Error exporting: ",
+      "transcribeProgress": "Transcribing record #{{id}}…",
+      "transcribeDone": "Transcription complete for #{{id}}.",
+      "noAudioToTranscribe": "No audio recognised to transcribe.",
+      "transcribeError": "Error transcribing #{{id}}: "
+    },
+    "delete": {
+      "title": "Delete record",
+      "confirm": "Are you sure you want to delete record #{{id}}? This action is irreversible.",
+      "success": "Record deleted.",
+      "error": "Error deleting: "
+    },
+    "load": {
+      "error": "Error loading records: "
+    },
+    "allAnswers": {
+      "all": "All",
+      "title": "All Answers",
+      "total": "Total answers across all provinces",
+      "loadBtn": "Load all answers",
+      "loading": "Loading all answers…",
+      "noResults": "No results for \"{{term}}\"",
+      "searchPlaceholder": "Search province, municipality, operator…",
+      "records": "{{count}} answer(s)",
+      "recordsFiltered": "{{filtered}} of {{total}} answers"
+    }
+  },
+  "analytics": {
+    "noData": "No data available. Load responses first.",
+    "retry": "Try again",
+    "filter": "Filter by province:",
+    "all": "All",
+    "refresh": "Refresh",
+    "kpi": {
+      "totalResponses": "Total Responses",
+      "allProvinces": "All provinces",
+      "province": "Province: ",
+      "withAudio": "With Audio Recording",
+      "percentOfTotal": "% of total",
+      "avgSatisfaction": "Avg. Operator Satisfaction",
+      "avgCoverage": "Avg. Network Coverage",
+      "scale": "Scale 1–5"
+    },
+    "charts": {
+      "responsesOverTime": "Responses over time",
+      "responsesByDay": "Responses per day (last 30 days)",
+      "responses": "Responses",
+      "provinceOverview": "Province overview",
+      "byProvince": "Responses by province",
+      "distributionByProvince": "Distribution by province",
+      "municipalities": "Municipalities — {{province}}",
+      "municipalitiesAll": "Top municipalities (all provinces)",
+      "byMunicipality": "Responses by municipality (top 10)",
+      "demographics": "Demographic profile",
+      "gender": "Gender",
+      "ageGroup": "Age group",
+      "occupation": "Occupation",
+      "deviceConnectivity": "Device & connectivity",
+      "phoneType": "Phone type",
+      "supports4G": "4G Support",
+      "simConfig": "SIM configuration",
+      "operatorNetwork": "Operator & network",
+      "topOperators": "Current operator (top 6)",
+      "satisfactionCoverage": "Satisfaction & coverage averages",
+      "operatorSatisfaction": "Operator satisfaction",
+      "networkCoverage": "Network coverage",
+      "wouldSwitch": "Would switch operator?",
+      "usageRecharges": "Usage & recharges",
+      "rechargeFrequency": "Recharge frequency",
+      "rechargeAmount": "Typical recharge amount",
+      "mobileMoney": "Uses Mobile Money?",
+      "preferencesOffers": "Preferences & offers",
+      "preferredBundle": "Preferred bundle",
+      "audioByProvince": "Audio recordings by province",
+      "withAudio": "With audio",
+      "withoutAudio": "Without audio",
+      "people": "People",
+      "unknown": "Not specified"
     }
   },
   "survey": {

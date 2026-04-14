@@ -18,6 +18,115 @@ const QUESTION_LABELS = {
   mainInsight:     'Insight principal (áudio)',
   newShopLocation: 'Local para novas lojas (áudio)',
 };
+
+/**
+ * Ordered list of survey fields for Excel export.
+ * key   = SharePoint internal field name
+ * label = Human-readable column header
+ * Only these fields appear in the export; all SP system fields are excluded.
+ */
+const EXPORT_COLUMNS = [
+  { key: 'Id',                     label: 'ID'                        },
+  { key: 'SurveyId',               label: 'Survey ID'                 },
+  { key: 'DataPreenchimento',      label: 'Data'                      },
+  { key: 'AuthorName',             label: 'Criado por'                },
+  // Section 1 — Demographics
+  { key: 'Provincia',              label: 'Província'                 },
+  { key: 'Municipio',              label: 'Município'                 },
+  { key: 'FaixaEtaria',            label: 'Faixa etária'              },
+  { key: 'Genero',                 label: 'Género'                    },
+  { key: 'Ocupacao',               label: 'Ocupação'                  },
+  { key: 'OcupacaoOutro',          label: 'Ocupação (outro)'          },
+  // Section 2 — Device
+  { key: 'TipoTelefone',           label: 'Tipo de telefone'          },
+  { key: 'Suporta4G',              label: 'Suporta 4G'                },
+  { key: 'ConfiguracaoSIM',        label: 'Configuração SIM'          },
+  // Section 3 — Operator
+  { key: 'OperadorAtual',          label: 'Operador atual'            },
+  { key: 'SatisfacaoOperador',     label: 'Satisfação operador (1–5)' },
+  { key: 'CoberturaDaRede',        label: 'Cobertura da rede (1–5)'   },
+  { key: 'OperadorMaisVisivel',    label: 'Operador mais visível'     },
+  { key: 'ZonasPiorCobertura',     label: 'Zonas com pior cobertura'  },
+  { key: 'ZonasPiorCoberturaOutro',label: 'Zonas (outro)'             },
+  // Section 4 — Usage
+  { key: 'UsoTelefone',            label: 'Uso principal'             },
+  { key: 'FrequenciaRecarga',      label: 'Frequência recarga'        },
+  { key: 'ValorRecarga',           label: 'Valor recarga'             },
+  { key: 'LocalRecarga',           label: 'Local de recarga'          },
+  { key: 'LocalRecargaOutro',      label: 'Local (outro)'             },
+  { key: 'RazaoRecarga',           label: 'Razão da recarga'          },
+  { key: 'RazaoRecargaOutro',      label: 'Razão (outro)'             },
+  { key: 'UsaMobileMoney',         label: 'Usa Mobile Money'          },
+  // Section 5 — Preferences
+  { key: 'PacotePreferido',        label: 'Pacote preferido'          },
+  { key: 'MudariaOperador',        label: 'Mudaria de operador'       },
+  { key: 'OfertaDificilAbandonar', label: 'Oferta difícil abandonar'  },
+  { key: 'OfertaEspecifica',       label: 'Oferta específica'         },
+  { key: 'FontePromocoes',         label: 'Fonte de promoções'        },
+  { key: 'FontePromocoesOutro',    label: 'Fonte (outro)'             },
+  { key: 'LocalNovasLojas',        label: 'Local novas lojas (áudio)' },
+  { key: 'FontesConfianca',        label: 'Fontes de confiança'       },
+  { key: 'FontesConfiancaOutro',   label: 'Fontes (outro)'            },
+  // Section 6 — Insight
+  { key: 'InsightPrincipal',       label: 'Insight principal (áudio)' },
+  // Section 7 — Contact
+  { key: 'InteresseDiscussao',     label: 'Interesse em discussão'    },
+  { key: 'NumeroTelefone',         label: 'Número de telefone'        },
+  // Audio metadata
+  { key: 'TemGravacoes',           label: 'Tem gravações'             },
+  { key: 'CamposComGravacao',      label: 'Campos com gravação'       },
+];
+
+/**
+ * Strip SharePoint ExternalClass HTML wrappers and decode HTML entities.
+ * SharePoint stores multi-select/note fields wrapped in <div class="ExternalClass...">
+ * and encodes characters like &#58; → :
+ */
+function stripSpHtml(raw) {
+  if (raw === null || raw === undefined) return '';
+  const str = String(raw);
+  if (!str.includes('<')) return str; // fast path: no HTML
+  try {
+    const doc = new DOMParser().parseFromString(str, 'text/html');
+    return (doc.body.textContent || '').trim();
+  } catch {
+    return str
+      .replace(/<[^>]+>/g, '')
+      .replace(/&#(\d+);/g, (_, c) => String.fromCharCode(Number(c)))
+      .trim();
+  }
+}
+
+/** Build a clean row object for Excel from a raw SharePoint item. */
+function buildExportRow(r, extra = {}) {
+  const row = {};
+  for (const col of EXPORT_COLUMNS) {
+    if (col.key === 'AuthorName') {
+      row[col.label] = r.Author?.Title || '';
+    } else {
+      row[col.label] = stripSpHtml(r[col.key] ?? '');
+    }
+  }
+  // Append any extra columns (e.g. TranscriptMainInsight)
+  Object.assign(row, extra);
+  return row;
+}
+
+/** Convert an array of raw SP items to a formatted XLSX worksheet. */
+function buildExcelWorksheet(items, extraFn = () => ({})) {
+  const rows = items.map(r => buildExportRow(r, extraFn(r)));
+  const ws   = XLSX.utils.json_to_sheet(rows);
+  // Auto-width based on longest value per column
+  const colWidths = EXPORT_COLUMNS.map((c, i) => {
+    const maxLen = rows.reduce((m, row) => {
+      const v = row[c.label];
+      return Math.max(m, v ? String(v).length : 0);
+    }, c.label.length);
+    return { wch: Math.min(maxLen + 2, 60) }; // cap at 60 chars
+  });
+  ws['!cols'] = colWidths;
+  return ws;
+}
 import "@pnp/sp/files";
 
 /**
@@ -761,7 +870,8 @@ export const useSharePoint = () => {
       if (!sp?.web) return [];
       const listName = getProvinceListName(province);
       let q = sp.web.lists.getByTitle(listName).items
-        .select('*')
+        .select('*', 'Author/Title', 'Author/EMail')
+        .expand('Author')
         .orderBy('DataPreenchimento', false)
         .top(top)
         .skip(skip);
@@ -894,17 +1004,11 @@ export const useSharePoint = () => {
         }
       }
 
-      // 3. Build Excel with transcript reference columns
-      const enriched = records.map(r => {
-        const hasMain = r.CamposComGravacao?.includes('mainInsight');
-        const hasShop = r.CamposComGravacao?.includes('newShopLocation');
-        return {
-          ...r,
-          TranscriptMainInsight:     hasMain ? `${r.Id}_mainInsight.wav`     : '',
-          TranscriptNewShopLocation: hasShop ? `${r.Id}_newShopLocation.wav` : '',
-        };
-      });
-      const ws = XLSX.utils.json_to_sheet(enriched);
+      // 3. Build Excel with clean columns + transcript reference columns
+      const ws = buildExcelWorksheet(records, r => ({
+        'Transcrição — Insight':      r.CamposComGravacao?.includes('mainInsight')     ? `${r.Id}_mainInsight.wav`     : '',
+        'Transcrição — Novas lojas':  r.CamposComGravacao?.includes('newShopLocation') ? `${r.Id}_newShopLocation.wav` : '',
+      }));
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, province);
       const xlsxBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
@@ -976,6 +1080,7 @@ export const useSharePoint = () => {
     getItemAttachments,
     downloadAttachment,
     exportProvincePackage,
+    buildExcelWorksheet,
     // Debug
     testSharePointConnection,
   };

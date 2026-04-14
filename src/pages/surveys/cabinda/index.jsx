@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronRight, ChevronLeft, Check, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import { assemblyClient } from '@/config/assemblyai';
+import { useTranslation } from 'react-i18next';
 
 const CabindaSurvey = () => {
+  const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState(0);
   const [currentSection, setCurrentSection] = useState('demographics');
   const [responses, setResponses] = useState({});
@@ -383,7 +385,7 @@ const CabindaSurvey = () => {
 
   const handleSaveSurvey = useCallback(async () => {
     if (Object.keys(responses).length === 0) {
-      setSaveResult({ success: false, message: 'Nenhuma resposta encontrada. Complete pelo menos uma pergunta antes de guardar.' });
+      setSaveResult({ success: false, message: t('cabinda.validation.noAnswers') });
       return;
     }
 
@@ -410,7 +412,7 @@ const CabindaSurvey = () => {
 
       setSaveResult(result);
     } catch (error) {
-      setSaveResult({ success: false, message: 'Erro inesperado ao guardar o inquérito.', error: error.message });
+      setSaveResult({ success: false, message: t('cabinda.validation.unexpected'), error: error.message });
     } finally {
       setIsSaving(false);
     }
@@ -509,7 +511,7 @@ const CabindaSurvey = () => {
         })();
       }
     } catch {
-      alert('Erro ao acessar o microfone. Por favor, verifique as permissões.');
+      alert(t('cabinda.recording.micError'));
     }
   };
 
@@ -638,13 +640,13 @@ const CabindaSurvey = () => {
               onChange={(e) => handleResponse(question.id, e.target.value)}
               className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base"
             >
-              <option value="">Selecione uma opção</option>
+              <option value="">{t('cabinda.form.selectOption')}</option>
               {question.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
             {question.hasOther && currentValue === 'Outro (especificar)' && (
               <input
                 type="text"
-                placeholder="Por favor, especifique"
+                placeholder={t('cabinda.form.specifyOther')}
                 value={customValue}
                 onChange={(e) => handleResponse(question.id, currentValue, e.target.value)}
                 className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base"
@@ -660,7 +662,7 @@ const CabindaSurvey = () => {
           <div className="space-y-3">
             {!parentValue && (
               <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg p-3">
-                Por favor selecione primeiro a Província na pergunta anterior.
+                {t('cabinda.form.selectProvince')}
               </p>
             )}
             <select
@@ -669,7 +671,7 @@ const CabindaSurvey = () => {
               disabled={!parentValue}
               className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base disabled:opacity-50 disabled:bg-gray-100"
             >
-              <option value="">Selecione o município</option>
+              <option value="">{t('cabinda.form.selectMunicipality')}</option>
               {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
             </select>
           </div>
@@ -705,17 +707,17 @@ const CabindaSurvey = () => {
         return (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              {['Sim', 'Não'].map(option => (
-                <label key={option} className="flex items-center cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              {[{ val: 'Sim', label: t('ui.yes') }, { val: 'Não', label: t('ui.no') }].map(({ val, label }) => (
+                <label key={val} className="flex items-center cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                   <input
                     type="radio"
                     name={question.id}
-                    value={option}
-                    checked={currentValue === option}
+                    value={val}
+                    checked={currentValue === val}
                     onChange={(e) => handleResponse(question.id, e.target.value)}
                     className="mr-3 scale-125 accent-primary"
                   />
-                  <span className="text-base sm:text-lg">{option}</span>
+                  <span className="text-base sm:text-lg">{label}</span>
                 </label>
               ))}
             </div>
@@ -737,17 +739,17 @@ const CabindaSurvey = () => {
         return (
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              {['Sim', 'Talvez', 'Não'].map(option => (
-                <label key={option} className="flex items-center cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+              {[{ val: 'Sim', label: t('ui.yes') }, { val: 'Talvez', label: t('ui.maybe') }, { val: 'Não', label: t('ui.no') }].map(({ val, label }) => (
+                <label key={val} className="flex items-center cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                   <input
                     type="radio"
                     name={question.id}
-                    value={option}
-                    checked={currentValue === option}
+                    value={val}
+                    checked={currentValue === val}
                     onChange={(e) => handleResponse(question.id, e.target.value)}
                     className="mr-3 scale-125 accent-primary"
                   />
-                  <span className="text-base sm:text-lg">{option}</span>
+                  <span className="text-base sm:text-lg">{label}</span>
                 </label>
               ))}
             </div>
@@ -800,8 +802,8 @@ const CabindaSurvey = () => {
                 {!hasRecording ? (
                   <>
                     <div className="text-center">
-                      <p className="text-gray-600 mb-2 text-sm sm:text-base">Clique para começar a gravar sua resposta</p>
-                      <p className="text-xs sm:text-sm text-gray-500">Pressione o botão do microfone e fale claramente</p>
+                      <p className="text-gray-600 mb-2 text-sm sm:text-base">{t('cabinda.recording.instruction')}</p>
+                      <p className="text-xs sm:text-sm text-gray-500">{t('cabinda.recording.subInstruction')}</p>
                     </div>
                     {!isCurrentlyRecording ? (
                       <button
@@ -811,18 +813,18 @@ const CabindaSurvey = () => {
                       >
                         <Mic className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                         <span className="text-sm sm:text-base">
-                          {isRecording && isRecording !== question.id ? 'Outro áudio gravando...' : 'Começar Gravação'}
+                          {isRecording && isRecording !== question.id ? t('cabinda.recording.otherRecording') : t('cabinda.recording.start')}
                         </span>
                       </button>
                     ) : (
                       <div className="text-center">
                         <div className="flex items-center justify-center mb-3 sm:mb-4">
                           <div className="w-3 h-3 sm:w-4 sm:h-4 bg-primary rounded-full animate-pulse mr-2"></div>
-                          <span className="text-primary font-medium text-sm sm:text-base">Gravando... {formatTime(recordingTime)}</span>
+                          <span className="text-primary font-medium text-sm sm:text-base">{t('cabinda.recording.inProgress')} {formatTime(recordingTime)}</span>
                         </div>
                         <button onClick={stopRecording} className="flex items-center px-4 py-2 sm:px-6 sm:py-3 bg-gray-600 text-white rounded-full hover:bg-gray-700 transition-colors">
                           <Square className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                          <span className="text-sm sm:text-base">Parar Gravação</span>
+                          <span className="text-sm sm:text-base">{t('cabinda.recording.stop')}</span>
                         </button>
                         {liveTranscripts[question.id] && (
                           <p className="mt-2 text-xs text-gray-500 italic leading-relaxed max-w-xs text-center">
@@ -837,7 +839,7 @@ const CabindaSurvey = () => {
                     <div className="flex flex-col sm:flex-row items-center sm:justify-between bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 mb-3 sm:mb-4 gap-2 sm:gap-0">
                       <div className="flex items-center">
                         <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
-                        <span className="text-green-700 font-medium text-sm sm:text-base">Gravação concluída</span>
+                        <span className="text-green-700 font-medium text-sm sm:text-base">{t('cabinda.recording.done')}</span>
                       </div>
                       {audioRecordings[question.id]?.transcript && (
                         <p className="text-xs text-gray-600 leading-relaxed bg-white rounded px-2 py-1 max-w-xs sm:max-w-sm italic">
@@ -864,7 +866,7 @@ const CabindaSurvey = () => {
                     >
                       <Mic className="w-3 h-3 sm:w-4 sm:h-4 mr-2" />
                       <span className="text-sm sm:text-base">
-                        {isRecording && isRecording !== question.id ? 'Outro áudio gravando...' : 'Gravar Novamente'}
+                        {isRecording && isRecording !== question.id ? t('cabinda.recording.otherRecording') : t('cabinda.recording.reRecord')}
                       </span>
                     </button>
                   </div>
@@ -872,9 +874,9 @@ const CabindaSurvey = () => {
               </div>
             </div>
             <div className="border-t pt-4">
-              <p className="text-xs sm:text-sm text-gray-600 mb-2">Ou escreva sua resposta:</p>
+              <p className="text-xs sm:text-sm text-gray-600 mb-2">{t('cabinda.recording.orWrite')}</p>
               <textarea
-                placeholder={question.placeholder || 'Digite sua resposta aqui...'}
+                placeholder={question.placeholder || t('cabinda.recording.writePlaceholder')}
                 value={currentValue.includes('[Gravação de Áudio') ? '' : currentValue}
                 onChange={(e) => handleResponse(question.id, e.target.value)}
                 className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none h-20 sm:h-24 text-base"
@@ -889,13 +891,13 @@ const CabindaSurvey = () => {
           <div className="space-y-3">
             <input
               type="tel"
-              placeholder={question.placeholder || 'Digite aqui...'}
+              placeholder={question.placeholder || t('cabinda.form.textPlaceholder')}
               value={currentValue}
               onChange={(e) => handleResponse(question.id, e.target.value)}
               className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base"
             />
             {question.optional && (
-              <p className="text-xs text-gray-400 text-center">Este campo é opcional</p>
+              <p className="text-xs text-gray-400 text-center">{t('ui.optional')}</p>
             )}
           </div>
         );
@@ -922,7 +924,7 @@ const CabindaSurvey = () => {
       <div className={`fixed bottom-4 right-4 z-40 px-3 py-2 rounded-full shadow-lg transition-all duration-300 ${isOnline ? 'bg-green-500 text-white' : 'bg-red-500 text-white'} ${(pendingSurveys.length > 0 || syncProgress.isActive) ? 'animate-pulse' : ''}`}>
         <div className="flex items-center gap-2 text-xs sm:text-sm">
           {isOnline ? <Wifi className="w-3 h-3 sm:w-4 sm:h-4" /> : <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />}
-          <span className="hidden sm:inline">{isOnline ? 'Online' : 'Offline'}</span>
+          <span className="hidden sm:inline">{isOnline ? t('ui.online') : t('ui.offline')}</span>
           {(pendingSurveys.length > 0 || syncProgress.isActive) && (
             <span className="px-2 py-1 bg-white bg-opacity-20 rounded-full text-xs">
               {syncProgress.isActive ? `${syncProgress.current}/${syncProgress.total}` : pendingSurveys.length}
@@ -938,7 +940,7 @@ const CabindaSurvey = () => {
           <div className="mb-6 sm:mb-8">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
               <h1 className="text-xl sm:text-2xl font-bold text-primaryDark text-center sm:text-left">
-                Inquérito Africell — Cabinda
+                {t('cabinda.title')}
               </h1>
               <div className="text-sm text-gray-500 text-center sm:text-right">
                 {currentStep + 1} de {totalSteps}
@@ -991,7 +993,7 @@ const CabindaSurvey = () => {
               className="flex items-center justify-center px-4 py-3 sm:px-6 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors order-2 sm:order-1"
             >
               <ChevronLeft className="w-4 h-4 mr-2" />
-              Anterior
+              {t('ui.previous')}
             </button>
 
             <button
@@ -1000,9 +1002,9 @@ const CabindaSurvey = () => {
               className="flex items-center justify-center px-4 py-3 sm:px-6 bg-primary text-white rounded-lg hover:bg-primaryDark disabled:opacity-50 disabled:cursor-not-allowed transition-colors order-1 sm:order-2"
             >
               {isLastSection ? (
-                <><Check className="w-4 h-4 mr-2" />Finalizar</>
+                <><Check className="w-4 h-4 mr-2" />{t('ui.finish')}</>
               ) : (
-                <>Próxima<ChevronRight className="w-4 h-4 ml-2" /></>
+                <>{t('ui.next')}<ChevronRight className="w-4 h-4 ml-2" /></>
               )}
             </button>
           </div>
@@ -1012,7 +1014,7 @@ const CabindaSurvey = () => {
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <div className="flex items-center text-yellow-800">
                 <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse mr-2"></div>
-                <p className="text-sm font-medium">Gravação em progresso. Pare a gravação para navegar entre perguntas.</p>
+                <p className="text-sm font-medium">{t('cabinda.recording.warning')}</p>
               </div>
             </div>
           )}
@@ -1023,11 +1025,11 @@ const CabindaSurvey = () => {
           <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-800">✓ Inquérito guardado com sucesso!</p>
+                <p className="text-sm font-medium text-green-800">{t('cabinda.result.success')}</p>
                 <p className="text-xs text-green-600">ID: {saveResult.itemId}</p>
               </div>
               <button onClick={startNewSurvey} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm">
-                Novo Inquérito
+                {t('ui.newSurvey')}
               </button>
             </div>
           </div>
@@ -1045,19 +1047,19 @@ const CabindaSurvey = () => {
                 }
                 <p className="text-sm font-medium text-blue-800">
                   {syncProgress.isActive
-                    ? `A sincronizar… ${syncProgress.current} de ${syncProgress.total}`
+                    ? `${t('cabinda.pending.syncing')}${syncProgress.current} de ${syncProgress.total}`
                     : `${pendingSurveys.length} inquérito${pendingSurveys.length > 1 ? 's' : ''} pendente${pendingSurveys.length > 1 ? 's' : ''}`
                   }
                 </p>
               </div>
-              <p className="text-xs text-blue-500">Sincronização automática iniciada.</p>
+              <p className="text-xs text-blue-500">{t('cabinda.pending.syncStarted')}</p>
             </div>
 
             {/* Progress bar (while syncing) */}
             {syncProgress.isActive && (
               <div className="px-4 pb-3">
                 <div className="flex justify-between text-xs text-blue-500 mb-1">
-                  <span>{Math.round((syncProgress.current / syncProgress.total) * 100)}% concluído</span>
+                  <span>{Math.round((syncProgress.current / syncProgress.total) * 100)}{t('cabinda.pending.progress')}</span>
                 </div>
                 <div className="w-full bg-blue-200 rounded-full h-1.5">
                   <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
@@ -1095,10 +1097,10 @@ const CabindaSurvey = () => {
                             <span>Áudio: <span className="font-medium">{Object.keys(survey.audioRecordings).length} gravação(ões)</span></span>
                           )}
                         </div>
-                        <p className="text-xs text-blue-400">Guardado em: {date}</p>
+                        <p className="text-xs text-blue-400">{t('cabinda.pending.savedAt')}{date}</p>
                       </div>
                       <span className="flex-shrink-0 text-xs bg-yellow-100 text-yellow-700 font-medium px-2 py-0.5 rounded-full">
-                        Pendente
+                        {t('cabinda.pending.status')}
                       </span>
                     </div>
                   );
@@ -1112,50 +1114,50 @@ const CabindaSurvey = () => {
         {showSaveDialog && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-              <h3 className="text-lg font-semibold mb-4">Guardar Inquérito</h3>
+              <h3 className="text-lg font-semibold mb-4">{t('cabinda.saveDialog.title')}</h3>
 
               {!saveResult ? (
                 <>
-                  <p className="text-gray-600 mb-4">Deseja guardar as respostas do inquérito agora?</p>
+                  <p className="text-gray-600 mb-4">{t('cabinda.saveDialog.question')}</p>
                   <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <h4 className="text-sm font-medium text-gray-800 mb-3">Resumo do Inquérito:</h4>
+                    <h4 className="text-sm font-medium text-gray-800 mb-3">{t('cabinda.saveDialog.summary')}</h4>
                     <div className="space-y-2 text-sm text-gray-600">
-                      <p>• Província: {responses.province || '—'}</p>
-                      <p>• Município: {responses.municipality || '—'}</p>
-                      <p>• Operador: {responses.currentOperator || '—'}</p>
-                      <p>• Respostas: {Object.keys(responses).length}</p>
-                      <p>• Gravações: {Object.keys(audioRecordings).length}</p>
-                      <p>• Status: {isOnline ? 'Online — SharePoint' : 'Offline — Local'}</p>
-                      {responses.interestedInDiscussion === 'Sim' && <p>• Grupo focal: Interessado</p>}
+                      <p>{t('cabinda.saveDialog.province')}{responses.province || '—'}</p>
+                      <p>{t('cabinda.saveDialog.municipality')}{responses.municipality || '—'}</p>
+                      <p>{t('cabinda.saveDialog.operator')}{responses.currentOperator || '—'}</p>
+                      <p>{t('cabinda.saveDialog.responses')}{Object.keys(responses).length}</p>
+                      <p>{t('cabinda.saveDialog.recordings')}{Object.keys(audioRecordings).length}</p>
+                      <p>{t('cabinda.saveDialog.status')}{isOnline ? t('cabinda.saveDialog.statusOnline') : t('cabinda.saveDialog.statusOffline')}</p>
+                      {responses.interestedInDiscussion === 'Sim' && <p>{t('cabinda.saveDialog.focusGroup')}</p>}
                     </div>
                   </div>
                   <div className="flex gap-3">
                     <button onClick={() => setShowSaveDialog(false)} disabled={isSaving} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 disabled:opacity-50">
-                      Cancelar
+                      {t('ui.cancel')}
                     </button>
                     <button onClick={handleSaveSurvey} disabled={isSaving} className="flex-1 flex items-center justify-center px-4 py-2 bg-primary text-white rounded hover:bg-primaryDark disabled:opacity-50">
-                      {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Guardando...</> : <><Save className="w-4 h-4 mr-2" />Guardar</>}
+                      {isSaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t('ui.saving')}</> : <><Save className="w-4 h-4 mr-2" />{t('ui.save')}</>}
                     </button>
                   </div>
                 </>
               ) : (
                 <div>
                   <div className={`p-4 rounded-lg mb-4 ${saveResult.success ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'}`}>
-                    <p className="font-medium">{saveResult.success ? '✓ Sucesso!' : '✗ Erro'}</p>
+                    <p className="font-medium">{saveResult.success ? t('cabinda.result.success') : t('cabinda.result.error')}</p>
                     <p className="text-sm mt-1">{saveResult.message}</p>
                     {saveResult.itemId && <p className="text-xs mt-1">ID: {saveResult.itemId}</p>}
-                    {saveResult.isDuplicate && <p className="text-xs mt-1 font-medium">Inquérito duplicado detectado</p>}
+                    {saveResult.isDuplicate && <p className="text-xs mt-1 font-medium">{t('cabinda.result.duplicate')}</p>}
                   </div>
                   {saveResult.success ? (
                     <div className="flex gap-3">
-                      <button onClick={() => setShowSaveDialog(false)} className="flex-1 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Fechar</button>
-                      <button onClick={startNewSurvey} className="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">Novo Inquérito</button>
+                      <button onClick={() => setShowSaveDialog(false)} className="flex-1 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">{t('ui.close')}</button>
+                      <button onClick={startNewSurvey} className="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">{t('ui.newSurvey')}</button>
                     </div>
                   ) : (
                     <div className="flex gap-3">
-                      <button onClick={() => setShowSaveDialog(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50">Fechar</button>
+                      <button onClick={() => setShowSaveDialog(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50">{t('ui.close')}</button>
                       {!saveResult.isDuplicate && !saveResult.wasCancelled && (
-                        <button onClick={handleSaveSurvey} className="flex-1 px-4 py-2 bg-primary text-white rounded hover:bg-primaryDark">Tentar Novamente</button>
+                        <button onClick={handleSaveSurvey} className="flex-1 px-4 py-2 bg-primary text-white rounded hover:bg-primaryDark">{t('ui.retry')}</button>
                       )}
                     </div>
                   )}
