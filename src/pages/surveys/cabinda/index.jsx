@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronLeft, Check, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, CheckCircle, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import { assemblyClient } from '@/config/assemblyai';
 import { useTranslation } from 'react-i18next';
@@ -15,9 +15,10 @@ const CabindaSurvey = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStep, setSaveStep] = useState(null);
   const [saveResult, setSaveResult] = useState(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [syncProgress, setSyncProgress] = useState({ isActive: false, current: 0, total: 0 });
+  const [syncProgress, setSyncProgress] = useState({ isActive: false, current: 0, total: 0, step: null });
 
   // Offline functionality
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -270,7 +271,7 @@ const CabindaSurvey = () => {
       formattedData.contactInfo = { phone: responses.phoneNumber };
     }
 
-    const result = await saveCabindaSurveyResponse(formattedData);
+    const result = await saveCabindaSurveyResponse(formattedData, setSaveStep);
     if (!result.success) throw new Error(result.message || 'SharePoint save failed');
 
     return {
@@ -325,11 +326,13 @@ const CabindaSurvey = () => {
             formattedData.contactInfo = { phone: survey.responses.phoneNumber };
           }
 
-          const result = await saveCabindaSurveyResponse(formattedData);
+          const result = await saveCabindaSurveyResponse(formattedData, (step) =>
+            setSyncProgress(p => ({ ...p, step }))
+          );
           Object.values(audioRecordingsToSync).forEach(r => { if (r.url) URL.revokeObjectURL(r.url); });
 
-          if (result.success || result.message?.includes('duplicate') || result.message?.includes('já existe')) {
-            syncResults.push({ surveyId: survey.id, success: true, sharePointId: result.itemId });
+          if (result.success || result.isDuplicate) {
+            syncResults.push({ surveyId: survey.id, success: true, sharePointId: result.itemId, wasDuplicate: !!result.isDuplicate });
           } else {
             throw new Error(result.message || 'SharePoint save failed');
           }
@@ -342,21 +345,24 @@ const CabindaSurvey = () => {
       const skippedSyncs = syncResults.filter(r => r.skipped);
       const failedSyncs = syncResults.filter(r => !r.success && !r.skipped);
 
-      if (successfulSyncs.length > 0) {
-        const remainingPending = pendingSurveys.filter(s => !successfulSyncs.some(sync => sync.surveyId === s.id));
+      const toRemove = [...successfulSyncs, ...skippedSyncs];
+      if (toRemove.length > 0) {
+        const remainingPending = pendingSurveys.filter(s => !toRemove.some(sync => sync.surveyId === s.id));
         localStorage.setItem('offline-cabinda-surveys', JSON.stringify(remainingPending));
         setPendingSurveys(remainingPending);
 
-        let message = `${successfulSyncs.length} inquéritos sincronizados com sucesso!`;
-        if (skippedSyncs.length > 0) message += ` ${skippedSyncs.length} duplicados removidos.`;
+        const synced = successfulSyncs.filter(r => !r.wasDuplicate).length;
+        const dupes = successfulSyncs.filter(r => r.wasDuplicate).length + skippedSyncs.length;
+        let message = synced > 0 ? `${synced} inquérito${synced > 1 ? 's' : ''} sincronizado${synced > 1 ? 's' : ''} com sucesso!` : '';
+        if (dupes > 0) message += `${message ? ' ' : ''}${dupes} duplicado${dupes > 1 ? 's' : ''} removido${dupes > 1 ? 's' : ''}.`;
         if (failedSyncs.length > 0) message += ` ${failedSyncs.length} falharam.`;
-        setSaveResult({ success: true, message });
+        setSaveResult({ success: true, message: message || 'Sincronização concluída.' });
       }
 
-      setTimeout(() => setSyncProgress({ isActive: false, current: 0, total: 0 }), 2000);
+      setTimeout(() => setSyncProgress({ isActive: false, current: 0, total: 0, step: null }), 2000);
     } catch (error) {
       setSaveResult({ success: false, message: 'Erro durante a sincronização. Tente novamente.', error: error.message });
-      setSyncProgress({ isActive: false, current: 0, total: 0 });
+      setSyncProgress({ isActive: false, current: 0, total: 0, step: null });
     }
   }, [isOnline, pendingSurveys, saveCabindaSurveyResponse]);
 
@@ -415,6 +421,7 @@ const CabindaSurvey = () => {
       setSaveResult({ success: false, message: t('cabinda.validation.unexpected'), error: error.message });
     } finally {
       setIsSaving(false);
+      setSaveStep(null);
     }
   }, [responses, customInputs, currentSection, isOnline, saveToSharePoint]);
 
@@ -924,6 +931,22 @@ const CabindaSurvey = () => {
   const isLastSection = currentSection === 'contact' && isLastStep;
   const isFirstStep = currentStep === 0 && currentSection === 'demographics';
 
+  // ─── Save step constants ───────────────────────────────────────────────────
+
+  const SAVE_STEPS_ALL = ['checkingDuplicates', 'sendingData', 'uploadingAudio', 'done'];
+  const SAVE_STEPS_LABELS = {
+    checkingDuplicates: 'A verificar duplicados…',
+    sendingData:        'A enviar dados…',
+    uploadingAudio:     'A carregar áudio…',
+    done:               'Concluído!',
+  };
+  const SAVE_STEPS_SHORT = {
+    checkingDuplicates: 'Duplicados',
+    sendingData:        'Envio',
+    uploadingAudio:     'Áudio',
+    done:               'Concluído',
+  };
+
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -1068,11 +1091,24 @@ const CabindaSurvey = () => {
               <div className="px-4 pb-3">
                 <div className="flex justify-between text-xs text-blue-500 mb-1">
                   <span>{Math.round((syncProgress.current / syncProgress.total) * 100)}{t('cabinda.pending.progress')}</span>
+                  {syncProgress.step && (
+                    <span className="text-blue-600 font-medium">{SAVE_STEPS_LABELS[syncProgress.step]}</span>
+                  )}
                 </div>
                 <div className="w-full bg-blue-200 rounded-full h-1.5">
                   <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
                     style={{ width: `${(syncProgress.current / syncProgress.total) * 100}%` }} />
                 </div>
+                {syncProgress.step && (() => {
+                  const activeIdx = SAVE_STEPS_ALL.indexOf(syncProgress.step);
+                  return (
+                    <div className="flex gap-0.5 mt-2">
+                      {SAVE_STEPS_ALL.map((step, idx) => (
+                        <div key={step} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${idx < activeIdx ? 'bg-blue-400' : idx === activeIdx ? 'bg-blue-600' : 'bg-blue-200'}`} />
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
 
@@ -1139,6 +1175,44 @@ const CabindaSurvey = () => {
                       {responses.interestedInDiscussion === 'Sim' && <p>{t('cabinda.saveDialog.focusGroup')}</p>}
                     </div>
                   </div>
+                  {/* Step progress indicator — shown while saving */}
+                  {isSaving && (() => {
+                    const steps = Object.keys(audioRecordings).length > 0
+                      ? SAVE_STEPS_ALL
+                      : SAVE_STEPS_ALL.filter(s => s !== 'uploadingAudio');
+                    const activeIdx = steps.indexOf(saveStep);
+                    return (
+                      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                          <span className="text-sm font-medium text-gray-700">
+                            {SAVE_STEPS_LABELS[saveStep] ?? t('ui.saving')}
+                          </span>
+                        </div>
+                        <div className="flex gap-0.5 mb-2">
+                          {steps.map((step, idx) => (
+                            <div key={step} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${idx < activeIdx ? 'bg-green-400' : idx === activeIdx ? 'bg-primary' : 'bg-gray-200'}`} />
+                          ))}
+                        </div>
+                        <div className="flex">
+                          {steps.map((step, idx) => (
+                            <div key={step} className="flex flex-col items-center gap-0.5 flex-1">
+                              {idx < activeIdx
+                                ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                                : idx === activeIdx
+                                  ? <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                                  : <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                              }
+                              <span className={`text-xs ${idx === activeIdx ? 'text-primary font-medium' : idx < activeIdx ? 'text-green-600' : 'text-gray-400'}`}>
+                                {SAVE_STEPS_SHORT[step]}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div className="flex gap-3">
                     <button onClick={() => setShowSaveDialog(false)} disabled={isSaving} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 disabled:opacity-50">
                       {t('ui.cancel')}
