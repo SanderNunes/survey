@@ -261,13 +261,14 @@ export const useSharePoint = () => {
    * Save a completed survey response to SharePoint
    */
   const saveSurveyResponse = useCallback(
-    async (surveyData) => {
+    async (surveyData, onStepChange) => {
       if (!sp?.web) {
         console.error('SharePoint context not available');
         return { success: false, message: 'SharePoint not initialized' };
       }
 
       try {
+        onStepChange?.('checkingDuplicates');
         const getVoiceQuestionValue = (questionId) => {
           const textResponse = surveyData.responses?.[questionId] || '';
           const hasAudio = surveyData.audioRecordings?.[questionId];
@@ -337,6 +338,7 @@ export const useSharePoint = () => {
           itemData.TemGravacoes = 'Nao';
         }
 
+        onStepChange?.('sendingData');
         const result = await sp.web.lists
           .getByTitle("Huila_CustumerExp_Survey")
           .items.add(itemData);
@@ -361,6 +363,7 @@ export const useSharePoint = () => {
 
         let audioUploadResult = null;
         if (surveyData.audioRecordings && Object.keys(surveyData.audioRecordings).length > 0) {
+          onStepChange?.('uploadingAudio');
           try {
             audioUploadResult = await uploadAudioRecordings(itemId, surveyData.audioRecordings);
           } catch (audioError) {
@@ -386,6 +389,7 @@ export const useSharePoint = () => {
           message += ` (${audioUploadResult.successful} gravações de áudio guardadas)`;
         }
 
+        onStepChange?.('done');
         return { success: true, message, itemId, createdItem, audioUploadResult };
 
       } catch (error) {
@@ -477,7 +481,7 @@ export const useSharePoint = () => {
    * Duplicate prevention: checks SurveyId (exact) and Fingerprint+time (device).
    */
   const saveCabindaSurveyResponse = useCallback(
-    async (surveyData) => {
+    async (surveyData, onStepChange) => {
       if (!sp?.web) {
         return { success: false, message: 'SharePoint not initialized' };
       }
@@ -499,6 +503,7 @@ export const useSharePoint = () => {
 
         // ── Server-side duplicate prevention ──────────────────────────────
 
+        onStepChange?.('checkingDuplicates');
         // 1. Exact match by SurveyId
         if (meta.surveyId) {
           const existingById = await sp.web.lists
@@ -593,6 +598,7 @@ export const useSharePoint = () => {
 
         // ── Insert ─────────────────────────────────────────────────────────
 
+        onStepChange?.('sendingData');
         const result = await sp.web.lists.getByTitle(listName).items.add(itemData);
 
         const itemId = result?.data?.Id || result?.data?.ID || result?.Id || result?.ID || result?.id;
@@ -604,6 +610,7 @@ export const useSharePoint = () => {
 
         let audioUploadResult = null;
         if (surveyData.audioRecordings && Object.keys(surveyData.audioRecordings).length > 0) {
+          onStepChange?.('uploadingAudio');
           try {
             audioUploadResult = await uploadPreLaunchAudio(listName, itemId, surveyData.audioRecordings);
           } catch (audioError) {
@@ -621,6 +628,7 @@ export const useSharePoint = () => {
           message += ` (${audioUploadResult.successful} gravações de áudio guardadas)`;
         }
 
+        onStepChange?.('done');
         return { success: true, message, itemId, createdItem, audioUploadResult, listName };
 
       } catch (error) {

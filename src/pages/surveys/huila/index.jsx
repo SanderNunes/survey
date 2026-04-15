@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronLeft, Check, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, CheckCircle, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { useSharePoint } from '@/hooks/useSharePoint';
 
 const AfricellSurvey = () => {
@@ -12,6 +12,7 @@ const AfricellSurvey = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveStep, setSaveStep] = useState(null);
   const [saveResult, setSaveResult] = useState(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   
@@ -56,7 +57,7 @@ const AfricellSurvey = () => {
   }, [isOnline, pendingSurveys.length]);
 
   // Add sync progress state
-  const [syncProgress, setSyncProgress] = useState({ isActive: false, current: 0, total: 0 });
+  const [syncProgress, setSyncProgress] = useState({ isActive: false, current: 0, total: 0, step: null });
 
   // Survey data
   const surveyData = {
@@ -319,7 +320,7 @@ const AfricellSurvey = () => {
       }
 
       // Call your SharePoint function
-      const result = await saveSurveyResponse(formattedSurveyData);
+      const result = await saveSurveyResponse(formattedSurveyData, setSaveStep);
 
       console.log('SharePoint save successful:', result);
 
@@ -433,7 +434,9 @@ const AfricellSurvey = () => {
           console.log('Formatted data for SharePoint:', formattedSurveyData);
 
           // Call SharePoint save function
-          const result = await saveSurveyResponse(formattedSurveyData);
+          const result = await saveSurveyResponse(formattedSurveyData, (step) =>
+            setSyncProgress(p => ({ ...p, step }))
+          );
 
           if (result.success) {
             console.log('Successfully synced survey:', survey.id, 'SharePoint ID:', result.itemId);
@@ -471,36 +474,32 @@ const AfricellSurvey = () => {
       const failedSyncs = syncResults.filter(r => !r.success && !r.skipped);
       const skippedSyncs = syncResults.filter(r => r.skipped);
 
-      if (successfulSyncs.length > 0) {
-        console.log(`Successfully synced ${successfulSyncs.length} surveys`);
-
-        // Remove successfully synced surveys from pending list
+      const toRemove = [...successfulSyncs, ...skippedSyncs];
+      if (toRemove.length > 0) {
+        // Remove synced and duplicate surveys from pending list
         const remainingPending = pendingSurveys.filter(survey =>
-          !successfulSyncs.some(sync => sync.surveyId === survey.id)
+          !toRemove.some(sync => sync.surveyId === survey.id)
         );
 
         // Update localStorage and state
         localStorage.setItem('offline-surveys', JSON.stringify(remainingPending));
         setPendingSurveys(remainingPending);
 
-        // Show success message
-        let message = `${successfulSyncs.length} inquéritos sincronizados com sucesso!`;
-        if (skippedSyncs.length > 0) {
-          message += ` ${skippedSyncs.length} duplicados removidos.`;
-        }
-        if (failedSyncs.length > 0) {
-          message += ` ${failedSyncs.length} falharam.`;
-        }
+        const synced = successfulSyncs.filter(r => !r.wasDuplicate).length;
+        const dupes = successfulSyncs.filter(r => r.wasDuplicate).length + skippedSyncs.length;
+        let message = synced > 0 ? `${synced} inquérito${synced > 1 ? 's' : ''} sincronizado${synced > 1 ? 's' : ''} com sucesso!` : '';
+        if (dupes > 0) message += `${message ? ' ' : ''}${dupes} duplicado${dupes > 1 ? 's' : ''} removido${dupes > 1 ? 's' : ''}.`;
+        if (failedSyncs.length > 0) message += ` ${failedSyncs.length} falharam.`;
 
         setSaveResult({
           success: true,
-          message: message
+          message: message || 'Sincronização concluída.'
         });
       }
 
       // Clear sync progress after completion
       setTimeout(() => {
-        setSyncProgress({ isActive: false, current: 0, total: 0 });
+        setSyncProgress({ isActive: false, current: 0, total: 0, step: null });
       }, 2000);
 
       return successfulSyncs.length > 0;
@@ -514,7 +513,7 @@ const AfricellSurvey = () => {
       });
       
       // Clear sync progress on error
-      setSyncProgress({ isActive: false, current: 0, total: 0 });
+      setSyncProgress({ isActive: false, current: 0, total: 0, step: null });
       return false;
     }
   };
@@ -587,6 +586,7 @@ const AfricellSurvey = () => {
       });
     } finally {
       setIsSaving(false);
+      setSaveStep(null);
     }
   }, [responses, customInputs, currentSection, isOnline, saveToSharePoint]);
 
@@ -1075,6 +1075,22 @@ const AfricellSurvey = () => {
   const isLastStep = currentStep === totalSteps - 1;
   const isLastSection = currentSection === 'focusGroup' && isLastStep;
 
+  // ─── Save step constants ───────────────────────────────────────────────────
+
+  const SAVE_STEPS_ALL = ['checkingDuplicates', 'sendingData', 'uploadingAudio', 'done'];
+  const SAVE_STEPS_LABELS = {
+    checkingDuplicates: 'A verificar duplicados…',
+    sendingData:        'A enviar dados…',
+    uploadingAudio:     'A carregar áudio…',
+    done:               'Concluído!',
+  };
+  const SAVE_STEPS_SHORT = {
+    checkingDuplicates: 'Duplicados',
+    sendingData:        'Envio',
+    uploadingAudio:     'Áudio',
+    done:               'Concluído',
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 py-4 px-3 sm:py-8 sm:px-4">
       {/* Connection Status Badge with Sync Progress */}
@@ -1209,14 +1225,27 @@ const AfricellSurvey = () => {
                     <div className="mt-2">
                       <div className="flex justify-between text-xs text-blue-600 mb-1">
                         <span>Progresso: {syncProgress.current} de {syncProgress.total}</span>
-                        <span>{Math.round((syncProgress.current / syncProgress.total) * 100)}%</span>
+                        {syncProgress.step
+                          ? <span className="text-blue-700 font-medium">{SAVE_STEPS_LABELS[syncProgress.step]}</span>
+                          : <span>{Math.round((syncProgress.current / syncProgress.total) * 100)}%</span>
+                        }
                       </div>
                       <div className="w-full bg-blue-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+                        <div
+                          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${(syncProgress.current / syncProgress.total) * 100}%` }}
                         ></div>
                       </div>
+                      {syncProgress.step && (() => {
+                        const activeIdx = SAVE_STEPS_ALL.indexOf(syncProgress.step);
+                        return (
+                          <div className="flex gap-0.5 mt-2">
+                            {SAVE_STEPS_ALL.map((step, idx) => (
+                              <div key={step} className={`h-1 flex-1 rounded-full transition-colors duration-300 ${idx < activeIdx ? 'bg-blue-400' : idx === activeIdx ? 'bg-blue-600' : 'bg-blue-200'}`} />
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </>
                 ) : (
@@ -1266,6 +1295,44 @@ const AfricellSurvey = () => {
                     </div>
                   </div>
 
+                  {/* Step progress indicator — shown while saving */}
+                  {isSaving && (() => {
+                    const steps = Object.keys(audioRecordings).length > 0
+                      ? SAVE_STEPS_ALL
+                      : SAVE_STEPS_ALL.filter(s => s !== 'uploadingAudio');
+                    const activeIdx = steps.indexOf(saveStep);
+                    return (
+                      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                          <span className="text-sm font-medium text-gray-700">
+                            {SAVE_STEPS_LABELS[saveStep] ?? 'A guardar…'}
+                          </span>
+                        </div>
+                        <div className="flex gap-0.5 mb-2">
+                          {steps.map((step, idx) => (
+                            <div key={step} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${idx < activeIdx ? 'bg-green-400' : idx === activeIdx ? 'bg-primary' : 'bg-gray-200'}`} />
+                          ))}
+                        </div>
+                        <div className="flex">
+                          {steps.map((step, idx) => (
+                            <div key={step} className="flex flex-col items-center gap-0.5 flex-1">
+                              {idx < activeIdx
+                                ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
+                                : idx === activeIdx
+                                  ? <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                                  : <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
+                              }
+                              <span className={`text-xs ${idx === activeIdx ? 'text-primary font-medium' : idx < activeIdx ? 'text-green-600' : 'text-gray-400'}`}>
+                                {SAVE_STEPS_SHORT[step]}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div className="flex gap-3">
                     <button
                       onClick={() => setShowSaveDialog(false)}
@@ -1282,7 +1349,7 @@ const AfricellSurvey = () => {
                       {isSaving ? (
                         <>
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Guardando...
+                          A guardar…
                         </>
                       ) : (
                         <>
