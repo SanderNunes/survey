@@ -18,9 +18,8 @@ let msalInstance = PublicClientApplication | null;
 
 export const loginRequest = {scopes : [
     "files.readwrite",
-    "sites.readwrite.all",
+    "sites.selected",
     "User.Read",
-    "User.ReadBasic.All",
   ]};
 
 
@@ -32,17 +31,6 @@ export const getMsalInstance = async () => {
   return msalInstance;
 };
 
-const scopes = [
-    "files.readwrite",
-    "sites.readwrite.all",
-    "User.Read",
-    "User.Read.All",
-    "Directory.Read.All",
-    "Organization.Read.All",
-    "User.ReadBasic.All",
-    "Calendars.Read",
-    "https://africellcloud.sharepoint.com/.default",
-  ]
 
 
 
