@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell, ResponsiveContainer,
   LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
 } from 'recharts';
-import { RefreshCw, TrendingUp, Users, Mic, Smartphone, ChevronRight, ChevronDown, BarChart2 } from 'lucide-react';
+import { RefreshCw, TrendingUp, Users, Mic, Smartphone, ChevronRight, ChevronDown, BarChart2, Trophy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSharePoint } from '@/hooks/useSharePoint';
 
@@ -207,7 +207,7 @@ export default function Analytics({ isOwner }) {
       const results = await Promise.allSettled(
         PROVINCES.map(p =>
           getProvinceRecords(p, { top: 5000 }).then(rows =>
-            rows.map(r => ({ ...r, _province: p }))
+            rows.map(r => ({ ...r, _province: p, AuthorName: r.Author?.Title || 'Desconhecido' }))
           )
         )
       );
@@ -263,6 +263,11 @@ export default function Analytics({ isOwner }) {
 
   const municipioData = useMemo(() =>
     freq(view, 'Municipio', unknown).slice(0, 10),
+    [view, unknown]
+  );
+
+  const surveyorData = useMemo(() =>
+    freq(view, 'AuthorName', unknown).slice(0, 20),
     [view, unknown]
   );
 
@@ -339,6 +344,63 @@ export default function Analytics({ isOwner }) {
         <KPICard title={t('analytics.kpi.avgCoverage')} value={avgCoverage ? `${avgCoverage}/5` : '—'}
           sub={t('analytics.kpi.scale')} icon={Smartphone} color="purple" />
       </div>
+
+      {/* Surveyor Leaderboard */}
+      {surveyorData.length > 0 && (
+        <div>
+          <SectionTitle>
+            <span className="flex items-center gap-2"><Trophy className="w-4 h-4 text-yellow-500 inline" /> Inquiridores — Inquéritos Realizados</span>
+          </SectionTitle>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+            {/* Ranked table */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600 w-10">#</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">Inquiridor</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-600">Inquéritos</th>
+                    <th className="px-4 py-3 text-right font-medium text-gray-600">% Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {surveyorData.map((row, i) => {
+                    const pct = total ? ((row.value / total) * 100).toFixed(1) : 0;
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
+                    return (
+                      <tr key={row.name} className={`hover:bg-gray-50 transition-colors ${i < 3 ? 'font-medium' : ''}`}>
+                        <td className="px-4 py-2.5 text-center text-base">{medal}</td>
+                        <td className="px-4 py-2.5 text-gray-800">{row.name}</td>
+                        <td className="px-4 py-2.5 text-right font-bold text-primary">{row.value}</td>
+                        <td className="px-4 py-2.5 text-right text-gray-400 text-xs">{pct}%</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Bar chart */}
+            <ChartCard title="Inquéritos por Inquiridor">
+              <ResponsiveContainer width="100%" height={Math.max(180, surveyorData.length * 32)}>
+                <BarChart data={surveyorData} layout="vertical" barSize={14}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} tickLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="value" name="Inquéritos" radius={[0, 4, 4, 0]}>
+                    {surveyorData.map((_, i) => (
+                      <Cell key={i} fill={i === 0 ? COLORS.warning : i === 1 ? COLORS.secondary : i === 2 ? COLORS.tertiary : COLORS.gray} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+          </div>
+        </div>
+      )}
 
       {/* Timeline */}
       {timelineData.length > 1 && (

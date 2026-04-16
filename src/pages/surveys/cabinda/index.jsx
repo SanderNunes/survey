@@ -73,7 +73,7 @@ const CabindaSurvey = () => {
     provinces:          ['Cabinda', 'Bié', 'Zaire'],
     ageGroups:          ['18–24', '25–34', '35–44', '45–54', '55+'],
     genders:            ['Masculino', 'Feminino'],
-    occupations:        ['Estudante', 'Empregado(a)', 'Trabalhador(a) por conta própria', 'Desempregado(a)', 'Outro (especificar)'],
+    occupations:        ['Estudante', 'Empregado - Privado', 'Empregado - Público', 'Trabalhador(a) por conta própria', 'Desempregado(a)', 'Outro (especificar)'],
     phoneTypes:         ['Smartphone', 'Feature Phone (Básico)'],
     yesNoDontKnow:      ['Sim', 'Não', 'Não sei'],
     simConfigs:         ['SIM único', 'Dual SIM'],
@@ -154,10 +154,10 @@ const CabindaSurvey = () => {
       ],
     },
     contact: {
-      title: 'Secção 7: Dados de Contacto (Opcional)',
+      title: 'Secção 7: Dados de Contacto',
       questions: [
         { id: 'interestedInDiscussion', text: 'Interesse em participar numa discussão remunerada sobre telecomunicações na sua área?', type: 'yesno' },
-        { id: 'nomeCliente',            text: 'Nome',                                                                                   type: 'text', placeholder: 'O seu nome', optional: true },
+        { id: 'nomeCliente',            text: 'Nome',                                                                                   type: 'text', placeholder: 'O seu nome' },
         { id: 'phoneNumber',            text: 'Número de telefone',                                                                    type: 'text', placeholder: 'Necessário para ser contactado para a discussão remunerada' },
       ],
     },
@@ -626,8 +626,9 @@ const CabindaSurvey = () => {
     const customValue = customInputs[question.id] || '';
 
     if (question.type === 'text') {
-      // Phone number is required when respondent said "Sim" to discussion
-      if (question.id === 'phoneNumber' && responses['interestedInDiscussion'] === 'Sim') {
+      // Name and phone are both required when respondent said "Sim" to discussion
+      if (responses['interestedInDiscussion'] === 'Sim' &&
+          (question.id === 'nomeCliente' || question.id === 'phoneNumber')) {
         return !!value.trim();
       }
       return true; // all other text fields are optional
@@ -662,7 +663,7 @@ const CabindaSurvey = () => {
             <select
               value={currentValue}
               onChange={(e) => handleResponse(question.id, e.target.value)}
-              className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base"
+              className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base text-black"
             >
               <option value="">{t('cabinda.form.selectOption')}</option>
               {question.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -673,7 +674,7 @@ const CabindaSurvey = () => {
                 placeholder={t('cabinda.form.specifyOther')}
                 value={customValue}
                 onChange={(e) => handleResponse(question.id, currentValue, e.target.value)}
-                className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base"
+                className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base text-black"
               />
             )}
           </div>
@@ -693,7 +694,7 @@ const CabindaSurvey = () => {
               value={currentValue}
               onChange={(e) => handleResponse(question.id, e.target.value)}
               disabled={!parentValue}
-              className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base disabled:opacity-50 disabled:bg-gray-100"
+              className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base text-black disabled:opacity-50 disabled:bg-gray-100"
             >
               <option value="">{t('cabinda.form.selectMunicipality')}</option>
               {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -752,7 +753,7 @@ const CabindaSurvey = () => {
                   placeholder={question.followUp}
                   value={customValue}
                   onChange={(e) => handleResponse(question.id, currentValue, e.target.value)}
-                  className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none h-20 sm:h-24 text-base"
+                  className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none h-20 sm:h-24 text-base text-black"
                 />
               </div>
             )}
@@ -808,7 +809,7 @@ const CabindaSurvey = () => {
                 placeholder="Por favor, especifique"
                 value={customValue}
                 onChange={(e) => handleResponse(question.id, currentValue, e.target.value)}
-                className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base"
+                className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base text-black"
               />
             )}
           </div>
@@ -904,7 +905,7 @@ const CabindaSurvey = () => {
                 placeholder={question.placeholder || t('cabinda.recording.writePlaceholder')}
                 value={currentValue.includes('[Gravação de Áudio') ? '' : currentValue}
                 onChange={(e) => handleResponse(question.id, e.target.value)}
-                className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none h-20 sm:h-24 text-base"
+                className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none h-20 sm:h-24 text-base text-black"
               />
             </div>
           </div>
@@ -919,7 +920,7 @@ const CabindaSurvey = () => {
               placeholder={question.placeholder || t('cabinda.form.textPlaceholder')}
               value={currentValue}
               onChange={(e) => handleResponse(question.id, e.target.value)}
-              className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base"
+              className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base text-black"
             />
             {question.optional && (
               <p className="text-xs text-gray-400 text-center">{t('ui.optional')}</p>
