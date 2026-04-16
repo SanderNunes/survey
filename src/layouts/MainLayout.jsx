@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
-import logo from "@/assets/logo-white.png";
 import { useAuth } from '@/hooks/useAuth';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
@@ -72,14 +71,8 @@ export default function MainLayout() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             {/* Logo */}
-            <Link to="/home" title="Africell Angola" className="flex-shrink-0">
-              <img
-                src={logo}
-                width={150}
-                height={40}
-                alt="Logotipo Africell"
-                className="h-10 w-auto"
-              />
+            <Link to="/home" title="Telecom Market Insights" className="flex-shrink-0">
+              <span className="text-white font-bold text-xl tracking-tight">Telecom Market Insights</span>
             </Link>
 
             {/* Nav + user avatar dropdown */}

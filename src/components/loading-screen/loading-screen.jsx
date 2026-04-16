@@ -9,7 +9,7 @@ import "./loading-screen.css"
 
 export default function LoadingScreen() {
   const [mounted, setMounted] = useState(false)
-  const text = "Africell"
+  const text = "Telecom Market Insights"
 
   useEffect(() => {
     setMounted(true)
