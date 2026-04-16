@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Search, Menu, X, Bell, User, ChevronDown, Home, Users, GraduationCap, FileText, Globe, MessageCircle, ChartNoAxesCombined, Network, Calendar } from 'lucide-react';
 
-import logo from "@/assets/logo-white.png";
 import { Link } from 'react-router-dom';
 import LanguageSelect from '../LangSelect';
 import EmailNotificationMenu from '../NotificationMenu';
@@ -66,15 +65,9 @@ const MobileHeader = ({unreadCounts, userProfile ,searchTerm,onBlur,  onKeyDown,
         <div className="flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/home" title="Africell Angola">
-            <img
-              src={logo}
-              width={100}
-              height={150}
-              alt="Logotipo Africell"
-              className="self-center"
-            />
-          </Link>
+            <Link to="/home" title="Telecom Market Insights">
+              <span className="text-white font-bold text-lg tracking-tight">Telecom Market Insights</span>
+            </Link>
           </div>
 
           {/* Action Buttons */}

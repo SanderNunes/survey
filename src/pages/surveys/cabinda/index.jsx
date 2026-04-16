@@ -29,14 +29,11 @@ const CabindaSurvey = () => {
   const audioRef = useRef(null);
   const timerRef = useRef(null);
 
-  // AssemblyAI streaming refs
-  const assemblyTranscriberRef = useRef(null);
-  const assemblyAudioCtxRef    = useRef(null);
-  const assemblyProcessorRef   = useRef(null);
-  const finalTranscriptsRef    = useRef({}); // { [questionId]: accumulated string }
-  const [liveTranscripts, setLiveTranscripts] = useState({});
+  const [transcribingFor, setTranscribingFor] = useState(null); // questionId being transcribed after upload
 
-  const { saveCabindaSurveyResponse } = useSharePoint();
+  const { saveCabindaSurveyResponse, getSurveyTargetCounts } = useSharePoint();
+  const [targetCounts, setTargetCounts] = useState(null);
+  const [targetCountsLoading, setTargetCountsLoading] = useState(false);
 
   // Monitor online/offline status
   useEffect(() => {
@@ -44,7 +41,13 @@ const CabindaSurvey = () => {
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    const pending = JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]');
+    let pending = [];
+    try {
+      pending = JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]');
+    } catch (e) {
+      console.error('Corrupted offline surveys cache — resetting:', e);
+      localStorage.removeItem('offline-cabinda-surveys');
+    }
     setPendingSurveys(pending);
     return () => {
       window.removeEventListener('online', handleOnline);
@@ -52,6 +55,11 @@ const CabindaSurvey = () => {
     };
   }, []);
 
+
+  // Fetch SP counts on mount (when SP is ready)
+  useEffect(() => {
+    if (getSurveyTargetCounts) fetchTargetCounts();
+  }, [getSurveyTargetCounts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Survey data ──────────────────────────────────────────────────────────
 
@@ -64,7 +72,7 @@ const CabindaSurvey = () => {
   const surveyData = {
     provinces:          ['Cabinda', 'Bié', 'Zaire'],
     ageGroups:          ['18–24', '25–34', '35–44', '45–54', '55+'],
-    genders:            ['Masculino', 'Feminino', 'Prefiro não dizer'],
+    genders:            ['Masculino', 'Feminino'],
     occupations:        ['Estudante', 'Empregado(a)', 'Trabalhador(a) por conta própria', 'Desempregado(a)', 'Outro (especificar)'],
     phoneTypes:         ['Smartphone', 'Feature Phone (Básico)'],
     yesNoDontKnow:      ['Sim', 'Não', 'Não sei'],
@@ -72,7 +80,7 @@ const CabindaSurvey = () => {
     operators:          ['Unitel', 'Movicel', 'Ambos'],
     visibilityOptions:  ['Unitel', 'Movicel', 'Ambos por igual', 'Nenhum'],
     coverageAreas:      ['Centro da cidade', 'Estradas principais', 'Zonas rurais', 'Mercados', 'Zonas fronteiriças', 'Outro (especificar)'],
-    primaryUse:         ['Chamadas', 'Dados', 'Ambos por igual'],
+    primaryUse:         ['Chamadas', 'Dados', 'SMS', 'Ambos por igual'],
     rechargeFrequency:  ['Diariamente', 'De poucos em poucos dias', 'Semanalmente', 'Quinzenalmente', 'Mensalmente'],
     rechargeAmounts:    ['<200 Kz', '200–500 Kz', '500–1.000 Kz', '1.000–2.500 Kz', '2.500–5.000 Kz', '5.000+ Kz'],
     rechargeLocations:  ['Vendedores de rua (Agentes)', 'Lojas', 'Quiosques', 'EMIS', 'E-banking', 'Outro (especificar)'],
@@ -117,10 +125,10 @@ const CabindaSurvey = () => {
       title: 'Secção 4: Utilização, Recargas e Gastos',
       questions: [
         { id: 'primaryPhoneUse',    text: 'O que utiliza mais no telemóvel?',               type: 'dropdown', options: surveyData.primaryUse },
-        { id: 'rechargeFrequency',  text: 'Com que frequência faz recargas?',               type: 'dropdown', options: surveyData.rechargeFrequency },
+        { id: 'rechargeFrequency',  text: 'Com que frequência compra saldo?',               type: 'dropdown', options: surveyData.rechargeFrequency },
         { id: 'rechargeAmount',     text: 'Valor típico de recarga (Kz)',                   type: 'dropdown', options: surveyData.rechargeAmounts },
-        { id: 'rechargeLocation',   text: 'Onde costuma fazer recargas?',                   type: 'multiple', options: surveyData.rechargeLocations, hasOther: true },
-        { id: 'rechargeReason',     text: 'Porque utiliza este método de recarga?',         type: 'dropdown', options: surveyData.rechargeReasons, hasOther: true },
+        { id: 'rechargeLocation',   text: 'Onde costuma comprar saldo?',                    type: 'multiple', options: surveyData.rechargeLocations, hasOther: true },
+        { id: 'rechargeReason',     text: 'Por que escolheste este local ou plataforma?',    type: 'dropdown', options: surveyData.rechargeReasons, hasOther: true },
         { id: 'usesMobileMoney',    text: 'Usa Mobile Money?',                              type: 'yesno' },
       ],
     },
@@ -149,7 +157,8 @@ const CabindaSurvey = () => {
       title: 'Secção 7: Dados de Contacto (Opcional)',
       questions: [
         { id: 'interestedInDiscussion', text: 'Interesse em participar numa discussão remunerada sobre telecomunicações na sua área?', type: 'yesno' },
-        { id: 'phoneNumber',            text: 'Número de telefone (opcional)',                                                          type: 'text', placeholder: 'Contacto apenas se selecionado para discussão remunerada', optional: true },
+        { id: 'nomeCliente',            text: 'Nome',                                                                                   type: 'text', placeholder: 'O seu nome', optional: true },
+        { id: 'phoneNumber',            text: 'Número de telefone',                                                                    type: 'text', placeholder: 'Necessário para ser contactado para a discussão remunerada' },
       ],
     },
   };
@@ -268,7 +277,7 @@ const CabindaSurvey = () => {
     };
 
     if (responses.interestedInDiscussion === 'Sim' && responses.phoneNumber) {
-      formattedData.contactInfo = { phone: responses.phoneNumber };
+      formattedData.contactInfo = { name: responses.nomeCliente, phone: responses.phoneNumber };
     }
 
     const result = await saveCabindaSurveyResponse(formattedData, setSaveStep);
@@ -308,10 +317,16 @@ const CabindaSurvey = () => {
           if (survey.audioData) {
             for (const [key, base64Data] of Object.entries(survey.audioData)) {
               try {
-                const response = await fetch(base64Data);
-                const blob = await response.blob();
+                // Decode base64 directly — fetch() on data URLs is unreliable cross-browser
+                const [header, b64] = base64Data.split(',');
+                const mimeMatch = header.match(/:(.*?);/);
+                const mimeType = mimeMatch ? mimeMatch[1] : 'audio/wav';
+                const binary = atob(b64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                const blob = new Blob([bytes], { type: mimeType });
                 audioRecordingsToSync[key] = { blob, url: URL.createObjectURL(blob) };
-              } catch { /* skip failed audio */ }
+              } catch { /* skip failed audio conversion */ }
             }
           }
 
@@ -326,9 +341,13 @@ const CabindaSurvey = () => {
             formattedData.contactInfo = { phone: survey.responses.phoneNumber };
           }
 
-          const result = await saveCabindaSurveyResponse(formattedData, (step) =>
-            setSyncProgress(p => ({ ...p, step }))
+          const syncTimeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Sync timeout after 30s')), 30000)
           );
+          const result = await Promise.race([
+            saveCabindaSurveyResponse(formattedData, (step) => setSyncProgress(p => ({ ...p, step }))),
+            syncTimeout,
+          ]);
           Object.values(audioRecordingsToSync).forEach(r => { if (r.url) URL.revokeObjectURL(r.url); });
 
           if (result.success || result.isDuplicate) {
@@ -346,8 +365,16 @@ const CabindaSurvey = () => {
       const failedSyncs = syncResults.filter(r => !r.success && !r.skipped);
 
       const toRemove = [...successfulSyncs, ...skippedSyncs];
+
+      // Mark failed surveys with sync_failed status so the UI distinguishes them from unprocessed pending
+      const updatedPending = pendingSurveys.map(s => {
+        const failed = failedSyncs.find(f => f.surveyId === s.id);
+        if (failed) return { ...s, status: 'sync_failed', lastSyncError: failed.error };
+        return s;
+      });
+
       if (toRemove.length > 0) {
-        const remainingPending = pendingSurveys.filter(s => !toRemove.some(sync => sync.surveyId === s.id));
+        const remainingPending = updatedPending.filter(s => !toRemove.some(sync => sync.surveyId === s.id));
         localStorage.setItem('offline-cabinda-surveys', JSON.stringify(remainingPending));
         setPendingSurveys(remainingPending);
 
@@ -357,6 +384,11 @@ const CabindaSurvey = () => {
         if (dupes > 0) message += `${message ? ' ' : ''}${dupes} duplicado${dupes > 1 ? 's' : ''} removido${dupes > 1 ? 's' : ''}.`;
         if (failedSyncs.length > 0) message += ` ${failedSyncs.length} falharam.`;
         setSaveResult({ success: true, message: message || 'Sincronização concluída.' });
+      } else if (failedSyncs.length > 0) {
+        // All surveys failed — update state so UI shows sync_failed badges
+        localStorage.setItem('offline-cabinda-surveys', JSON.stringify(updatedPending));
+        setPendingSurveys(updatedPending);
+        setSaveResult({ success: false, message: `${failedSyncs.length} inquérito${failedSyncs.length > 1 ? 's' : ''} não sincronizado${failedSyncs.length > 1 ? 's' : ''}. Tente novamente.` });
       }
 
       setTimeout(() => setSyncProgress({ isActive: false, current: 0, total: 0, step: null }), 2000);
@@ -373,6 +405,22 @@ const CabindaSurvey = () => {
       return () => clearTimeout(timer);
     }
   }, [isOnline, pendingSurveys.length, saveCabindaSurveyResponse, syncPendingSurveys]);
+
+  // ─── Submission targets ────────────────────────────────────────────────────
+
+  const SURVEY_TARGETS = { 'Cabinda': 600, 'Zaire': 400 };
+  const TOTAL_TARGET = 1000;
+
+  const fetchTargetCounts = useCallback(async () => {
+    if (!getSurveyTargetCounts) return;
+    setTargetCountsLoading(true);
+    try {
+      const counts = await getSurveyTargetCounts();
+      if (counts) setTargetCounts(counts);
+    } finally {
+      setTargetCountsLoading(false);
+    }
+  }, [getSurveyTargetCounts]);
 
   // ─── Reset ─────────────────────────────────────────────────────────────────
 
@@ -417,21 +465,21 @@ const CabindaSurvey = () => {
       }
 
       setSaveResult(result);
+      if (result.success) {
+        // Refresh SP counts so the preliminary report reflects the new submission
+        fetchTargetCounts();
+      }
     } catch (error) {
       setSaveResult({ success: false, message: t('cabinda.validation.unexpected'), error: error.message });
     } finally {
       setIsSaving(false);
       setSaveStep(null);
     }
-  }, [responses, customInputs, currentSection, isOnline, saveToSharePoint]);
+  }, [responses, customInputs, currentSection, isOnline, saveToSharePoint, t]);
 
   // ─── Audio recording ───────────────────────────────────────────────────────
 
   const startRecording = async (questionId) => {
-    // Reset transcript accumulator for this question
-    finalTranscriptsRef.current[questionId] = '';
-    setLiveTranscripts(p => ({ ...p, [questionId]: '' }));
-
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -439,27 +487,35 @@ const CabindaSurvey = () => {
       audioChunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => audioChunksRef.current.push(e.data);
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
         const audioUrl  = URL.createObjectURL(audioBlob);
-        const transcript = finalTranscriptsRef.current[questionId] || '';
-
-        setAudioRecordings(prev => ({ ...prev, [questionId]: { blob: audioBlob, url: audioUrl, transcript } }));
-        handleResponse(questionId, transcript || `[Gravação de Áudio - ${new Date().toLocaleTimeString()}]`);
         stream.getTracks().forEach(track => track.stop());
 
-        // Flush remaining audio then close AssemblyAI
-        if (assemblyTranscriberRef.current) {
-          assemblyTranscriberRef.current.close().catch(() => {});
-          assemblyTranscriberRef.current = null;
-        }
-        if (assemblyProcessorRef.current) {
-          assemblyProcessorRef.current.disconnect();
-          assemblyProcessorRef.current = null;
-        }
-        if (assemblyAudioCtxRef.current) {
-          assemblyAudioCtxRef.current.close();
-          assemblyAudioCtxRef.current = null;
+        // Save recording immediately with placeholder response
+        setAudioRecordings(prev => ({ ...prev, [questionId]: { blob: audioBlob, url: audioUrl, transcript: '' } }));
+        handleResponse(questionId, `[Gravação de Áudio - ${new Date().toLocaleTimeString()}]`);
+
+        // Upload to AssemblyAI for transcription (non-blocking, non-fatal)
+        if (isOnline && import.meta.env.VITE_ASSEMBLYAI_API_KEY) {
+          setTranscribingFor(questionId);
+          try {
+            const result = await assemblyClient.transcripts.transcribe({
+              audio: audioBlob,
+              language_code: 'pt',
+            });
+            const transcript = result.text || '';
+            if (transcript) {
+              setAudioRecordings(prev =>
+                prev[questionId] ? { ...prev, [questionId]: { ...prev[questionId], transcript } } : prev
+              );
+              handleResponse(questionId, transcript);
+            }
+          } catch (err) {
+            console.warn('Transcription upload failed:', err.message);
+          } finally {
+            setTranscribingFor(null);
+          }
         }
       };
 
@@ -467,57 +523,6 @@ const CabindaSurvey = () => {
       setIsRecording(questionId);
       setRecordingTime(0);
       timerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
-
-      // Start AssemblyAI real-time streaming (only when online — failure is non-fatal)
-      if (isOnline) {
-        (async () => {
-          try {
-            const transcriber = assemblyClient.streaming.transcriber({
-              sampleRate: 16000,
-              speechModels: ['u3-rt-pro'],
-              languageCode: 'pt',
-            });
-
-            transcriber.on('turn', (turn) => {
-              if (!turn.transcript) return;
-              const prev = finalTranscriptsRef.current[questionId] || '';
-              const text = prev ? `${prev} ${turn.transcript}` : turn.transcript;
-              finalTranscriptsRef.current[questionId] = text;
-              setLiveTranscripts(p => ({ ...p, [questionId]: text }));
-              // Update response in real-time so submit always has latest text
-              setResponses(p => ({ ...p, [questionId]: text }));
-              setAudioRecordings(p =>
-                p[questionId] ? { ...p, [questionId]: { ...p[questionId], transcript: text } } : p
-              );
-            });
-
-            transcriber.on('error', (err) => console.warn('AssemblyAI streaming error:', err));
-
-            await transcriber.connect();
-            assemblyTranscriberRef.current = transcriber;
-
-            // Pipe MediaStream → PCM16 → AssemblyAI WebSocket
-            const ctx  = new AudioContext({ sampleRate: 16000 });
-            const src  = ctx.createMediaStreamSource(stream);
-            const proc = ctx.createScriptProcessor(4096, 1, 1);
-            src.connect(proc);
-            proc.connect(ctx.destination);
-            proc.onaudioprocess = (e) => {
-              if (!assemblyTranscriberRef.current) return;
-              const f32 = e.inputBuffer.getChannelData(0);
-              const i16 = new Int16Array(f32.length);
-              for (let i = 0; i < f32.length; i++)
-                i16[i] = Math.max(-32768, Math.min(32767, f32[i] * 32768));
-              assemblyTranscriberRef.current.sendAudio(i16.buffer);
-            };
-            assemblyAudioCtxRef.current  = ctx;
-            assemblyProcessorRef.current = proc;
-          } catch (err) {
-            // Streaming unavailable — recording still works without live transcript
-            console.warn('AssemblyAI streaming unavailable:', err.message);
-          }
-        })();
-      }
     } catch {
       alert(t('cabinda.recording.micError'));
     }
@@ -555,9 +560,6 @@ const CabindaSurvey = () => {
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      assemblyTranscriberRef.current?.close().catch(() => {});
-      assemblyProcessorRef.current?.disconnect();
-      assemblyAudioCtxRef.current?.close();
     };
   }, []);
 
@@ -580,6 +582,14 @@ const CabindaSurvey = () => {
 
   const nextStep = () => {
     if (isRecording) stopRecording();
+    const question = getCurrentQuestion();
+
+    // If respondent answers "Não" to discussion interest, skip name/phone and go straight to save
+    if (question.id === 'interestedInDiscussion' && responses['interestedInDiscussion'] === 'Não') {
+      setShowSaveDialog(true);
+      return;
+    }
+
     const sectionQuestions = sections[currentSection].questions;
     if (currentStep < sectionQuestions.length - 1) {
       setCurrentStep(currentStep + 1);
@@ -615,7 +625,13 @@ const CabindaSurvey = () => {
     const value = responses[question.id] || '';
     const customValue = customInputs[question.id] || '';
 
-    if (question.type === 'text') return true; // optional text field
+    if (question.type === 'text') {
+      // Phone number is required when respondent said "Sim" to discussion
+      if (question.id === 'phoneNumber' && responses['interestedInDiscussion'] === 'Sim') {
+        return !!value.trim();
+      }
+      return true; // all other text fields are optional
+    }
     if (!value) return false;
 
     if (question.type === 'voice') return !!(audioRecordings[question.id] || value.trim() || isRecording === question.id);
@@ -834,18 +850,6 @@ const CabindaSurvey = () => {
                           <Square className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                           <span className="text-sm sm:text-base">{t('cabinda.recording.stop')}</span>
                         </button>
-                        <div className="mt-3 w-full max-w-sm mx-auto bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 min-h-[48px] text-left">
-                          <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse inline-block"></span>
-                            {t('cabinda.recording.transcribing')}
-                          </p>
-                          <p className="text-sm text-gray-700 leading-relaxed break-words">
-                            {liveTranscripts[question.id]
-                              ? <>{liveTranscripts[question.id]}<span className="inline-block w-0.5 h-4 bg-primary align-middle ml-0.5 animate-pulse" /></>
-                              : <span className="text-gray-400 italic text-xs">{t('cabinda.recording.waitingVoice')}</span>
-                            }
-                          </p>
-                        </div>
                       </div>
                     )}
                   </>
@@ -856,7 +860,13 @@ const CabindaSurvey = () => {
                         <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
                         <span className="text-green-700 font-medium text-sm sm:text-base">{t('cabinda.recording.done')}</span>
                       </div>
-                      {audioRecordings[question.id]?.transcript && (
+                      {transcribingFor === question.id && (
+                        <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 rounded px-2 py-1">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span>A transcrever…</span>
+                        </div>
+                      )}
+                      {!transcribingFor && audioRecordings[question.id]?.transcript && (
                         <p className="text-xs text-gray-600 leading-relaxed bg-white rounded px-2 py-1 max-w-xs sm:max-w-sm italic">
                           {audioRecordings[question.id].transcript}
                         </p>
@@ -931,6 +941,13 @@ const CabindaSurvey = () => {
   const isLastSection = currentSection === 'contact' && isLastStep;
   const isFirstStep = currentStep === 0 && currentSection === 'demographics';
 
+  // Global progress across all sections
+  const totalAllQuestions = sectionOrder.reduce((sum, sec) => sum + sections[sec].questions.length, 0);
+  const questionsBeforeCurrentSection = sectionOrder
+    .slice(0, sectionOrder.indexOf(currentSection))
+    .reduce((sum, sec) => sum + sections[sec].questions.length, 0);
+  const currentGlobalStep = questionsBeforeCurrentSection + currentStep + 1;
+
   // ─── Save step constants ───────────────────────────────────────────────────
 
   const SAVE_STEPS_ALL = ['checkingDuplicates', 'sendingData', 'uploadingAudio', 'done'];
@@ -973,16 +990,16 @@ const CabindaSurvey = () => {
               <h1 className="text-xl sm:text-2xl font-bold text-primaryDark text-center sm:text-left">
                 {t('cabinda.title')}
               </h1>
-              <div className="text-sm text-gray-500 text-center sm:text-right">
-                {currentStep + 1} de {totalSteps}
+              <div className="text-sm font-semibold text-primary text-center sm:text-right">
+                {currentGlobalStep} de {totalAllQuestions}
               </div>
             </div>
 
-            {/* Section progress bar */}
+            {/* Global progress bar */}
             <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
               <div
                 className="bg-primary h-2 rounded-full transition-all duration-300"
-                style={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
+                style={{ width: `${(currentGlobalStep / totalAllQuestions) * 100}%` }}
               />
             </div>
 
@@ -1001,14 +1018,14 @@ const CabindaSurvey = () => {
               })}
             </div>
 
-            <h2 className="text-base sm:text-lg font-semibold text-primaryDark text-center">
+            <h2 className="text-sm sm:text-base font-semibold text-primary uppercase tracking-wide text-center">
               {currentSectionData.title}
             </h2>
           </div>
 
           {/* Question */}
           <div className="mb-6 sm:mb-8">
-            <h3 className="text-lg sm:text-xl font-medium text-primaryDark mb-4 sm:mb-6 text-center px-2">
+            <h3 className="text-lg sm:text-xl font-medium text-gray-800 mb-4 sm:mb-6 text-center px-2">
               {currentQuestion.text}
             </h3>
             <div className="max-w-md mx-auto">
@@ -1053,15 +1070,49 @@ const CabindaSurvey = () => {
 
         {/* Success banner */}
         {saveResult?.success && !showSaveDialog && (
-          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-800">{t('cabinda.result.success')}</p>
-                <p className="text-xs text-green-600">ID: {saveResult.itemId}</p>
+          <div className="mt-4 space-y-3">
+            <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-800">{t('cabinda.result.success')}</p>
+                  <p className="text-xs text-green-600">ID: {saveResult.itemId}</p>
+                </div>
+                <button onClick={startNewSurvey} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm">
+                  {t('ui.newSurvey')}
+                </button>
               </div>
-              <button onClick={startNewSurvey} className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm">
-                {t('ui.newSurvey')}
-              </button>
+            </div>
+            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-semibold text-orange-800">Relatório Preliminar</p>
+                {targetCountsLoading && <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />}
+              </div>
+              {targetCounts ? (
+                <div className="space-y-2">
+                  {Object.entries(SURVEY_TARGETS).map(([province, target]) => {
+                    const done = targetCounts[province] || 0;
+                    const remaining = Math.max(0, target - done);
+                    const pct = Math.min(100, Math.round((done / target) * 100));
+                    return (
+                      <div key={province}>
+                        <div className="flex justify-between text-xs text-orange-700 mb-1">
+                          <span className="font-medium">{province}</span>
+                          <span>{done}/{target} ({remaining} em falta)</span>
+                        </div>
+                        <div className="w-full bg-orange-200 rounded-full h-1.5">
+                          <div className="bg-orange-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="pt-2 border-t border-orange-200 flex justify-between text-xs font-semibold text-orange-800">
+                    <span>Total</span>
+                    <span>{targetCounts.total}/{TOTAL_TARGET} — {Math.max(0, TOTAL_TARGET - targetCounts.total)} inquéritos em falta</span>
+                  </div>
+                </div>
+              ) : (
+                !targetCountsLoading && <p className="text-xs text-orange-600">Não foi possível obter os dados do servidor.</p>
+              )}
             </div>
           </div>
         )}
@@ -1143,8 +1194,8 @@ const CabindaSurvey = () => {
                         </div>
                         <p className="text-xs text-blue-400">{t('cabinda.pending.savedAt')}{date}</p>
                       </div>
-                      <span className="flex-shrink-0 text-xs bg-yellow-100 text-yellow-700 font-medium px-2 py-0.5 rounded-full">
-                        {t('cabinda.pending.status')}
+                      <span className={`flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${survey.status === 'sync_failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                        {survey.status === 'sync_failed' ? 'Falhou' : t('cabinda.pending.status')}
                       </span>
                     </div>
                   );
@@ -1230,6 +1281,42 @@ const CabindaSurvey = () => {
                     {saveResult.itemId && <p className="text-xs mt-1">ID: {saveResult.itemId}</p>}
                     {saveResult.isDuplicate && <p className="text-xs mt-1 font-medium">{t('cabinda.result.duplicate')}</p>}
                   </div>
+
+                  {/* Preliminary report — target progress from SharePoint */}
+                  {saveResult.success && (
+                    <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-semibold text-orange-800">Relatório Preliminar</p>
+                        {targetCountsLoading && <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />}
+                      </div>
+                      {targetCounts ? (
+                        <div className="space-y-2">
+                          {Object.entries(SURVEY_TARGETS).map(([province, target]) => {
+                            const done = targetCounts[province] || 0;
+                            const remaining = Math.max(0, target - done);
+                            const pct = Math.min(100, Math.round((done / target) * 100));
+                            return (
+                              <div key={province}>
+                                <div className="flex justify-between text-xs text-orange-700 mb-1">
+                                  <span className="font-medium">{province}</span>
+                                  <span>{done}/{target} ({remaining} em falta)</span>
+                                </div>
+                                <div className="w-full bg-orange-200 rounded-full h-1.5">
+                                  <div className="bg-orange-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                          <div className="pt-2 border-t border-orange-200 flex justify-between text-xs font-semibold text-orange-800">
+                            <span>Total</span>
+                            <span>{targetCounts.total}/{TOTAL_TARGET} — {Math.max(0, TOTAL_TARGET - targetCounts.total)} inquéritos em falta</span>
+                          </div>
+                        </div>
+                      ) : (
+                        !targetCountsLoading && <p className="text-xs text-orange-600">Não foi possível obter os dados do servidor.</p>
+                      )}
+                    </div>
+                  )}
                   {saveResult.success ? (
                     <div className="flex gap-3">
                       <button onClick={() => setShowSaveDialog(false)} className="flex-1 px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">{t('ui.close')}</button>

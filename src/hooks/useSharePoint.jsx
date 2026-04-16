@@ -485,6 +485,9 @@ export const useSharePoint = () => {
       if (!sp?.web) {
         return { success: false, message: 'SharePoint not initialized' };
       }
+      if (!surveyData || typeof surveyData !== 'object') {
+        return { success: false, message: 'Invalid survey data' };
+      }
 
       try {
         const r = surveyData.responses || {};
@@ -581,6 +584,7 @@ export const useSharePoint = () => {
 
           // Section 7 — Contact
           InteresseDiscussao:      r.interestedInDiscussion || '',
+          NomeCliente:             r.nomeCliente || '',
           NumeroTelefone:          r.phoneNumber || '',
 
           // Audio metadata
@@ -729,6 +733,7 @@ export const useSharePoint = () => {
       ['InsightPrincipal',        'note'    ],
       // ── Section 7: Contact ────────────────────────────────────────────
       ['InteresseDiscussao',      'text'    ],
+      ['NomeCliente',             'text'    ],
       ['NumeroTelefone',          'text'    ],
       // ── Audio metadata ────────────────────────────────────────────────
       ['TemGravacoes',            'text'    ],
@@ -900,6 +905,27 @@ export const useSharePoint = () => {
       return items.length;
     },
     [sp]
+  );
+
+  /**
+   * Fetch submission counts for Cabinda and Zaire from SharePoint in parallel.
+   * Returns { Cabinda: number, Zaire: number, total: number }
+   */
+  const getSurveyTargetCounts = useCallback(
+    async () => {
+      if (!sp?.web) return null;
+      try {
+        const [cabinda, zaire] = await Promise.all([
+          getProvinceCount('Cabinda'),
+          getProvinceCount('Zaire'),
+        ]);
+        return { Cabinda: cabinda, Zaire: zaire, total: cabinda + zaire };
+      } catch (err) {
+        console.warn('Failed to fetch survey target counts:', err.message);
+        return null;
+      }
+    },
+    [sp, getProvinceCount]
   );
 
   /**
@@ -1089,6 +1115,7 @@ export const useSharePoint = () => {
     downloadAttachment,
     exportProvincePackage,
     buildExcelWorksheet,
+    getSurveyTargetCounts,
     // Debug
     testSharePointConnection,
   };
