@@ -28,6 +28,7 @@ const CabindaSurvey = () => {
   const audioChunksRef = useRef([]);
   const audioRef = useRef(null);
   const timerRef = useRef(null);
+  const syncTimerRef = useRef(null);
 
   const [transcribingFor, setTranscribingFor] = useState(null); // questionId being transcribed after upload
 
@@ -52,6 +53,7 @@ const CabindaSurvey = () => {
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      clearTimeout(syncTimerRef.current);
     };
   }, []);
 
@@ -317,16 +319,20 @@ const CabindaSurvey = () => {
           if (survey.audioData) {
             for (const [key, base64Data] of Object.entries(survey.audioData)) {
               try {
-                // Decode base64 directly — fetch() on data URLs is unreliable cross-browser
-                const [header, b64] = base64Data.split(',');
+                const commaIdx = base64Data.indexOf(',');
+                if (commaIdx === -1) throw new Error('Invalid base64 data URI — missing comma separator');
+                const header = base64Data.slice(0, commaIdx);
+                const b64    = base64Data.slice(commaIdx + 1);
                 const mimeMatch = header.match(/:(.*?);/);
-                const mimeType = mimeMatch ? mimeMatch[1] : 'audio/wav';
+                const mimeType  = mimeMatch ? mimeMatch[1] : 'audio/wav';
                 const binary = atob(b64);
-                const bytes = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                const bytes  = new Uint8Array(binary.length);
+                for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
                 const blob = new Blob([bytes], { type: mimeType });
                 audioRecordingsToSync[key] = { blob, url: URL.createObjectURL(blob) };
-              } catch { /* skip failed audio conversion */ }
+              } catch (audioErr) {
+                console.warn(`Audio conversion failed for question "${key}":`, audioErr.message);
+              }
             }
           }
 
@@ -391,7 +397,7 @@ const CabindaSurvey = () => {
         setSaveResult({ success: false, message: `${failedSyncs.length} inquérito${failedSyncs.length > 1 ? 's' : ''} não sincronizado${failedSyncs.length > 1 ? 's' : ''}. Tente novamente.` });
       }
 
-      setTimeout(() => setSyncProgress({ isActive: false, current: 0, total: 0, step: null }), 2000);
+      syncTimerRef.current = setTimeout(() => setSyncProgress({ isActive: false, current: 0, total: 0, step: null }), 2000);
     } catch (error) {
       setSaveResult({ success: false, message: 'Erro durante a sincronização. Tente novamente.', error: error.message });
       setSyncProgress({ isActive: false, current: 0, total: 0, step: null });

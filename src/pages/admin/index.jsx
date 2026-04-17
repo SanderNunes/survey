@@ -220,7 +220,9 @@ function RecordDetailModal({ record, onClose, province, getItemAttachments, down
                      : name.includes('_newShopLocation')    ? 'newShopLocation'
                      : null;
           try {
+            if (!att.ServerRelativeUrl) continue;
             const buf  = await downloadAttachment(att.ServerRelativeUrl);
+            if (!buf) continue;
             const blob = new Blob([buf], { type: 'audio/wav' });
             const url  = URL.createObjectURL(blob);
             const labelKey = AUDIO_Q_LABEL_KEYS[qId];
@@ -370,8 +372,8 @@ function RecordDetailModal({ record, onClose, province, getItemAttachments, down
                 </div>
               ) : audioFiles.length > 0 ? (
                 <div className="space-y-3">
-                  {audioFiles.map((f, i) => (
-                    <div key={i} className="bg-gray-50 rounded-xl px-4 py-3">
+                  {audioFiles.map((f) => (
+                    <div key={f.fileName} className="bg-gray-50 rounded-xl px-4 py-3">
                       <p className="text-xs text-gray-400 mb-2">
                         {f.labelKey ? t(f.labelKey) : f.fallbackLabel}
                       </p>
@@ -574,7 +576,9 @@ export default function AdminPage() {
         const itemProvince = item._province || activeProvince;
         const atts = await getItemAttachments(itemProvince, item.Id);
         for (const att of atts) {
+          if (!att.ServerRelativeUrl) continue;
           const buf = await downloadAttachment(att.ServerRelativeUrl);
+          if (!buf) continue;
           zip.file(`item_${item.Id}/${att.FileName}`, buf);
         }
       }
@@ -626,8 +630,10 @@ export default function AdminPage() {
                    : name.includes('_newShopLocation')     ? 'newShopLocation'
                    : null;
         if (!qId) continue;
+        if (!att.ServerRelativeUrl) continue;
 
-        const buf    = await downloadAttachment(att.ServerRelativeUrl);
+        const buf = await downloadAttachment(att.ServerRelativeUrl);
+        if (!buf) continue;
         const blob   = new Blob([buf], { type: 'audio/wav' });
         const result = await assemblyClient.transcripts.transcribe({
           audio: blob,

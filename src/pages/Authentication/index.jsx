@@ -170,27 +170,5 @@ const AuthenticationPage = () => {
 
 
 
-const AuthenticationPage1 = () => {
-  const tenantId = import.meta.env.VITE_APP_TENANT_ID; // Replace with your Tenant ID
-  const clientId = import.meta.env.VITE_APP_CLIENT_ID; // Replace with your Client ID
-  const redirectUri = encodeURIComponent("https://localhost:3000/home"); // Replace with your redirect URI
-
-  const scope = encodeURIComponent("Calendars.ReadBasic");
-  const state = "12345"; // Optional, used for CSRF protection
-
-  const loginUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=${scope}&state=${state}`;
-
-  const handleLogin = () => {
-    window.location.href = loginUrl;
-  };
-
-  return (
-    <div>
-      <h1>Login to Microsoft</h1>
-      <button onClick={handleLogin}>Login with Microsoft</button>
-    </div>
-  );
-};
-
 
 export default AuthenticationPage;

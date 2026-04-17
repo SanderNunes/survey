@@ -22,23 +22,23 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
     const isAuth = async () => {
-      if (isAuthenticated) {
-        
+      try {
         const token = await authService.getAccessToken();
-        const account = (await authService.getAccount()) || {};
-        const profile = await fetchUserProfile(token);
-        const profileBeta = await fetchUserProfileBeta(token);
-
-
-
+        const [account, profile, profileBeta] = await Promise.all([
+          authService.getAccount(),
+          fetchUserProfile(token),
+          fetchUserProfileBeta(token),
+        ]);
         setAccessToken(token);
-        setAccountInfo(account);
-        setUserProfile({profileBeta, ...profile});
+        setAccountInfo(account || {});
+        setUserProfile({ profileBeta, ...(profile || {}) });
         setUserProfileBeta(profileBeta);
+      } catch (err) {
+        console.error('Failed to load user session:', err);
       }
     };
-
     isAuth();
   }, [isAuthenticated]);
 

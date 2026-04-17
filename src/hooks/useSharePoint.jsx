@@ -347,17 +347,14 @@ export const useSharePoint = () => {
         let createdItem = null;
 
         if (result?.data) {
-          itemId = result.data.Id || result.data.ID;
+          itemId = result.data.Id ?? result.data.ID ?? null;
           createdItem = result.data;
-        } else if (result?.Id) {
-          itemId = result.Id || result.ID;
-          createdItem = result;
         } else if (result && typeof result === 'object') {
-          itemId = result.Id || result.ID || result.id;
+          itemId = result.Id ?? result.ID ?? result.id ?? null;
           createdItem = result;
         }
 
-        if (!itemId) {
+        if (itemId == null) {
           throw new Error('Failed to get item ID from SharePoint response');
         }
 
@@ -476,6 +473,9 @@ export const useSharePoint = () => {
     [sp]
   );
 
+  /** Escape single-quotes in OData string literals to prevent injection. */
+  const escOData = (val) => String(val ?? '').replace(/'/g, "''");
+
   /**
    * Save a pre-launch survey response to the correct province list.
    * Duplicate prevention: checks SurveyId (exact) and Fingerprint+time (device).
@@ -512,7 +512,7 @@ export const useSharePoint = () => {
           const existingById = await sp.web.lists
             .getByTitle(listName)
             .items
-            .filter(`SurveyId eq '${meta.surveyId}'`)
+            .filter(`SurveyId eq '${escOData(meta.surveyId)}'`)
             .top(1)();
           if (existingById.length > 0) {
             return { success: false, message: 'Inquérito duplicado detectado.', isDuplicate: true };
@@ -525,7 +525,7 @@ export const useSharePoint = () => {
           const existingByFingerprint = await sp.web.lists
             .getByTitle(listName)
             .items
-            .filter(`Fingerprint eq '${meta.fingerprint}' and DataPreenchimento ge '${fiveMinutesAgo}'`)
+            .filter(`Fingerprint eq '${escOData(meta.fingerprint)}' and DataPreenchimento ge '${fiveMinutesAgo}'`)
             .top(1)();
           if (existingByFingerprint.length > 0) {
             return { success: false, message: 'Submissão recente detectada para este dispositivo.', isDuplicate: true };
@@ -605,10 +605,10 @@ export const useSharePoint = () => {
         onStepChange?.('sendingData');
         const result = await sp.web.lists.getByTitle(listName).items.add(itemData);
 
-        const itemId = result?.data?.Id || result?.data?.ID || result?.Id || result?.ID || result?.id;
+        const itemId = result?.data?.Id ?? result?.data?.ID ?? result?.Id ?? result?.ID ?? result?.id ?? null;
         const createdItem = result?.data || result;
 
-        if (!itemId) throw new Error('Failed to get item ID from SharePoint response');
+        if (itemId == null) throw new Error('Failed to get item ID from SharePoint response');
 
         // ── Upload audio attachments ────────────────────────────────────────
 

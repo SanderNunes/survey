@@ -38,26 +38,29 @@ export const authService = {
 
     const account = accounts[0];
 
-    // 1. Try to get a token from the cache
-    let response = await msalInstance.acquireTokenSilent({
-      ...loginRequest,
-      account,
-    });
+    // 1. Acquire token silently; fall back to popup if silent fails
+    let response;
+    try {
+      response = await msalInstance.acquireTokenSilent({ ...loginRequest, account });
+    } catch {
+      try {
+        response = await msalInstance.acquireTokenPopup(loginRequest);
+      } catch (popupError) {
+        console.error('Token acquisition failed:', popupError);
+        return null;
+      }
+    }
 
-    // 2. Decode token to check expiration
-    const payload = JSON.parse(atob(response.accessToken.split(".")[1]));
-    const expiresAt = payload.exp * 1000; // ms
-    const now = Date.now();
+    if (!response?.accessToken) return null;
 
-    // 3. If expiring soon (e.g., within 5 minutes), force refresh
-    const bufferSeconds = 300; // 5 min
-    if (expiresAt - now <= bufferSeconds * 1000) {
-      console.log("Token expiring soon, refreshing...");
-      response = await msalInstance.acquireTokenSilent({
-        ...loginRequest,
-        account,
-        forceRefresh: true,
-      });
+    // 2. Force-refresh if token expires within 5 minutes
+    try {
+      const payload = JSON.parse(atob(response.accessToken.split('.')[1]));
+      if (payload.exp * 1000 - Date.now() <= 300_000) {
+        response = await msalInstance.acquireTokenSilent({ ...loginRequest, account, forceRefresh: true });
+      }
+    } catch {
+      // If decode or refresh fails, use the token we already have
     }
 
     return response.accessToken;
