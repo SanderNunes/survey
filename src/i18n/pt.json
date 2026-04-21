@@ -1464,6 +1464,7 @@
     "responses": "respostas",
     "target": "meta {{n}}",
     "progress": "concluído",
+    "page": "Página {{page}} de {{total}}",
     "search": "Pesquisar município, operador, género…",
     "cols": {
       "createdBy": "Criado por",
