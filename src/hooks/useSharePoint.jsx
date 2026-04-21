@@ -76,6 +76,7 @@ const EXPORT_COLUMNS = [
   { key: 'Duplicado',              label: 'Duplicado'                 },
   // Timing
   { key: 'DuracaoInquerito',       label: 'Duração (segundos)'        },
+  { key: 'NomeEntrevistador',      label: 'Nome do entrevistador'     },
   // Audio metadata
   { key: 'TemGravacoes',           label: 'Tem gravações'             },
   { key: 'CamposComGravacao',      label: 'Campos com gravação'       },
@@ -106,7 +107,7 @@ function buildExportRow(r, extra = {}) {
   const row = {};
   for (const col of EXPORT_COLUMNS) {
     if (col.key === 'AuthorName') {
-      row[col.label] = r.Author?.Title || '';
+      row[col.label] = r.NomeEntrevistador?.trim() || r.Author?.Title || '';
     } else {
       row[col.label] = stripSpHtml(r[col.key] ?? '');
     }
@@ -616,10 +617,11 @@ export const useSharePoint = () => {
           Fingerprint: meta.fingerprint || '',
 
           // Metadata
-          DuracaoInquerito:  meta.duration || 0,
-          DataPreenchimento: new Date().toISOString(),
-          StatusInquerito:   'Completo',
-          Duplicado:         isDuplicatePhone ? 'Sim' : 'Não',
+          DuracaoInquerito:    meta.duration || 0,
+          NomeEntrevistador:   meta.interviewerName || '',
+          DataPreenchimento:   new Date().toISOString(),
+          StatusInquerito:     'Completo',
+          Duplicado:           isDuplicatePhone,
         };
 
         // ── Insert ─────────────────────────────────────────────────────────
@@ -757,7 +759,7 @@ export const useSharePoint = () => {
       ['InteresseDiscussao',      'text'    ],
       ['NomeCliente',             'text'    ],
       ['NumeroTelefone',          'text'    ],
-      ['Duplicado',               'text'    ],
+      ['Duplicado',               'boolean' ],
       // ── Audio metadata ────────────────────────────────────────────────
       ['TemGravacoes',            'text'    ],
       ['CamposComGravacao',       'note'    ],
@@ -766,6 +768,7 @@ export const useSharePoint = () => {
       ['Fingerprint',             'text'    ],
       // ── Metadata ──────────────────────────────────────────────────────
       ['DuracaoInquerito',        'number'  ],
+      ['NomeEntrevistador',       'text'    ],
       ['DataPreenchimento',       'datetime'],
       ['StatusInquerito',         'text'    ],
     ];
@@ -1183,6 +1186,7 @@ export const useSharePoint = () => {
   return {
     sp,
     isSharePointReady: !!sp?.web,
+    currentUserName: accounts[0]?.name || null,
     // Huila survey
     saveSurveyResponse,
     uploadAudioRecordings,

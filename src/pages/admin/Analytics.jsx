@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import {
   RefreshCw, TrendingUp, Users, Mic, Smartphone, ChevronRight, ChevronDown,
-  BarChart2, Trophy, Clock, MapPin, Signal, CreditCard, Zap,
+  BarChart2, Trophy, Clock, MapPin, Signal, CreditCard, Zap, AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSharePoint } from '@/hooks/useSharePoint';
@@ -347,7 +347,12 @@ export default function Analytics({ isOwner }) {
       const results = await Promise.allSettled(
         PROVINCES.map(p =>
           getProvinceRecords(p, { top: 5000 }).then(rows =>
-            rows.map(r => ({ ...r, _province: p, AuthorName: r.Author?.Title || 'Desconhecido' }))
+            rows.map(r => ({
+              ...r,
+              _province: p,
+              AuthorName: r.Author?.Title || 'Desconhecido',
+              _interviewer: r.NomeEntrevistador?.trim() || r.Author?.Title || 'Desconhecido',
+            }))
           )
         )
       );
@@ -402,14 +407,18 @@ export default function Analytics({ isOwner }) {
   const timelineData     = useMemo(() => responsesByDay(view), [view]);
   const bundleData       = useMemo(() => freq(view, 'PacotePreferido', unknown).slice(0, 6), [view, unknown]);
   const municipioData    = useMemo(() => freq(view, 'Municipio',       unknown).slice(0, 10), [view, unknown]);
-  const surveyorData     = useMemo(() => freq(view, 'AuthorName',      unknown).slice(0, 20), [view, unknown]);
+  const surveyorData     = useMemo(() => freq(view, '_interviewer',    unknown).slice(0, 20), [view, unknown]);
+  const duplicatesData   = useMemo(() => {
+    const dups = view.filter(r => r.Duplicado === true);
+    return freq(dups, '_interviewer', unknown).slice(0, 10);
+  }, [view, unknown]);
 
   const velocity        = useMemo(() => velocityForecast(allRecords, MUNICIPALITY_TARGETS), [allRecords]);
 
   const durStats        = useMemo(() => durationStats(view), [view]);
   const durBucketData   = useMemo(() => durationBuckets(view), [view]);
   const durByProvince   = useMemo(() => avgDurationByGroup(view, 'Provincia'), [view]);
-  const durBySurveyor   = useMemo(() => avgDurationByGroup(view, 'AuthorName').slice(0, 15), [view]);
+  const durBySurveyor   = useMemo(() => avgDurationByGroup(view, '_interviewer').slice(0, 15), [view]);
   const hasDurationData = durStats.avg !== null;
 
   // ── Loading / empty states ────────────────────────────────────────────────
@@ -528,13 +537,19 @@ export default function Analytics({ isOwner }) {
             icon={TrendingUp}
             colorClass="bg-green-50 text-green-600"
           />
-          <KPICard
-            title={t('analytics.kpi.avgCoverage')}
-            value={avgCoverage ? `${avgCoverage}/5` : '—'}
-            sub={t('analytics.kpi.scale')}
-            icon={Smartphone}
-            colorClass="bg-purple-50 text-purple-600"
-          />
+          {(() => {
+            const dupCount = view.filter(r => r.Duplicado === true).length;
+            const dupPct   = total ? ((dupCount / total) * 100).toFixed(1) : 0;
+            return (
+              <KPICard
+                title={t('analytics.kpi.duplicates')}
+                value={dupCount}
+                sub={`${dupPct}% ${t('analytics.kpi.percentOfTotal')}`}
+                icon={AlertTriangle}
+                colorClass={dupCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-gray-50 text-gray-400'}
+              />
+            );
+          })()}
         </div>
 
         {/* Duration KPIs */}
@@ -880,6 +895,46 @@ export default function Analytics({ isOwner }) {
                       <td className="px-3 py-2 text-right text-gray-400">{count}</td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          </ChartCard>
+        )}
+
+        {/* Duplicates by interviewer */}
+        {duplicatesData.length > 0 && (
+          <ChartCard title={t('analytics.kpi.duplicatesByInterviewer')}>
+            <div className="rounded-lg border border-amber-100 overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-amber-50 border-b border-amber-100">
+                  <tr>
+                    <th className="px-3 py-2 text-left text-amber-700 font-semibold uppercase tracking-wider">
+                      {t('analytics.surveyor.colName')}
+                    </th>
+                    <th className="px-3 py-2 text-right text-amber-700 font-semibold uppercase tracking-wider">
+                      {t('analytics.kpi.duplicates')}
+                    </th>
+                    <th className="px-3 py-2 text-right text-amber-700 font-semibold uppercase tracking-wider">
+                      {t('analytics.surveyor.colPercent')}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-amber-50">
+                  {duplicatesData.map(({ name, value }) => {
+                    const surveyor = surveyorData.find(s => s.name === name);
+                    const total_s  = surveyor?.value || value;
+                    const pct      = total_s ? ((value / total_s) * 100).toFixed(0) : '—';
+                    return (
+                      <tr key={name} className="hover:bg-amber-50/60">
+                        <td className="px-3 py-2 text-gray-700 truncate max-w-[200px] flex items-center gap-1.5">
+                          <AlertTriangle className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                          {name}
+                        </td>
+                        <td className="px-3 py-2 text-right font-bold text-amber-600">{value}</td>
+                        <td className="px-3 py-2 text-right text-gray-400">{pct}%</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
