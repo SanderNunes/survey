@@ -1462,6 +1462,8 @@
     },
     "access": "Acesso negado. Esta área é reservada aos administradores do site.",
     "responses": "respostas",
+    "target": "meta {{n}}",
+    "progress": "concluído",
     "search": "Pesquisar município, operador, género…",
     "cols": {
       "createdBy": "Criado por",
@@ -1520,6 +1522,26 @@
     "filter": "Filtrar por província:",
     "all": "Todas",
     "refresh": "Atualizar",
+    "nav": {
+      "overview":     "Visão Geral",
+      "progress":     "Progresso",
+      "surveyors":    "Entrevistadores",
+      "demographics": "Demografias",
+      "devices":      "Dispositivos",
+      "operator":     "Operador",
+      "usage":        "Uso & Recargas"
+    },
+    "velocity": {
+      "kpiTitle": "Ritmo Actual",
+      "kpiSub": "Conclusão prevista:",
+      "title": "Projeção de Conclusão",
+      "pace": "Ritmo actual: {{n}} inquéritos/dia (últimos 7 dias)",
+      "overallLabel": "Conclusão geral prevista",
+      "complete": "Concluído",
+      "noActivity": "Sem actividade recente",
+      "totalLabel": "Total: {{current}}/{{target}}",
+      "remaining": "em falta"
+    },
     "kpi": {
       "totalResponses": "Total de Respostas",
       "allProvinces": "Todas as províncias",
@@ -1565,6 +1587,33 @@
       "withoutAudio": "Sem áudio",
       "people": "Pessoas",
       "unknown": "Não informado"
+    },
+    "surveyor": {
+      "title": "Inquiridores — Inquéritos Realizados",
+      "colRank": "#",
+      "colName": "Inquiridor",
+      "colSurveys": "Inquéritos",
+      "colPercent": "% Total",
+      "chartTitle": "Inquéritos por Inquiridor"
+    },
+    "duration": {
+      "sectionTitle": "Duração do Inquérito",
+      "avgTitle": "Duração Média",
+      "avgSub": "por inquérito",
+      "medianTitle": "Duração Mediana",
+      "medianSub": "valor central",
+      "fastestTitle": "Mais Rápido",
+      "fastestSub": "mínimo registado",
+      "slowestTitle": "Mais Lento",
+      "slowestSub": "máximo registado",
+      "distributionChart": "Distribuição por Tempo de Resposta",
+      "byGroupTitle": "Duração Média por Província / Inquiridor",
+      "byProvinceLabel": "Por Província",
+      "bySurveyorLabel": "Duração Média por Inquiridor",
+      "colSurveyor": "Inquiridor",
+      "colAvg": "Média",
+      "colCount": "Inq.",
+      "surveysUnit": "inq."
     }
   },
   "survey": {
