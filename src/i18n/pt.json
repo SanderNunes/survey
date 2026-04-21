@@ -1544,6 +1544,8 @@
     },
     "kpi": {
       "totalResponses": "Total de Respostas",
+      "duplicates": "Duplicados",
+      "duplicatesByInterviewer": "Duplicados por entrevistador",
       "allProvinces": "Todas as províncias",
       "province": "Província: ",
       "withAudio": "Com Gravação de Áudio",

@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronLeft, Check, CheckCircle, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, CheckCircle, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff, User } from 'lucide-react';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import { assemblyClient } from '@/config/assemblyai';
 import { useTranslation } from 'react-i18next';
+
+const INTERVIEWER_NAME_KEY = 'cabinda_interviewer_name';
 
 const AGE_ORDER = ['18–24', '25–34', '35–44', '45–54', '55+'];
 
@@ -83,6 +85,7 @@ const CabindaSurvey = () => {
   const [saveResult, setSaveResult] = useState(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ isActive: false, current: 0, total: 0, step: null });
+  const isSyncingRef = useRef(false);
 
   // Offline functionality
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -96,12 +99,15 @@ const CabindaSurvey = () => {
 
   const [transcribingFor, setTranscribingFor] = useState(null); // questionId being transcribed after upload
 
-  const { saveCabindaSurveyResponse, getSurveyDetailedStats, isSharePointReady } = useSharePoint();
+  const { saveCabindaSurveyResponse, getSurveyDetailedStats, isSharePointReady, currentUserName } = useSharePoint();
   const [detailedStats, setDetailedStats] = useState(null);
   const [detailedStatsLoading, setDetailedStatsLoading] = useState(false);
   const [surveyStartTime, setSurveyStartTime] = useState(null);
   const [surveyDuration, setSurveyDuration] = useState(null);
   const [localTextValues, setLocalTextValues] = useState({});
+  const [interviewerName, setInterviewerName] = useState('');
+  const [showInterviewerModal, setShowInterviewerModal] = useState(false);
+  const [interviewerNameDraft, setInterviewerNameDraft] = useState('');
 
   // Monitor online/offline status
   useEffect(() => {
@@ -124,6 +130,26 @@ const CabindaSurvey = () => {
     };
   }, []);
 
+
+  // Show interviewer name confirmation on first load / each new survey
+  useEffect(() => {
+    const stored = localStorage.getItem(INTERVIEWER_NAME_KEY);
+    if (stored) {
+      setInterviewerName(stored);
+      setInterviewerNameDraft(stored);
+    } else {
+      const fallback = currentUserName || '';
+      setInterviewerNameDraft(fallback);
+    }
+    setShowInterviewerModal(true);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const confirmInterviewerName = useCallback(() => {
+    const name = interviewerNameDraft.trim();
+    setInterviewerName(name);
+    localStorage.setItem(INTERVIEWER_NAME_KEY, name);
+    setShowInterviewerModal(false);
+  }, [interviewerNameDraft]);
 
   // Fetch SP stats on mount (when SP is ready)
   useEffect(() => {
@@ -341,6 +367,7 @@ const CabindaSurvey = () => {
         surveyId,
         fingerprint,
         duration,
+        interviewerName: interviewerName || currentUserName || '',
         submissionMethod: 'online',
         deviceInfo: { userAgent: navigator.userAgent, screen: `${screen.width}x${screen.height}`, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
       },
@@ -360,22 +387,33 @@ const CabindaSurvey = () => {
       itemId: result.itemId || `SP_${surveyId}`,
       surveyId,
     };
-  }, [responses, customInputs, audioRecordings, currentSection, surveyStartTime, saveCabindaSurveyResponse]);
+  }, [responses, customInputs, audioRecordings, currentSection, surveyStartTime, interviewerName, currentUserName, saveCabindaSurveyResponse]);
 
   // ─── Sync pending ──────────────────────────────────────────────────────────
 
+  // Use a ref for the latest pendingSurveys so the sync loop always reads
+  // the current list without re-creating the callback (which would re-trigger
+  // the auto-sync effect in a loop).
+  const pendingSurveysRef = useRef(pendingSurveys);
+  useEffect(() => { pendingSurveysRef.current = pendingSurveys; }, [pendingSurveys]);
+
   const syncPendingSurveys = useCallback(async () => {
-    if (!isOnline || pendingSurveys.length === 0) return;
-    if (!isSharePointReady) return; // SP not ready yet
+    if (isSyncingRef.current) return;           // already running
+    if (!isOnline || !isSharePointReady) return;
 
-    setSyncProgress({ isActive: true, current: 0, total: pendingSurveys.length });
+    const pending = pendingSurveysRef.current;
+    if (pending.length === 0) return;
+
+    isSyncingRef.current = true;
+    setSyncProgress({ isActive: true, current: 0, total: pending.length, step: null });
+
+    const syncResults = [];
+    const processedFingerprints = new Set();
+
     try {
-      const syncResults = [];
-      const processedFingerprints = new Set();
-
-      for (let i = 0; i < pendingSurveys.length; i++) {
-        const survey = pendingSurveys[i];
-        setSyncProgress({ isActive: true, current: i + 1, total: pendingSurveys.length });
+      for (let i = 0; i < pending.length; i++) {
+        const survey = pending[i];
+        setSyncProgress({ isActive: true, current: i + 1, total: pending.length, step: null });
 
         if (survey.fingerprint && processedFingerprints.has(survey.fingerprint)) {
           syncResults.push({ surveyId: survey.id, success: false, skipped: true });
@@ -406,10 +444,15 @@ const CabindaSurvey = () => {
           }
 
           const formattedData = {
-            responses: survey.responses || {},
-            customInputs: survey.customInputs || {},
+            responses:       survey.responses   || {},
+            customInputs:    survey.customInputs || {},
             audioRecordings: audioRecordingsToSync,
-            metadata: { ...survey.metadata, syncedAt: new Date().toISOString(), originalOfflineId: survey.id, fingerprint: survey.fingerprint },
+            metadata: {
+              ...survey.metadata,
+              syncedAt: new Date().toISOString(),
+              originalOfflineId: survey.id,
+              fingerprint: survey.fingerprint,
+            },
           };
 
           if (survey.responses?.interestedInDiscussion === 'Sim' && survey.responses?.phoneNumber) {
@@ -417,12 +460,15 @@ const CabindaSurvey = () => {
           }
 
           const syncTimeout = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Sync timeout after 30s')), 30000)
+            setTimeout(() => reject(new Error('Timeout — sem resposta após 30s')), 30000)
           );
           const result = await Promise.race([
-            saveCabindaSurveyResponse(formattedData, (step) => setSyncProgress(p => ({ ...p, step }))),
+            saveCabindaSurveyResponse(formattedData, (step) =>
+              setSyncProgress(p => ({ ...p, step }))
+            ),
             syncTimeout,
           ]);
+
           Object.values(audioRecordingsToSync).forEach(r => { if (r.url) URL.revokeObjectURL(r.url); });
 
           if (result.success || result.isDuplicate) {
@@ -434,52 +480,49 @@ const CabindaSurvey = () => {
           syncResults.push({ surveyId: survey.id, success: false, error: syncError.message });
         }
       }
-
-      const successfulSyncs = syncResults.filter(r => r.success);
-      const skippedSyncs = syncResults.filter(r => r.skipped);
-      const failedSyncs = syncResults.filter(r => !r.success && !r.skipped);
-
-      const toRemove = [...successfulSyncs, ...skippedSyncs];
-
-      // Mark failed surveys with sync_failed status so the UI distinguishes them from unprocessed pending
-      const updatedPending = pendingSurveys.map(s => {
-        const failed = failedSyncs.find(f => f.surveyId === s.id);
-        if (failed) return { ...s, status: 'sync_failed', lastSyncError: failed.error };
-        return s;
-      });
-
-      if (toRemove.length > 0) {
-        const remainingPending = updatedPending.filter(s => !toRemove.some(sync => sync.surveyId === s.id));
-        localStorage.setItem('offline-cabinda-surveys', JSON.stringify(remainingPending));
-        setPendingSurveys(remainingPending);
-
-        const synced = successfulSyncs.filter(r => !r.wasDuplicate).length;
-        const dupes = successfulSyncs.filter(r => r.wasDuplicate).length + skippedSyncs.length;
-        let message = synced > 0 ? `${synced} inquérito${synced > 1 ? 's' : ''} sincronizado${synced > 1 ? 's' : ''} com sucesso!` : '';
-        if (dupes > 0) message += `${message ? ' ' : ''}${dupes} duplicado${dupes > 1 ? 's' : ''} removido${dupes > 1 ? 's' : ''}.`;
-        if (failedSyncs.length > 0) message += ` ${failedSyncs.length} falharam.`;
-        setSaveResult({ success: true, message: message || 'Sincronização concluída.' });
-      } else if (failedSyncs.length > 0) {
-        // All surveys failed — update state so UI shows sync_failed badges
-        localStorage.setItem('offline-cabinda-surveys', JSON.stringify(updatedPending));
-        setPendingSurveys(updatedPending);
-        setSaveResult({ success: false, message: `${failedSyncs.length} inquérito${failedSyncs.length > 1 ? 's' : ''} não sincronizado${failedSyncs.length > 1 ? 's' : ''}. Tente novamente.` });
-      }
-
-      syncTimerRef.current = setTimeout(() => setSyncProgress({ isActive: false, current: 0, total: 0, step: null }), 2000);
-    } catch (error) {
-      setSaveResult({ success: false, message: 'Erro durante a sincronização. Tente novamente.', error: error.message });
+    } finally {
+      isSyncingRef.current = false;
       setSyncProgress({ isActive: false, current: 0, total: 0, step: null });
     }
-  }, [isOnline, isSharePointReady, pendingSurveys, saveCabindaSurveyResponse]);
 
-  // Auto-sync when back online and SharePoint is ready
+    const successfulSyncs = syncResults.filter(r => r.success);
+    const skippedSyncs    = syncResults.filter(r => r.skipped);
+    const failedSyncs     = syncResults.filter(r => !r.success && !r.skipped);
+    const toRemove        = [...successfulSyncs, ...skippedSyncs];
+
+    // Read the latest pending list (may have had more added while syncing)
+    const latestPending = pendingSurveysRef.current;
+    const updatedPending = latestPending.map(s => {
+      const failed = failedSyncs.find(f => f.surveyId === s.id);
+      if (failed) return { ...s, status: 'sync_failed', lastSyncError: failed.error };
+      return s;
+    });
+    const remainingPending = updatedPending.filter(s => !toRemove.some(sync => sync.surveyId === s.id));
+
+    localStorage.setItem('offline-cabinda-surveys', JSON.stringify(remainingPending));
+    setPendingSurveys(remainingPending);
+
+    if (toRemove.length > 0) {
+      const synced = successfulSyncs.filter(r => !r.wasDuplicate).length;
+      const dupes  = successfulSyncs.filter(r => r.wasDuplicate).length + skippedSyncs.length;
+      let message  = synced > 0 ? `${synced} inquérito${synced > 1 ? 's' : ''} sincronizado${synced > 1 ? 's' : ''} com sucesso!` : '';
+      if (dupes > 0) message += `${message ? ' ' : ''}${dupes} duplicado${dupes > 1 ? 's' : ''} removido${dupes > 1 ? 's' : ''}.`;
+      if (failedSyncs.length > 0) message += ` ${failedSyncs.length} falharam — verifique a ligação.`;
+      setSaveResult({ success: true, message: message || 'Sincronização concluída.' });
+    } else if (failedSyncs.length > 0) {
+      setSaveResult({ success: false, message: `${failedSyncs.length} inquérito${failedSyncs.length > 1 ? 's' : ''} não sincronizado${failedSyncs.length > 1 ? 's' : ''}. Tente novamente.` });
+    }
+  }, [isOnline, isSharePointReady, saveCabindaSurveyResponse]);
+
+  // Auto-sync when back online and SharePoint is ready.
+  // Does NOT include syncPendingSurveys in deps — the ref approach means
+  // the callback is stable, so this effect fires only on connectivity changes.
   useEffect(() => {
-    if (isOnline && isSharePointReady && pendingSurveys.length > 0) {
+    if (isOnline && isSharePointReady) {
       const timer = setTimeout(() => { syncPendingSurveys(); }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [isOnline, isSharePointReady, pendingSurveys.length, syncPendingSurveys]);
+  }, [isOnline, isSharePointReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Submission targets ────────────────────────────────────────────────────
 
@@ -511,16 +554,15 @@ const CabindaSurvey = () => {
     setSurveyStartTime(null);
     setSurveyDuration(null);
     setLocalTextValues({});
+    // Re-confirm interviewer identity for each new survey
+    const stored = localStorage.getItem(INTERVIEWER_NAME_KEY) || currentUserName || '';
+    setInterviewerNameDraft(stored);
+    setShowInterviewerModal(true);
   };
 
   // ─── Main save ─────────────────────────────────────────────────────────────
 
-  const handleSaveSurvey = useCallback(async () => {
-    if (Object.keys(responses).length === 0) {
-      setSaveResult({ success: false, message: t('cabinda.validation.noAnswers') });
-      return;
-    }
-
+  const proceedSave = useCallback(async () => {
     setIsSaving(true);
     setSaveResult(null);
 
@@ -543,9 +585,7 @@ const CabindaSurvey = () => {
       }
 
       setSaveResult(result);
-      if (result.success) {
-        fetchDetailedStats();
-      }
+      if (result.success) fetchDetailedStats();
     } catch (error) {
       setSaveResult({ success: false, message: t('cabinda.validation.unexpected'), error: error.message });
     } finally {
@@ -553,6 +593,15 @@ const CabindaSurvey = () => {
       setSaveStep(null);
     }
   }, [responses, customInputs, currentSection, isOnline, saveToSharePoint, t]);
+
+  const handleSaveSurvey = useCallback(async () => {
+    if (Object.keys(responses).length === 0) {
+      setSaveResult({ success: false, message: t('cabinda.validation.noAnswers') });
+      return;
+    }
+    await proceedSave();
+  }, [responses, proceedSave, t]);
+
 
   // ─── Audio recording ───────────────────────────────────────────────────────
 
@@ -1209,7 +1258,14 @@ const CabindaSurvey = () => {
                   }
                 </p>
               </div>
-              <p className="text-xs text-blue-500">{t('cabinda.pending.syncStarted')}</p>
+              {!syncProgress.isActive && (
+                <button
+                  onClick={syncPendingSurveys}
+                  className="text-xs text-blue-600 font-medium border border-blue-300 px-2 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                >
+                  Tentar agora
+                </button>
+              )}
             </div>
 
             {/* Progress bar (while syncing) */}
@@ -1269,14 +1325,68 @@ const CabindaSurvey = () => {
                         </div>
                         <p className="text-xs text-blue-400">{t('cabinda.pending.savedAt')}{date}</p>
                       </div>
-                      <span className={`flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${survey.status === 'sync_failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                        {survey.status === 'sync_failed' ? 'Falhou' : t('cabinda.pending.status')}
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${survey.status === 'sync_failed' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                          {survey.status === 'sync_failed' ? 'Falhou' : t('cabinda.pending.status')}
+                        </span>
+                        {survey.status === 'sync_failed' && (
+                          <button
+                            onClick={() => {
+                              const updated = pendingSurveys.filter(s => s.id !== survey.id);
+                              localStorage.setItem('offline-cabinda-surveys', JSON.stringify(updated));
+                              setPendingSurveys(updated);
+                            }}
+                            className="text-[10px] text-red-400 hover:text-red-600 underline"
+                          >
+                            Remover
+                          </button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Interviewer name confirmation modal */}
+        {showInterviewerModal && (
+          <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full space-y-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <User className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Confirmar entrevistador</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">Verifique o seu nome antes de iniciar</p>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Nome do entrevistador
+                </label>
+                <input
+                  type="text"
+                  value={interviewerNameDraft}
+                  onChange={e => setInterviewerNameDraft(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && interviewerNameDraft.trim() && confirmInterviewerName()}
+                  className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 bg-gray-50"
+                  placeholder="O seu nome completo"
+                  autoFocus
+                />
+              </div>
+
+              <button
+                onClick={confirmInterviewerName}
+                disabled={!interviewerNameDraft.trim()}
+                className="w-full py-2.5 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                Confirmar e iniciar
+              </button>
+            </div>
           </div>
         )}
 

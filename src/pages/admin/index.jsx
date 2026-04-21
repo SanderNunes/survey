@@ -289,11 +289,11 @@ function RecordDetailModal({ record, onClose, province, getItemAttachments, down
                 })}
               </p>
             )}
-            {record.Author?.Title && (
+            {(record.NomeEntrevistador?.trim() || record.Author?.Title) && (
               <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
                 <User className="w-3 h-3" />
-                <span>{record.Author.Title}</span>
-                {record.Author.EMail && (
+                <span>{record.NomeEntrevistador?.trim() || record.Author?.Title}</span>
+                {record.Author?.EMail && (
                   <span className="text-gray-300">· {record.Author.EMail}</span>
                 )}
               </p>
@@ -969,7 +969,7 @@ export default function AdminPage() {
                       key={`${row._province ?? activeProvince}-${row.Id}`}
                       onClick={() => setSelectedRecord(row)}
                       className={`cursor-pointer transition-colors ${
-                        row.Duplicado === 'Sim'
+                        row.Duplicado === true
                           ? 'bg-amber-50/60 hover:bg-amber-50 border-l-2 border-amber-400'
                           : 'hover:bg-orange-50/30'
                       }`}
@@ -990,14 +990,14 @@ export default function AdminPage() {
                                 ? <span className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">{t('ui.yes')}</span>
                                 : <span className="inline-block bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">{t('ui.no')}</span>
                             : col.key === '_author'
-                              ? <span title={row.Author?.EMail || ''} className="text-gray-600">{row.Author?.Title || '—'}</span>
+                              ? <span title={row.Author?.EMail || ''} className="text-gray-600">{row.NomeEntrevistador?.trim() || row.Author?.Title || '—'}</span>
                               : row[col.key] ?? '—'
                           }
                         </td>
                       ))}
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-2">
-                          {row.Duplicado === 'Sim' && (
+                          {row.Duplicado === true && (
                             <span title="Número de telefone duplicado" className="text-amber-500">
                               <AlertTriangle className="w-4 h-4" />
                             </span>
