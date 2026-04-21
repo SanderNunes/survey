@@ -4,6 +4,70 @@ import { useSharePoint } from '@/hooks/useSharePoint';
 import { assemblyClient } from '@/config/assemblyai';
 import { useTranslation } from 'react-i18next';
 
+const AGE_ORDER = ['18–24', '25–34', '35–44', '45–54', '55+'];
+
+const formatDuration = (s) => {
+  if (!s || s <= 0) return null;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${m}min ${sec}seg`;
+  if (m > 0) return `${m} min ${sec} seg`;
+  return `${sec} seg`;
+};
+
+const PreliminaryReport = ({ stats, loading, targets, total, duration }) => {
+  return (
+    <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold text-orange-800">Relatório Preliminar</p>
+        {loading && <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />}
+      </div>
+      {duration && (
+        <p className="text-xs text-orange-700 mb-2">⏱ Duração do inquérito: <span className="font-medium">{formatDuration(duration)}</span></p>
+      )}
+      {stats ? (
+        <div className="space-y-2">
+          {Object.entries(targets).map(([mun, target]) => {
+            const done = stats.municipalities?.[mun] || 0;
+            const remaining = Math.max(0, target - done);
+            const pct = Math.min(100, Math.round((done / target) * 100));
+            return (
+              <div key={mun}>
+                <div className="flex justify-between text-xs text-orange-700 mb-1">
+                  <span className="font-medium">{mun}</span>
+                  <span>{done}/{target} ({remaining} em falta)</span>
+                </div>
+                <div className="w-full bg-orange-200 rounded-full h-1.5">
+                  <div className="bg-orange-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            );
+          })}
+          <div className="pt-2 border-t border-orange-200 flex justify-between text-xs font-semibold text-orange-800">
+            <span>Total</span>
+            <span>{stats.total}/{total} — {Math.max(0, total - stats.total)} em falta</span>
+          </div>
+          {stats.genders && (
+            <div className="pt-2 border-t border-orange-200 text-xs text-orange-700">
+              <span className="font-medium">Género: </span>
+              ♂ {stats.genders['Masculino'] || 0} Masculino &nbsp;/&nbsp; ♀ {stats.genders['Feminino'] || 0} Feminino
+            </div>
+          )}
+          {stats.ages && Object.keys(stats.ages).length > 0 && (
+            <div className="text-xs text-orange-700">
+              <span className="font-medium">Faixa etária: </span>
+              {AGE_ORDER.filter(a => stats.ages[a]).map(a => `${a}: ${stats.ages[a]}`).join(' | ')}
+            </div>
+          )}
+        </div>
+      ) : (
+        !loading && <p className="text-xs text-orange-600">Não foi possível obter os dados do servidor.</p>
+      )}
+    </div>
+  );
+};
+
 const CabindaSurvey = () => {
   const { t } = useTranslation();
   const [currentStep, setCurrentStep] = useState(0);
@@ -32,9 +96,12 @@ const CabindaSurvey = () => {
 
   const [transcribingFor, setTranscribingFor] = useState(null); // questionId being transcribed after upload
 
-  const { saveCabindaSurveyResponse, getSurveyTargetCounts } = useSharePoint();
-  const [targetCounts, setTargetCounts] = useState(null);
-  const [targetCountsLoading, setTargetCountsLoading] = useState(false);
+  const { saveCabindaSurveyResponse, getSurveyDetailedStats, isSharePointReady } = useSharePoint();
+  const [detailedStats, setDetailedStats] = useState(null);
+  const [detailedStatsLoading, setDetailedStatsLoading] = useState(false);
+  const [surveyStartTime, setSurveyStartTime] = useState(null);
+  const [surveyDuration, setSurveyDuration] = useState(null);
+  const [localTextValues, setLocalTextValues] = useState({});
 
   // Monitor online/offline status
   useEffect(() => {
@@ -58,21 +125,20 @@ const CabindaSurvey = () => {
   }, []);
 
 
-  // Fetch SP counts on mount (when SP is ready)
+  // Fetch SP stats on mount (when SP is ready)
   useEffect(() => {
-    if (getSurveyTargetCounts) fetchTargetCounts();
-  }, [getSurveyTargetCounts]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (isSharePointReady) fetchDetailedStats();
+  }, [isSharePointReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Survey data ──────────────────────────────────────────────────────────
 
   const municipalitiesMap = {
-    'Cabinda': ['Cabinda', 'Cacongo', 'Belize', 'Buco-Zau'],
-    'Bié':     ['Andulo', 'Camacupa', 'Catabola', 'Chinguar', 'Cuemba', 'Cunhinga', 'Kuito', 'Nharea'],
-    'Zaire':   ["M'banza Congo", "N'zeto", 'Soyo'],
+    'Cabinda': ['Cabinda'],
+    'Zaire':   ["M'banza Congo", 'Soyo'],
   };
 
   const surveyData = {
-    provinces:          ['Cabinda', 'Bié', 'Zaire'],
+    provinces:          ['Cabinda', 'Zaire'],
     ageGroups:          ['18–24', '25–34', '35–44', '45–54', '55+'],
     genders:            ['Masculino', 'Feminino'],
     occupations:        ['Estudante', 'Empregado - Privado', 'Empregado - Público', 'Trabalhador(a) por conta própria', 'Desempregado(a)', 'Outro (especificar)'],
@@ -82,13 +148,13 @@ const CabindaSurvey = () => {
     operators:          ['Unitel', 'Movicel', 'Ambos'],
     visibilityOptions:  ['Unitel', 'Movicel', 'Ambos por igual', 'Nenhum'],
     coverageAreas:      ['Centro da cidade', 'Estradas principais', 'Zonas rurais', 'Mercados', 'Zonas fronteiriças', 'Outro (especificar)'],
-    primaryUse:         ['Chamadas', 'Dados', 'SMS', 'Ambos por igual'],
-    rechargeFrequency:  ['Diariamente', 'De poucos em poucos dias', 'Semanalmente', 'Quinzenalmente', 'Mensalmente'],
+    primaryUse:         ['Chamadas', 'Dados', 'SMS', 'Todos por igual'],
+    rechargeFrequency:  ['Diariamente', 'De vez em quando', 'Semanalmente', 'Quinzenalmente', 'Mensalmente'],
     rechargeAmounts:    ['<200 Kz', '200–500 Kz', '500–1.000 Kz', '1.000–2.500 Kz', '2.500–5.000 Kz', '5.000+ Kz'],
     rechargeLocations:  ['Vendedores de rua (Agentes)', 'Lojas', 'Quiosques', 'EMIS', 'E-banking', 'Outro (especificar)'],
     rechargeReasons:    ['Conveniência', 'Proximidade', 'Confiança', 'Única opção disponível', 'Outro (especificar)'],
     bundleTypes:        ['Apenas dados', 'Apenas voz', 'Misto (voz + dados)', 'Redes sociais', 'Noturno/fim de semana', 'Pré-pago sem pacote'],
-    promotionSources:   ['Mercados', 'Lojas/Quiosques', 'Redes sociais', 'Amigos/Família', 'Escola/Universidade', 'Igreja/Comunidade', 'Outro (especificar)'],
+    promotionSources:   ['Mercados', 'Lojas/Quiosques', 'Redes sociais', 'Amigos/Família', 'Escola/Universidade', 'Igreja/Comunidade', 'TV/Rádio', 'Vizinhos/Conhecidos', 'Outro (especificar)'],
     trustedSources:     ['Escolas/Universidades', 'Igrejas', 'Líderes comunitários', 'Mercados locais', 'Lojas de bairro', 'Outro (especificar)'],
   };
 
@@ -142,7 +208,7 @@ const CabindaSurvey = () => {
         { id: 'hardToGiveUp',       text: 'Existe alguma oferta do seu operador atual que seria difícil abandonar?',                                               type: 'yesno', followUp: 'Se sim, especifique a oferta' },
         { id: 'promotionSource',    text: 'Onde costuma ver promoções ou ouvir sobre ofertas?',                                                                    type: 'multiple', options: surveyData.promotionSources, hasOther: true },
         { id: 'newShopLocation',    text: '🎤 Onde deveriam existir novas lojas de telecomunicações, e porquê?',                                                   type: 'voice' },
-        { id: 'trustedCommunity',   text: 'Existem negócios locais, escolas, igrejas ou figuras da comunidade em quem confia para recomendações de produtos?',    type: 'multiple', options: surveyData.trustedSources, hasOther: true },
+        { id: 'trustedCommunity',   text: 'Quem são as pessoas ou locais do seu bairro que costuma ouvir antes de comprar alguma coisa?',    type: 'multiple', options: surveyData.trustedSources, hasOther: true },
       ],
     },
     keyInsight: {
@@ -159,8 +225,8 @@ const CabindaSurvey = () => {
       title: 'Secção 7: Dados de Contacto',
       questions: [
         { id: 'interestedInDiscussion', text: 'Interesse em participar numa discussão remunerada sobre telecomunicações na sua área?', type: 'yesno' },
-        { id: 'nomeCliente',            text: 'Nome',                                                                                   type: 'text', placeholder: 'O seu nome' },
-        { id: 'phoneNumber',            text: 'Número de telefone',                                                                    type: 'text', placeholder: 'Necessário para ser contactado para a discussão remunerada' },
+        { id: 'nomeCliente',            text: 'Nome',                                                                                   type: 'text', inputType: 'text', placeholder: 'O seu nome' },
+        { id: 'phoneNumber',            text: 'Número de telefone',                                                                    type: 'text', inputType: 'tel',  placeholder: '9XXXXXXXX' },
       ],
     },
   };
@@ -260,9 +326,10 @@ const CabindaSurvey = () => {
 
   // ─── SharePoint save ───────────────────────────────────────────────────────
 
-  const saveToSharePoint = useCallback(async (surveyDataToSave) => {
+  const saveToSharePoint = useCallback(async (_surveyDataToSave) => {
     const surveyId = generateSurveyId();
     const fingerprint = generateFingerprint();
+    const duration = surveyStartTime ? Math.round((Date.now() - surveyStartTime) / 1000) : 0;
 
     const formattedData = {
       responses: responses,
@@ -273,6 +340,7 @@ const CabindaSurvey = () => {
         completedAt: new Date().toISOString(),
         surveyId,
         fingerprint,
+        duration,
         submissionMethod: 'online',
         deviceInfo: { userAgent: navigator.userAgent, screen: `${screen.width}x${screen.height}`, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
       },
@@ -285,19 +353,20 @@ const CabindaSurvey = () => {
     const result = await saveCabindaSurveyResponse(formattedData, setSaveStep);
     if (!result.success) throw new Error(result.message || 'SharePoint save failed');
 
+    if (duration > 0) setSurveyDuration(duration);
     return {
       success: true,
       message: result.message || 'Inquérito enviado com sucesso para SharePoint!',
       itemId: result.itemId || `SP_${surveyId}`,
       surveyId,
     };
-  }, [responses, customInputs, audioRecordings, currentSection, saveCabindaSurveyResponse]);
+  }, [responses, customInputs, audioRecordings, currentSection, surveyStartTime, saveCabindaSurveyResponse]);
 
   // ─── Sync pending ──────────────────────────────────────────────────────────
 
   const syncPendingSurveys = useCallback(async () => {
     if (!isOnline || pendingSurveys.length === 0) return;
-    if (!saveCabindaSurveyResponse) return; // SP not ready yet
+    if (!isSharePointReady) return; // SP not ready yet
 
     setSyncProgress({ isActive: true, current: 0, total: pendingSurveys.length });
     try {
@@ -402,31 +471,31 @@ const CabindaSurvey = () => {
       setSaveResult({ success: false, message: 'Erro durante a sincronização. Tente novamente.', error: error.message });
       setSyncProgress({ isActive: false, current: 0, total: 0, step: null });
     }
-  }, [isOnline, pendingSurveys, saveCabindaSurveyResponse]);
+  }, [isOnline, isSharePointReady, pendingSurveys, saveCabindaSurveyResponse]);
 
-  // Auto-sync when back online — placed after syncPendingSurveys declaration
+  // Auto-sync when back online and SharePoint is ready
   useEffect(() => {
-    if (isOnline && pendingSurveys.length > 0 && saveCabindaSurveyResponse) {
+    if (isOnline && isSharePointReady && pendingSurveys.length > 0) {
       const timer = setTimeout(() => { syncPendingSurveys(); }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [isOnline, pendingSurveys.length, saveCabindaSurveyResponse, syncPendingSurveys]);
+  }, [isOnline, isSharePointReady, pendingSurveys.length, syncPendingSurveys]);
 
   // ─── Submission targets ────────────────────────────────────────────────────
 
-  const SURVEY_TARGETS = { 'Cabinda': 600, 'Zaire': 400 };
+  const MUNICIPALITY_TARGETS = { 'Cabinda': 600, "M'banza Congo": 100, 'Soyo': 300 };
   const TOTAL_TARGET = 1000;
 
-  const fetchTargetCounts = useCallback(async () => {
-    if (!getSurveyTargetCounts) return;
-    setTargetCountsLoading(true);
+  const fetchDetailedStats = useCallback(async () => {
+    if (!getSurveyDetailedStats) return;
+    setDetailedStatsLoading(true);
     try {
-      const counts = await getSurveyTargetCounts();
-      if (counts) setTargetCounts(counts);
+      const stats = await getSurveyDetailedStats();
+      if (stats) setDetailedStats(stats);
     } finally {
-      setTargetCountsLoading(false);
+      setDetailedStatsLoading(false);
     }
-  }, [getSurveyTargetCounts]);
+  }, [getSurveyDetailedStats]);
 
   // ─── Reset ─────────────────────────────────────────────────────────────────
 
@@ -439,6 +508,9 @@ const CabindaSurvey = () => {
     setShowSaveDialog(false);
     setSaveResult(null);
     setIsSaving(false);
+    setSurveyStartTime(null);
+    setSurveyDuration(null);
+    setLocalTextValues({});
   };
 
   // ─── Main save ─────────────────────────────────────────────────────────────
@@ -472,8 +544,7 @@ const CabindaSurvey = () => {
 
       setSaveResult(result);
       if (result.success) {
-        // Refresh SP counts so the preliminary report reflects the new submission
-        fetchTargetCounts();
+        fetchDetailedStats();
       }
     } catch (error) {
       setSaveResult({ success: false, message: t('cabinda.validation.unexpected'), error: error.message });
@@ -525,10 +596,22 @@ const CabindaSurvey = () => {
         }
       };
 
+      const MAX_RECORDING_SECONDS = 60;
       mediaRecorder.start();
       setIsRecording(questionId);
       setRecordingTime(0);
-      timerRef.current = setInterval(() => setRecordingTime(prev => prev + 1), 1000);
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => {
+          if (prev + 1 >= MAX_RECORDING_SECONDS) {
+            clearInterval(timerRef.current);
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+              mediaRecorderRef.current.stop();
+              setIsRecording(false);
+            }
+          }
+          return prev + 1;
+        });
+      }, 1000);
     } catch {
       alert(t('cabinda.recording.micError'));
     }
@@ -572,6 +655,7 @@ const CabindaSurvey = () => {
   // ─── Response handling ─────────────────────────────────────────────────────
 
   const handleResponse = (questionId, value, customValue = '') => {
+    if (!surveyStartTime) setSurveyStartTime(Date.now());
     setResponses(prev => ({ ...prev, [questionId]: value }));
     if (customValue !== undefined && customValue !== '') {
       setCustomInputs(prev => ({ ...prev, [questionId]: customValue }));
@@ -632,10 +716,9 @@ const CabindaSurvey = () => {
     const customValue = customInputs[question.id] || '';
 
     if (question.type === 'text') {
-      // Name and phone are both required when respondent said "Sim" to discussion
-      if (responses['interestedInDiscussion'] === 'Sim' &&
-          (question.id === 'nomeCliente' || question.id === 'phoneNumber')) {
-        return !!value.trim();
+      if (responses['interestedInDiscussion'] === 'Sim') {
+        if (question.id === 'nomeCliente') return !!value.trim();
+        if (question.id === 'phoneNumber') return /^9\d{8}$/.test(value.trim());
       }
       return true; // all other text fields are optional
     }
@@ -849,10 +932,13 @@ const CabindaSurvey = () => {
                       </button>
                     ) : (
                       <div className="text-center">
-                        <div className="flex items-center justify-center mb-3 sm:mb-4">
+                        <div className="flex items-center justify-center mb-1 sm:mb-2">
                           <div className="w-3 h-3 sm:w-4 sm:h-4 bg-primary rounded-full animate-pulse mr-2"></div>
-                          <span className="text-primary font-medium text-sm sm:text-base">{t('cabinda.recording.inProgress')} {formatTime(recordingTime)}</span>
+                          <span className="text-primary font-medium text-sm sm:text-base">{t('cabinda.recording.inProgress')} {formatTime(recordingTime)} / 1:00</span>
                         </div>
+                        {recordingTime >= 50 && (
+                          <p className="text-xs text-amber-600 font-medium mb-2 sm:mb-3">{60 - recordingTime} segundos restantes</p>
+                        )}
                         <button onClick={stopRecording} className="flex items-center px-4 py-2 sm:px-6 sm:py-3 bg-gray-600 text-white rounded-full hover:bg-gray-700 transition-colors">
                           <Square className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                           <span className="text-sm sm:text-base">{t('cabinda.recording.stop')}</span>
@@ -909,8 +995,11 @@ const CabindaSurvey = () => {
               <p className="text-xs sm:text-sm text-gray-600 mb-2">{t('cabinda.recording.orWrite')}</p>
               <textarea
                 placeholder={question.placeholder || t('cabinda.recording.writePlaceholder')}
-                value={currentValue.includes('[Gravação de Áudio') ? '' : currentValue}
-                onChange={(e) => handleResponse(question.id, e.target.value)}
+                value={localTextValues[question.id] ?? (currentValue.includes('[Gravação de Áudio') ? '' : currentValue)}
+                onChange={(e) => {
+                  setLocalTextValues(prev => ({ ...prev, [question.id]: e.target.value }));
+                  handleResponse(question.id, e.target.value);
+                }}
                 className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none h-20 sm:h-24 text-base text-black"
               />
             </div>
@@ -918,21 +1007,29 @@ const CabindaSurvey = () => {
         );
       }
 
-      case 'text':
+      case 'text': {
+        const isPhone = question.id === 'phoneNumber';
+        const phoneInvalid = isPhone && currentValue.trim().length > 0 && !/^9\d{8}$/.test(currentValue.trim());
         return (
           <div className="space-y-3">
             <input
-              type="tel"
+              type={question.inputType || 'text'}
+              inputMode={isPhone ? 'numeric' : undefined}
+              maxLength={isPhone ? 9 : undefined}
               placeholder={question.placeholder || t('cabinda.form.textPlaceholder')}
               value={currentValue}
               onChange={(e) => handleResponse(question.id, e.target.value)}
-              className="w-full p-3 sm:p-4 border-2 border-gray-300 rounded-lg focus:border-primary focus:outline-none text-base text-black"
+              className={`w-full p-3 sm:p-4 border-2 rounded-lg focus:outline-none text-base text-black ${phoneInvalid ? 'border-red-400 focus:border-red-500' : 'border-gray-300 focus:border-primary'}`}
             />
+            {phoneInvalid && (
+              <p className="text-xs text-red-500">O número deve começar com 9 e ter 9 dígitos</p>
+            )}
             {question.optional && (
               <p className="text-xs text-gray-400 text-center">{t('ui.optional')}</p>
             )}
           </div>
         );
+      }
 
       default:
         return null;
@@ -1025,14 +1122,16 @@ const CabindaSurvey = () => {
               })}
             </div>
 
-            <h2 className="text-sm sm:text-base font-semibold text-primary uppercase tracking-wide text-center">
-              {currentSectionData.title}
-            </h2>
+            <div className="flex justify-center">
+              <span className="inline-block bg-primary text-white text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+                {currentSectionData.title}
+              </span>
+            </div>
           </div>
 
           {/* Question */}
           <div className="mb-6 sm:mb-8">
-            <h3 className="text-lg sm:text-xl font-medium text-gray-800 mb-4 sm:mb-6 text-center px-2">
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-4 sm:mb-6 text-center px-2">
               {currentQuestion.text}
             </h3>
             <div className="max-w-md mx-auto">
@@ -1089,38 +1188,7 @@ const CabindaSurvey = () => {
                 </button>
               </div>
             </div>
-            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-semibold text-orange-800">Relatório Preliminar</p>
-                {targetCountsLoading && <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />}
-              </div>
-              {targetCounts ? (
-                <div className="space-y-2">
-                  {Object.entries(SURVEY_TARGETS).map(([province, target]) => {
-                    const done = targetCounts[province] || 0;
-                    const remaining = Math.max(0, target - done);
-                    const pct = Math.min(100, Math.round((done / target) * 100));
-                    return (
-                      <div key={province}>
-                        <div className="flex justify-between text-xs text-orange-700 mb-1">
-                          <span className="font-medium">{province}</span>
-                          <span>{done}/{target} ({remaining} em falta)</span>
-                        </div>
-                        <div className="w-full bg-orange-200 rounded-full h-1.5">
-                          <div className="bg-orange-500 h-1.5 rounded-full" style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <div className="pt-2 border-t border-orange-200 flex justify-between text-xs font-semibold text-orange-800">
-                    <span>Total</span>
-                    <span>{targetCounts.total}/{TOTAL_TARGET} — {Math.max(0, TOTAL_TARGET - targetCounts.total)} inquéritos em falta</span>
-                  </div>
-                </div>
-              ) : (
-                !targetCountsLoading && <p className="text-xs text-orange-600">Não foi possível obter os dados do servidor.</p>
-              )}
-            </div>
+            <PreliminaryReport stats={detailedStats} loading={detailedStatsLoading} targets={MUNICIPALITY_TARGETS} total={TOTAL_TARGET} duration={surveyDuration} />
           </div>
         )}
 
@@ -1229,6 +1297,9 @@ const CabindaSurvey = () => {
                       <p>{t('cabinda.saveDialog.operator')}{responses.currentOperator || '—'}</p>
                       <p>{t('cabinda.saveDialog.responses')}{Object.keys(responses).length}</p>
                       <p>{t('cabinda.saveDialog.recordings')}{Object.keys(audioRecordings).length}</p>
+                      {surveyStartTime && (
+                        <p>Duração: {formatDuration(Math.round((Date.now() - surveyStartTime) / 1000))}</p>
+                      )}
                       <p>{t('cabinda.saveDialog.status')}{isOnline ? t('cabinda.saveDialog.statusOnline') : t('cabinda.saveDialog.statusOffline')}</p>
                       {responses.interestedInDiscussion === 'Sim' && <p>{t('cabinda.saveDialog.focusGroup')}</p>}
                     </div>
@@ -1289,39 +1360,9 @@ const CabindaSurvey = () => {
                     {saveResult.isDuplicate && <p className="text-xs mt-1 font-medium">{t('cabinda.result.duplicate')}</p>}
                   </div>
 
-                  {/* Preliminary report — target progress from SharePoint */}
                   {saveResult.success && (
-                    <div className="mb-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-semibold text-orange-800">Relatório Preliminar</p>
-                        {targetCountsLoading && <Loader2 className="w-3 h-3 text-orange-500 animate-spin" />}
-                      </div>
-                      {targetCounts ? (
-                        <div className="space-y-2">
-                          {Object.entries(SURVEY_TARGETS).map(([province, target]) => {
-                            const done = targetCounts[province] || 0;
-                            const remaining = Math.max(0, target - done);
-                            const pct = Math.min(100, Math.round((done / target) * 100));
-                            return (
-                              <div key={province}>
-                                <div className="flex justify-between text-xs text-orange-700 mb-1">
-                                  <span className="font-medium">{province}</span>
-                                  <span>{done}/{target} ({remaining} em falta)</span>
-                                </div>
-                                <div className="w-full bg-orange-200 rounded-full h-1.5">
-                                  <div className="bg-orange-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
-                                </div>
-                              </div>
-                            );
-                          })}
-                          <div className="pt-2 border-t border-orange-200 flex justify-between text-xs font-semibold text-orange-800">
-                            <span>Total</span>
-                            <span>{targetCounts.total}/{TOTAL_TARGET} — {Math.max(0, TOTAL_TARGET - targetCounts.total)} inquéritos em falta</span>
-                          </div>
-                        </div>
-                      ) : (
-                        !targetCountsLoading && <p className="text-xs text-orange-600">Não foi possível obter os dados do servidor.</p>
-                      )}
+                    <div className="mb-4">
+                      <PreliminaryReport stats={detailedStats} loading={detailedStatsLoading} targets={MUNICIPALITY_TARGETS} total={TOTAL_TARGET} duration={surveyDuration} />
                     </div>
                   )}
                   {saveResult.success ? (

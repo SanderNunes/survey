@@ -23,6 +23,7 @@ import {
   Heart,
   MessageSquare,
   Phone,
+  AlertTriangle,
 } from 'lucide-react';
 import { assemblyClient } from '@/config/assemblyai';
 import { useSharePoint } from '@/hooks/useSharePoint';
@@ -408,7 +409,9 @@ function RecordDetailModal({ record, onClose, province, getItemAttachments, down
   );
 }
 
-const PROVINCES = ['Cabinda', 'Bié', 'Zaire'];
+const PROVINCES = ['Cabinda', 'Zaire'];
+const PROVINCE_TARGETS = { 'Cabinda': 600, 'Zaire': 400 };
+const TOTAL_TARGET = 1000;
 
 // Columns to show in the table (internal name → display label)
 const TABLE_COLS = [
@@ -726,35 +729,44 @@ export default function AdminPage() {
       <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
 
         {/* Header */}
-        <div className="flex items-center space-x-3">
-          <Database className="w-7 h-7 text-primary" />
-          <h1 className="text-2xl font-semibold text-gray-800">{t('admin.title')}</h1>
-        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Database className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">{t('admin.title')}</h1>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Cabinda Pre-Launch &middot; {new Date().toLocaleDateString('pt-AO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+            </div>
+          </div>
 
-        {/* Main tab switcher */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-          <button
-            onClick={() => setMainTab('data')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              mainTab === 'data'
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <Table2 className="w-4 h-4" />
-            {t('admin.tabs.data')}
-          </button>
-          <button
-            onClick={() => setMainTab('analytics')}
-            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
-              mainTab === 'analytics'
-                ? 'bg-white text-gray-800 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            <BarChart2 className="w-4 h-4" />
-            {t('admin.tabs.analytics')}
-          </button>
+          {/* Main tab switcher */}
+          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+            <button
+              onClick={() => setMainTab('data')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                mainTab === 'data'
+                  ? 'bg-white text-gray-800 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Table2 className="w-4 h-4" />
+              {t('admin.tabs.data')}
+            </button>
+            <button
+              onClick={() => setMainTab('analytics')}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                mainTab === 'analytics'
+                  ? 'bg-white text-gray-800 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <BarChart2 className="w-4 h-4" />
+              {t('admin.tabs.analytics')}
+            </button>
+          </div>
         </div>
 
         {/* Analytics view */}
@@ -765,79 +777,107 @@ export default function AdminPage() {
         {/* Data view */}
         {mainTab === 'data' && <>
 
-        {/* Count cards */}
-        <div className="grid grid-cols-4 gap-4">
+        {/* Summary KPI cards */}
+        <div className="grid grid-cols-3 gap-4">
           {/* All card */}
-          <button
-            onClick={() => setActiveProvince(null)}
-            className={`rounded-xl p-5 text-left shadow-sm border transition-all ${
-              activeProvince === null
-                ? 'bg-primary text-white border-primary'
-                : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
-            }`}
-          >
-            <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${activeProvince === null ? 'text-white/70' : 'text-gray-400'}`}>
-              {t('admin.allAnswers.all')}
-            </p>
-            <p className="text-3xl font-bold">{totalCount}</p>
-            <p className={`text-xs mt-1 ${activeProvince === null ? 'text-white/70' : 'text-gray-400'}`}>
-              {t('admin.responses')}
-            </p>
-          </button>
-          {PROVINCES.map(p => (
-            <button
-              key={p}
-              onClick={() => setActiveProvince(p)}
-              className={`rounded-xl p-5 text-left shadow-sm border transition-all ${
-                activeProvince === p
-                  ? 'bg-primary text-white border-primary'
-                  : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40'
-              }`}
-            >
-              <p className={`text-xs font-medium uppercase tracking-wider mb-1 ${activeProvince === p ? 'text-white/70' : 'text-gray-400'}`}>
-                {p}
-              </p>
-              <p className="text-3xl font-bold">
-                {counts[p] === null ? '…' : counts[p]}
-              </p>
-              <p className={`text-xs mt-1 ${activeProvince === p ? 'text-white/70' : 'text-gray-400'}`}>
-                {t('admin.responses')}
-              </p>
-            </button>
-          ))}
-        </div>
+          {(() => {
+            const allPct = TOTAL_TARGET > 0 ? Math.min(100, Math.round((totalCount / TOTAL_TARGET) * 100)) : 0;
+            const isActive = activeProvince === null;
+            return (
+              <button
+                onClick={() => setActiveProvince(null)}
+                className={`rounded-xl p-5 text-left border transition-all ${
+                  isActive
+                    ? 'bg-primary text-white border-primary shadow-md shadow-primary/20'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40 hover:shadow-md shadow-sm'
+                }`}
+              >
+                <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
+                  {t('admin.allAnswers.all')}
+                </p>
+                <p className="text-3xl font-bold">{totalCount}</p>
+                <p className={`text-xs mt-1 ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
+                  {t('admin.responses')} &middot; {t('admin.target', { n: TOTAL_TARGET })}
+                </p>
+                <div className={`mt-3 h-1.5 rounded-full ${isActive ? 'bg-white/30' : 'bg-gray-100'}`}>
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${isActive ? 'bg-white' : 'bg-primary'}`}
+                    style={{ width: `${allPct}%` }}
+                  />
+                </div>
+                <p className={`text-xs mt-1 font-medium ${isActive ? 'text-white/70' : 'text-primary'}`}>
+                  {allPct}% {t('admin.progress')}
+                </p>
+              </button>
+            );
+          })()}
 
-        {/* Province tabs + toolbar */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          {/* Tabs */}
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveProvince(null)}
-              className={`px-6 py-3 text-sm font-medium transition-colors ${
-                activeProvince === null
-                  ? 'border-b-2 border-primary text-primary'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {t('admin.allAnswers.all')}
-            </button>
-            {PROVINCES.map(p => (
+          {PROVINCES.map(p => {
+            const count = counts[p] ?? 0;
+            const target = PROVINCE_TARGETS[p] ?? 0;
+            const pct = target > 0 ? Math.min(100, Math.round((count / target) * 100)) : 0;
+            const isActive = activeProvince === p;
+            return (
               <button
                 key={p}
                 onClick={() => setActiveProvince(p)}
-                className={`px-6 py-3 text-sm font-medium transition-colors ${
-                  activeProvince === p
-                    ? 'border-b-2 border-primary text-primary'
-                    : 'text-gray-500 hover:text-gray-700'
+                className={`rounded-xl p-5 text-left border transition-all ${
+                  isActive
+                    ? 'bg-primary text-white border-primary shadow-md shadow-primary/20'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-primary/40 hover:shadow-md shadow-sm'
                 }`}
               >
-                {p}
+                <p className={`text-xs font-semibold uppercase tracking-wider mb-1 ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
+                  {p}
+                </p>
+                <p className="text-3xl font-bold">
+                  {counts[p] === null ? '…' : counts[p]}
+                </p>
+                <p className={`text-xs mt-1 ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
+                  {t('admin.responses')} &middot; {t('admin.target', { n: target })}
+                </p>
+                <div className={`mt-3 h-1.5 rounded-full ${isActive ? 'bg-white/30' : 'bg-gray-100'}`}>
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${isActive ? 'bg-white' : 'bg-primary'}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <p className={`text-xs mt-1 font-medium ${isActive ? 'text-white/70' : 'text-primary'}`}>
+                  {pct}% {t('admin.progress')}
+                </p>
               </button>
-            ))}
-          </div>
+            );
+          })}
+        </div>
+
+        {/* Data table card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
 
           {/* Toolbar */}
-          <div className="flex flex-wrap items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-200">
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-gray-200">
+            {/* Active filter label */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                activeProvince
+                  ? 'bg-primary/10 text-primary'
+                  : 'bg-gray-100 text-gray-500'
+              }`}>
+                {activeProvince ?? t('admin.allAnswers.all')}
+              </span>
+              {activeProvince && (
+                <button
+                  onClick={() => setActiveProvince(null)}
+                  className="text-gray-300 hover:text-gray-500 transition-colors"
+                  title={t('admin.allAnswers.all')}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
+
+            {/* Search */}
             <div className="relative flex-1 min-w-48">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
@@ -845,38 +885,40 @@ export default function AdminPage() {
                 placeholder={t('admin.search')}
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 bg-gray-50"
               />
             </div>
 
-            <button
-              onClick={() => loadRecords(activeProvince)}
-              className="flex items-center space-x-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              <span>{t('ui.refresh')}</span>
-            </button>
-
+            {/* Actions */}
             <div className="flex items-center gap-2 ml-auto">
+              <button
+                onClick={() => loadRecords(activeProvince)}
+                className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                title={t('ui.refresh')}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">{t('ui.refresh')}</span>
+              </button>
+
               <button
                 onClick={exportExcel}
                 disabled={records.length === 0}
-                className="flex items-center space-x-1.5 text-sm text-green-700 border border-green-200 bg-green-50 px-3 py-2 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-1.5 text-sm text-green-700 border border-green-200 bg-green-50 px-3 py-2 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
               >
                 <FileSpreadsheet className="w-4 h-4" />
-                <span>{t('admin.export.excel')}</span>
+                <span className="hidden sm:inline">{t('admin.export.excel')}</span>
               </button>
 
               <button
                 onClick={handleTranscribeAll}
                 disabled={transcribingAll || missingTranscription.length === 0}
-                className="flex items-center space-x-1.5 text-sm text-orange-700 border border-orange-200 bg-orange-50 px-3 py-2 rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-1.5 text-sm text-orange-700 border border-orange-200 bg-orange-50 px-3 py-2 rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
               >
                 {transcribingAll
                   ? <RefreshCw className="w-4 h-4 animate-spin" />
                   : <Mic className="w-4 h-4" />
                 }
-                <span>
+                <span className="hidden sm:inline">
                   {transcribingAll
                     ? `${transcribeAllProgress.current}/${transcribeAllProgress.total}`
                     : `${t('admin.transcribeAll')} (${missingTranscription.length})`
@@ -884,7 +926,6 @@ export default function AdminPage() {
                 </span>
               </button>
             </div>
-
           </div>
 
           {/* Table */}
@@ -910,16 +951,16 @@ export default function AdminPage() {
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
                     {isAllView && (
-                      <th className="px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
+                      <th className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap text-xs uppercase tracking-wider">
                         {t('survey.fields.Provincia')}
                       </th>
                     )}
                     {TABLE_COLS.map(col => (
-                      <th key={col.key} className="px-4 py-3 font-medium text-gray-600 whitespace-nowrap">
+                      <th key={col.key} className="px-4 py-3 font-medium text-gray-500 whitespace-nowrap text-xs uppercase tracking-wider">
                         {col.labelKey ? t(col.labelKey) : col.label}
                       </th>
                     ))}
-                    <th className="px-4 py-3 font-medium text-gray-600 w-12"></th>
+                    <th className="px-4 py-3 w-12"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -927,7 +968,11 @@ export default function AdminPage() {
                     <tr
                       key={`${row._province ?? activeProvince}-${row.Id}`}
                       onClick={() => setSelectedRecord(row)}
-                      className="hover:bg-blue-50/40 cursor-pointer transition-colors"
+                      className={`cursor-pointer transition-colors ${
+                        row.Duplicado === 'Sim'
+                          ? 'bg-amber-50/60 hover:bg-amber-50 border-l-2 border-amber-400'
+                          : 'hover:bg-orange-50/30'
+                      }`}
                     >
                       {isAllView && (
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -952,6 +997,11 @@ export default function AdminPage() {
                       ))}
                       <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center gap-2">
+                          {row.Duplicado === 'Sim' && (
+                            <span title="Número de telefone duplicado" className="text-amber-500">
+                              <AlertTriangle className="w-4 h-4" />
+                            </span>
+                          )}
                           {row.TemGravacoes === 'Sim' && (
                             <button
                               onClick={() => handleTranscribeRow(row)}
@@ -983,7 +1033,7 @@ export default function AdminPage() {
 
           {/* Footer count */}
           {!loading && records.length > 0 && (
-            <div className="px-4 py-2 text-xs text-gray-400 border-t border-gray-100">
+            <div className="px-4 py-2.5 text-xs text-gray-400 border-t border-gray-100 bg-gray-50/50">
               {filtered.length !== records.length
                 ? t('admin.recordsFiltered', { filtered: filtered.length, total: records.length })
                 : t('admin.records', { count: records.length })}

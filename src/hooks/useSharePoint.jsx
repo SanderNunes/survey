@@ -71,7 +71,11 @@ const EXPORT_COLUMNS = [
   { key: 'InsightPrincipal',       label: 'Insight principal (áudio)' },
   // Section 7 — Contact
   { key: 'InteresseDiscussao',     label: 'Interesse em discussão'    },
+  { key: 'NomeCliente',            label: 'Nome do entrevistado'      },
   { key: 'NumeroTelefone',         label: 'Número de telefone'        },
+  { key: 'Duplicado',              label: 'Duplicado'                 },
+  // Timing
+  { key: 'DuracaoInquerito',       label: 'Duração (segundos)'        },
   // Audio metadata
   { key: 'TemGravacoes',           label: 'Tem gravações'             },
   { key: 'CamposComGravacao',      label: 'Campos com gravação'       },
@@ -532,6 +536,22 @@ export const useSharePoint = () => {
           }
         }
 
+        // 3. Phone number duplicate check — save anyway, but flag it
+        let isDuplicatePhone = false;
+        const phoneToCheck = r.phoneNumber?.trim();
+        if (phoneToCheck && /^9\d{8}$/.test(phoneToCheck)) {
+          try {
+            const existingByPhone = await sp.web.lists
+              .getByTitle(listName)
+              .items
+              .filter(`NumeroTelefone eq '${escOData(phoneToCheck)}'`)
+              .top(1)();
+            isDuplicatePhone = existingByPhone.length > 0;
+          } catch (_) {
+            // non-critical — don't block save if check fails
+          }
+        }
+
         // ── Build item data ────────────────────────────────────────────────
 
         const itemData = {
@@ -596,8 +616,10 @@ export const useSharePoint = () => {
           Fingerprint: meta.fingerprint || '',
 
           // Metadata
+          DuracaoInquerito:  meta.duration || 0,
           DataPreenchimento: new Date().toISOString(),
           StatusInquerito:   'Completo',
+          Duplicado:         isDuplicatePhone ? 'Sim' : 'Não',
         };
 
         // ── Insert ─────────────────────────────────────────────────────────
@@ -735,6 +757,7 @@ export const useSharePoint = () => {
       ['InteresseDiscussao',      'text'    ],
       ['NomeCliente',             'text'    ],
       ['NumeroTelefone',          'text'    ],
+      ['Duplicado',               'text'    ],
       // ── Audio metadata ────────────────────────────────────────────────
       ['TemGravacoes',            'text'    ],
       ['CamposComGravacao',       'note'    ],
@@ -742,6 +765,7 @@ export const useSharePoint = () => {
       ['SurveyId',                'text'    ],
       ['Fingerprint',             'text'    ],
       // ── Metadata ──────────────────────────────────────────────────────
+      ['DuracaoInquerito',        'number'  ],
       ['DataPreenchimento',       'datetime'],
       ['StatusInquerito',         'text'    ],
     ];
@@ -929,6 +953,67 @@ export const useSharePoint = () => {
   );
 
   /**
+   * Fetch detailed stats for the preliminary report.
+   * Returns { municipalities: { [name]: number }, genders: { Masculino: n, Feminino: n },
+   *           ages: { [range]: number }, total: number }
+   */
+  const getSurveyDetailedStats = useCallback(
+    async () => {
+      if (!sp?.web) return null;
+      try {
+        const [cabindaItems, zaireItems] = await Promise.all([
+          sp.web.lists.getByTitle('Cabinda_PreLaunch_Survey').items
+            .select('Municipio', 'Genero', 'FaixaEtaria').top(5000)(),
+          sp.web.lists.getByTitle('Zaire_PreLaunch_Survey').items
+            .select('Municipio', 'Genero', 'FaixaEtaria').top(5000)(),
+        ]);
+
+        const aggregate = (items) => {
+          const municipalities = {};
+          const genders = { 'Masculino': 0, 'Feminino': 0 };
+          const ages = {};
+          for (const item of items) {
+            const mun = item.Municipio || 'Desconhecido';
+            municipalities[mun] = (municipalities[mun] || 0) + 1;
+            const gen = item.Genero;
+            if (gen === 'Masculino' || gen === 'Feminino') genders[gen]++;
+            const age = item.FaixaEtaria;
+            if (age) ages[age] = (ages[age] || 0) + 1;
+          }
+          return { municipalities, genders, ages, total: items.length };
+        };
+
+        const cabinda = aggregate(cabindaItems);
+        const zaire = aggregate(zaireItems);
+
+        const allMunicipalities = { ...cabinda.municipalities };
+        for (const [k, v] of Object.entries(zaire.municipalities)) {
+          allMunicipalities[k] = (allMunicipalities[k] || 0) + v;
+        }
+        const allGenders = {
+          'Masculino': (cabinda.genders['Masculino'] || 0) + (zaire.genders['Masculino'] || 0),
+          'Feminino':  (cabinda.genders['Feminino']  || 0) + (zaire.genders['Feminino']  || 0),
+        };
+        const allAges = { ...cabinda.ages };
+        for (const [k, v] of Object.entries(zaire.ages)) {
+          allAges[k] = (allAges[k] || 0) + v;
+        }
+
+        return {
+          municipalities: allMunicipalities,
+          genders: allGenders,
+          ages: allAges,
+          total: cabinda.total + zaire.total,
+        };
+      } catch (err) {
+        console.warn('Failed to fetch detailed survey stats:', err.message);
+        return null;
+      }
+    },
+    [sp]
+  );
+
+  /**
    * Permanently delete one item from a province list.
    */
   const deleteProvinceRecord = useCallback(
@@ -1097,6 +1182,7 @@ export const useSharePoint = () => {
 
   return {
     sp,
+    isSharePointReady: !!sp?.web,
     // Huila survey
     saveSurveyResponse,
     uploadAudioRecordings,
@@ -1116,6 +1202,7 @@ export const useSharePoint = () => {
     exportProvincePackage,
     buildExcelWorksheet,
     getSurveyTargetCounts,
+    getSurveyDetailedStats,
     // Debug
     testSharePointConnection,
   };

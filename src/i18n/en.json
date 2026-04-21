@@ -1507,6 +1507,8 @@
     },
     "access": "Access denied. This area is reserved for site administrators.",
     "responses": "responses",
+    "target": "target {{n}}",
+    "progress": "complete",
     "search": "Search municipality, operator, gender…",
     "cols": {
       "createdBy": "Created by",
@@ -1565,6 +1567,26 @@
     "filter": "Filter by province:",
     "all": "All",
     "refresh": "Refresh",
+    "nav": {
+      "overview":     "Overview",
+      "progress":     "Progress",
+      "surveyors":    "Surveyors",
+      "demographics": "Demographics",
+      "devices":      "Devices",
+      "operator":     "Operator",
+      "usage":        "Usage & Recharges"
+    },
+    "velocity": {
+      "kpiTitle": "Current Pace",
+      "kpiSub": "Projected completion:",
+      "title": "Completion Forecast",
+      "pace": "Current pace: {{n}} surveys/day (last 7 days)",
+      "overallLabel": "Overall projected completion",
+      "complete": "Complete",
+      "noActivity": "No recent activity",
+      "totalLabel": "Total: {{current}}/{{target}}",
+      "remaining": "remaining"
+    },
     "kpi": {
       "totalResponses": "Total Responses",
       "allProvinces": "All provinces",
@@ -1610,6 +1632,33 @@
       "withoutAudio": "Without audio",
       "people": "People",
       "unknown": "Not specified"
+    },
+    "surveyor": {
+      "title": "Interviewers — Surveys Completed",
+      "colRank": "#",
+      "colName": "Interviewer",
+      "colSurveys": "Surveys",
+      "colPercent": "% Total",
+      "chartTitle": "Surveys per Interviewer"
+    },
+    "duration": {
+      "sectionTitle": "Survey Duration",
+      "avgTitle": "Average Duration",
+      "avgSub": "per survey",
+      "medianTitle": "Median Duration",
+      "medianSub": "central value",
+      "fastestTitle": "Fastest",
+      "fastestSub": "minimum recorded",
+      "slowestTitle": "Slowest",
+      "slowestSub": "maximum recorded",
+      "distributionChart": "Distribution by Response Time",
+      "byGroupTitle": "Average Duration by Province / Interviewer",
+      "byProvinceLabel": "By Province",
+      "bySurveyorLabel": "Average Duration per Interviewer",
+      "colSurveyor": "Interviewer",
+      "colAvg": "Average",
+      "colCount": "Surv.",
+      "surveysUnit": "surv."
     }
   },
   "survey": {
