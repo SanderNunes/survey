@@ -1509,6 +1509,7 @@
     "responses": "responses",
     "target": "target {{n}}",
     "progress": "complete",
+    "page": "Page {{page}} of {{total}}",
     "search": "Search municipality, operator, gender…",
     "cols": {
       "createdBy": "Created by",
