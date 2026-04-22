@@ -179,7 +179,7 @@ export const useSharePoint = () => {
         setTokenSP(accessToken);
       }
     };
-    setupToken();
+    setupToken().catch(err => console.error('Token setup failed:', err));
   }, [tokenSP, acquireToken]);
 
   useEffect(() => {
@@ -189,7 +189,7 @@ export const useSharePoint = () => {
         setSP(spGet);
       }
     };
-    setupPnP();
+    setupPnP().catch(err => console.error('PnP setup failed:', err));
   }, [sp, tokenSP]);
 
   /**
@@ -548,8 +548,8 @@ export const useSharePoint = () => {
               .filter(`NumeroTelefone eq '${escOData(phoneToCheck)}'`)
               .top(1)();
             isDuplicatePhone = existingByPhone.length > 0;
-          } catch (_) {
-            // non-critical — don't block save if check fails
+          } catch (err) {
+            console.warn('Phone duplicate check failed (non-blocking):', err?.message || err);
           }
         }
 
@@ -621,7 +621,7 @@ export const useSharePoint = () => {
           NomeEntrevistador:   meta.interviewerName || '',
           DataPreenchimento:   new Date().toISOString(),
           StatusInquerito:     'Completo',
-          Duplicado:           isDuplicatePhone,
+          Duplicado:           isDuplicatePhone ? true : false,
         };
 
         // ── Insert ─────────────────────────────────────────────────────────
@@ -823,6 +823,9 @@ export const useSharePoint = () => {
               break;
             case 'datetime':
               await list.fields.addDateTime(name, props);
+              break;
+            case 'boolean':
+              await list.fields.addBoolean(name, props);
               break;
           }
           listReport.fields.push({ name, status: 'created' });
@@ -1096,7 +1099,9 @@ export const useSharePoint = () => {
         let atts = [];
         try {
           atts = await getItemAttachments(province, item.Id);
-        } catch { /* item may have no attachments */ }
+        } catch (err) {
+          console.warn(`Could not fetch attachments for item ${item.Id}:`, err?.message);
+        }
 
         for (const qId of questionIds) {
           const att = atts.find(a => a.FileName.startsWith(qId + '_'));
@@ -1105,7 +1110,10 @@ export const useSharePoint = () => {
           let buf;
           try {
             buf = await downloadAttachment(att.ServerRelativeUrl);
-          } catch { continue; }
+          } catch (err) {
+            console.warn(`Could not download attachment ${att.ServerRelativeUrl}:`, err?.message);
+            continue;
+          }
 
           const audioFileName = `${item.Id}_${qId}.wav`;
           zip.file(`audio/${audioFileName}`, buf);

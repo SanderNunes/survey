@@ -296,9 +296,14 @@ export default function EmailNotificationMenu({ email = [], unreadCounts = 0 }) 
         const textArea = document.createElement('textarea');
         textArea.value = emailText;
         document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
+        try {
+          textArea.select();
+          document.execCommand('copy');
+        } finally {
+          if (document.body.contains(textArea)) {
+            document.body.removeChild(textArea);
+          }
+        }
         alert('Email details copied to clipboard!');
       }
     }

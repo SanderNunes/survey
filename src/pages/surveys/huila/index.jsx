@@ -24,6 +24,8 @@ const AfricellSurvey = () => {
   const audioChunksRef = useRef([]);
   const audioRef = useRef(null);
   const timerRef = useRef(null);
+  const isSavingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   // Get SharePoint functions
   const { saveSurveyResponse } = useSharePoint();
@@ -37,7 +39,12 @@ const AfricellSurvey = () => {
     window.addEventListener('offline', handleOffline);
 
     // Load pending surveys from localStorage
-    const pending = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    let pending = [];
+    try {
+      pending = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    } catch {
+      pending = [];
+    }
     setPendingSurveys(pending);
 
     return () => {
@@ -170,7 +177,12 @@ const AfricellSurvey = () => {
 
   // Check for duplicate submissions
   const checkForDuplicates = (newSurveyData) => {
-    const existingSurveys = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    let existingSurveys = [];
+    try {
+      existingSurveys = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    } catch {
+      existingSurveys = [];
+    }
     
     // Check for exact response matches
     const duplicateByResponses = existingSurveys.find(survey => {
@@ -192,13 +204,13 @@ const AfricellSurvey = () => {
   };
 
   // Convert audio blob to base64 for storage
-  const convertBlobToBase64 = (blob) => {
-    return new Promise((resolve) => {
+  const convertBlobToBase64 = (blob) =>
+    new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('FileReader failed to encode audio'));
       reader.readAsDataURL(blob);
     });
-  };
 
   // Enhanced save survey offline with duplicate prevention
   const saveOffline = async (surveyData) => {
@@ -261,9 +273,21 @@ const AfricellSurvey = () => {
         }
       };
 
-      const existing = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+      let existing = [];
+      try {
+        existing = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+      } catch {
+        existing = [];
+      }
       const updated = [...existing, offlineData];
-      localStorage.setItem('offline-surveys', JSON.stringify(updated));
+      try {
+        localStorage.setItem('offline-surveys', JSON.stringify(updated));
+      } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+          return { success: false, message: 'Armazenamento local cheio. Liberte espaço e tente novamente.' };
+        }
+        throw e;
+      }
       setPendingSurveys(updated);
 
       return {
@@ -393,12 +417,14 @@ const AfricellSurvey = () => {
 
           // Convert base64 audio data back to blobs if needed
           const audioRecordingsToSync = {};
+          const urlsToRevoke = [];
           if (survey.audioData) {
             for (const [key, base64Data] of Object.entries(survey.audioData)) {
               try {
                 const response = await fetch(base64Data);
                 const blob = await response.blob();
                 const audioUrl = URL.createObjectURL(blob);
+                urlsToRevoke.push(audioUrl);
                 audioRecordingsToSync[key] = { blob, url: audioUrl };
               } catch (audioError) {
                 console.warn(`Failed to convert audio for ${key}:`, audioError);
@@ -406,61 +432,59 @@ const AfricellSurvey = () => {
             }
           }
 
-          // Structure the data properly for SharePoint with duplicate prevention
-          const formattedSurveyData = {
-            responses: survey.responses || {},
-            customInputs: survey.customInputs || {},
-            audioRecordings: audioRecordingsToSync,
-            metadata: {
-              ...survey.metadata,
-              section: survey.metadata?.section || 'unknown',
-              completedAt: survey.timestamp || new Date().toISOString(),
-              userType: survey.responses?.operadora === 'Africell' ? 'Africell User' : 'Non-Africell User',
-              syncedAt: new Date().toISOString(),
-              originalOfflineId: survey.id,
-              fingerprint: survey.fingerprint
-            }
-          };
-
-          // Add focus group contact info if provided
-          if (survey.responses?.interesseGrupoFocal === 'Sim' && survey.customInputs?.interesseGrupoFocal) {
-            const contactParts = survey.customInputs.interesseGrupoFocal.split('|');
-            formattedSurveyData.focusGroupContact = {
-              name: contactParts[0]?.trim() || '',
-              phone: contactParts[1]?.trim() || ''
-            };
-          }
-
-          console.log('Formatted data for SharePoint:', formattedSurveyData);
-
-          // Call SharePoint save function
-          const result = await saveSurveyResponse(formattedSurveyData, (step) =>
-            setSyncProgress(p => ({ ...p, step }))
-          );
-
-          if (result.success) {
-            console.log('Successfully synced survey:', survey.id, 'SharePoint ID:', result.itemId);
-            syncResults.push({ surveyId: survey.id, success: true, sharePointId: result.itemId });
-
-            // Clean up audio URLs to prevent memory leaks
-            Object.values(audioRecordingsToSync).forEach(recording => {
-              if (recording.url) {
-                URL.revokeObjectURL(recording.url);
+          try {
+            // Structure the data properly for SharePoint with duplicate prevention
+            const formattedSurveyData = {
+              responses: survey.responses || {},
+              customInputs: survey.customInputs || {},
+              audioRecordings: audioRecordingsToSync,
+              metadata: {
+                ...survey.metadata,
+                section: survey.metadata?.section || 'unknown',
+                completedAt: survey.timestamp || new Date().toISOString(),
+                userType: survey.responses?.operadora === 'Africell' ? 'Africell User' : 'Non-Africell User',
+                syncedAt: new Date().toISOString(),
+                originalOfflineId: survey.id,
+                fingerprint: survey.fingerprint
               }
-            });
-          } else {
-            // Check if it's a duplicate error
-            if (result.message?.includes('duplicate') || result.message?.includes('já existe')) {
-              console.log('Survey already exists on server, marking as synced:', survey.id);
-              syncResults.push({ 
-                surveyId: survey.id, 
-                success: true, 
-                sharePointId: 'DUPLICATE',
-                wasDuplicate: true 
-              });
-            } else {
-              throw new Error(result.message || 'SharePoint save failed');
+            };
+
+            // Add focus group contact info if provided
+            if (survey.responses?.interesseGrupoFocal === 'Sim' && survey.customInputs?.interesseGrupoFocal) {
+              const contactParts = survey.customInputs.interesseGrupoFocal.split('|');
+              formattedSurveyData.focusGroupContact = {
+                name: contactParts[0]?.trim() || '',
+                phone: contactParts[1]?.trim() || ''
+              };
             }
+
+            console.log('Formatted data for SharePoint:', formattedSurveyData);
+
+            // Call SharePoint save function
+            const result = await saveSurveyResponse(formattedSurveyData, (step) =>
+              setSyncProgress(p => ({ ...p, step }))
+            );
+
+            if (result.success) {
+              console.log('Successfully synced survey:', survey.id, 'SharePoint ID:', result.itemId);
+              syncResults.push({ surveyId: survey.id, success: true, sharePointId: result.itemId });
+            } else {
+              // Check if it's a duplicate error
+              if (result.message?.includes('duplicate') || result.message?.includes('já existe')) {
+                console.log('Survey already exists on server, marking as synced:', survey.id);
+                syncResults.push({
+                  surveyId: survey.id,
+                  success: true,
+                  sharePointId: 'DUPLICATE',
+                  wasDuplicate: true
+                });
+              } else {
+                throw new Error(result.message || 'SharePoint save failed');
+              }
+            }
+          } finally {
+            // Always revoke blob URLs to prevent memory leaks, regardless of success or error
+            urlsToRevoke.forEach(url => URL.revokeObjectURL(url));
           }
 
         } catch (syncError) {
@@ -532,8 +556,12 @@ const AfricellSurvey = () => {
 
   // Main save function with duplicate prevention (timer removed)
   const handleSaveSurvey = useCallback(async () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
+
     // Prevent saving if no responses
     if (Object.keys(responses).length === 0) {
+      isSavingRef.current = false;
       setSaveResult({
         success: false,
         message: 'Nenhuma resposta encontrada. Complete pelo menos uma pergunta antes de guardar.'
@@ -587,6 +615,7 @@ const AfricellSurvey = () => {
     } finally {
       setIsSaving(false);
       setSaveStep(null);
+      isSavingRef.current = false;
     }
   }, [responses, customInputs, currentSection, isOnline, saveToSharePoint]);
 
@@ -603,6 +632,7 @@ const AfricellSurvey = () => {
       };
 
       mediaRecorder.onstop = () => {
+        if (!isMountedRef.current) return;
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
         const audioUrl = URL.createObjectURL(audioBlob);
 
@@ -619,8 +649,19 @@ const AfricellSurvey = () => {
       setIsRecording(questionId);
       setRecordingTime(0);
 
+      const MAX_RECORDING_SECONDS = 120;
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
+        setRecordingTime(prev => {
+          if (prev + 1 >= MAX_RECORDING_SECONDS) {
+            clearInterval(timerRef.current);
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+              mediaRecorderRef.current.stop();
+              setIsRecording(false);
+            }
+          }
+          return prev + 1;
+        });
       }, 1000);
 
     } catch (error) {
@@ -680,6 +721,11 @@ const AfricellSurvey = () => {
         clearInterval(timerRef.current);
       }
     };
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
   }, []);
 
   const handleResponse = (questionId, value, customValue = '') => {

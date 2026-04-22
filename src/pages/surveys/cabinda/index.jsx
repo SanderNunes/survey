@@ -96,6 +96,8 @@ const CabindaSurvey = () => {
   const audioRef = useRef(null);
   const timerRef = useRef(null);
   const syncTimerRef = useRef(null);
+  const isSavingRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   const [transcribingFor, setTranscribingFor] = useState(null); // questionId being transcribed after upload
 
@@ -285,7 +287,12 @@ const CabindaSurvey = () => {
   };
 
   const checkForDuplicates = (newSurveyData) => {
-    const existingSurveys = JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]');
+    let existingSurveys = [];
+    try {
+      existingSurveys = JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]');
+    } catch {
+      existingSurveys = [];
+    }
     const duplicateByResponses = existingSurveys.find(
       survey => JSON.stringify(survey.responses) === JSON.stringify(newSurveyData.responses)
     );
@@ -301,9 +308,10 @@ const CabindaSurvey = () => {
   };
 
   const convertBlobToBase64 = (blob) =>
-    new Promise((resolve) => {
+    new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error('FileReader failed to encode audio'));
       reader.readAsDataURL(blob);
     });
 
@@ -339,10 +347,22 @@ const CabindaSurvey = () => {
         metadata: { ...surveyDataToSave.metadata, submissionMethod: 'offline', deviceInfo: { userAgent: navigator.userAgent, screen: `${screen.width}x${screen.height}`, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } },
       };
 
-      const existing = JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]');
-      const updated = [...existing, offlineData];
-      localStorage.setItem('offline-cabinda-surveys', JSON.stringify(updated));
-      setPendingSurveys(updated);
+      let existing = [];
+      try {
+        existing = JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]');
+      } catch {
+        existing = [];
+      }
+      try {
+        const updated = [...existing, offlineData];
+        localStorage.setItem('offline-cabinda-surveys', JSON.stringify(updated));
+        setPendingSurveys(updated);
+      } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+          return { success: false, message: 'Armazenamento local cheio. Liberte espaço e tente novamente.' };
+        }
+        throw e;
+      }
 
       return { success: true, message: 'Inquérito guardado localmente. Será sincronizado quando houver conexão.', itemId: `OFFLINE_${surveyId}`, surveyId };
     } catch (error) {
@@ -591,11 +611,15 @@ const CabindaSurvey = () => {
     } finally {
       setIsSaving(false);
       setSaveStep(null);
+      isSavingRef.current = false;
     }
   }, [responses, customInputs, currentSection, isOnline, saveToSharePoint, t]);
 
   const handleSaveSurvey = useCallback(async () => {
+    if (isSavingRef.current) return;
+    isSavingRef.current = true;
     if (Object.keys(responses).length === 0) {
+      isSavingRef.current = false;
       setSaveResult({ success: false, message: t('cabinda.validation.noAnswers') });
       return;
     }
@@ -630,6 +654,7 @@ const CabindaSurvey = () => {
               audio: audioBlob,
               language_code: 'pt',
             });
+            if (!isMountedRef.current) return;
             const transcript = result.text || '';
             if (transcript) {
               setAudioRecordings(prev =>
@@ -640,15 +665,16 @@ const CabindaSurvey = () => {
           } catch (err) {
             console.warn('Transcription upload failed:', err.message);
           } finally {
-            setTranscribingFor(null);
+            if (isMountedRef.current) setTranscribingFor(null);
           }
         }
       };
 
-      const MAX_RECORDING_SECONDS = 60;
+      const MAX_RECORDING_SECONDS = 120;
       mediaRecorder.start();
       setIsRecording(questionId);
       setRecordingTime(0);
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => {
           if (prev + 1 >= MAX_RECORDING_SECONDS) {
@@ -678,7 +704,7 @@ const CabindaSurvey = () => {
     const recording = audioRecordings[questionId];
     if (recording && audioRef.current) {
       audioRef.current.src = recording.url;
-      audioRef.current.play();
+      audioRef.current.play().catch((err) => console.warn('Audio playback blocked:', err));
       setIsPlaying(questionId);
       audioRef.current.onended = () => setIsPlaying(false);
     }
@@ -699,6 +725,11 @@ const CabindaSurvey = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; };
   }, []);
 
   // ─── Response handling ─────────────────────────────────────────────────────
@@ -820,7 +851,7 @@ const CabindaSurvey = () => {
 
       case 'cascade': {
         const parentValue = responses[question.dependsOn] || '';
-        const options = question.optionsMap[parentValue] || [];
+        const options = question.optionsMap?.[parentValue] || [];
         return (
           <div className="space-y-3">
             {!parentValue && (
@@ -855,8 +886,8 @@ const CabindaSurvey = () => {
                     type="radio"
                     name={question.id}
                     value={value}
-                    checked={currentValue === value.toString()}
-                    onChange={(e) => handleResponse(question.id, e.target.value)}
+                    checked={currentValue === value}
+                    onChange={(e) => handleResponse(question.id, parseInt(e.target.value, 10))}
                     className="mb-2 scale-125 sm:scale-150 accent-primary"
                   />
                   <span className="text-base sm:text-lg font-bold">{value}</span>
@@ -983,10 +1014,10 @@ const CabindaSurvey = () => {
                       <div className="text-center">
                         <div className="flex items-center justify-center mb-1 sm:mb-2">
                           <div className="w-3 h-3 sm:w-4 sm:h-4 bg-primary rounded-full animate-pulse mr-2"></div>
-                          <span className="text-primary font-medium text-sm sm:text-base">{t('cabinda.recording.inProgress')} {formatTime(recordingTime)} / 1:00</span>
+                          <span className="text-primary font-medium text-sm sm:text-base">{t('cabinda.recording.inProgress')} {formatTime(recordingTime)} / 2:00</span>
                         </div>
-                        {recordingTime >= 50 && (
-                          <p className="text-xs text-amber-600 font-medium mb-2 sm:mb-3">{60 - recordingTime} segundos restantes</p>
+                        {recordingTime >= 110 && (
+                          <p className="text-xs text-amber-600 font-medium mb-2 sm:mb-3">{120 - recordingTime} segundos restantes</p>
                         )}
                         <button onClick={stopRecording} className="flex items-center px-4 py-2 sm:px-6 sm:py-3 bg-gray-600 text-white rounded-full hover:bg-gray-700 transition-colors">
                           <Square className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
@@ -1088,6 +1119,7 @@ const CabindaSurvey = () => {
   // ─── Derived state ─────────────────────────────────────────────────────────
 
   const currentQuestion = getCurrentQuestion();
+  if (!currentQuestion) return null;
   const currentSectionData = sections[currentSection];
   const totalSteps = currentSectionData.questions.length;
   const isLastStep = currentStep === totalSteps - 1;

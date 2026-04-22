@@ -43,6 +43,7 @@ import { MsalProvider } from "@azure/msal-react";
 import LoadingSkeleton from "./components/LoadingSkeleton";
 import { useAuth } from "./hooks/useAuth";
 import { Toaster } from "react-hot-toast";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Loader component for handling MSAL initialization
 function AuthLoader({ children }) {
@@ -118,7 +119,9 @@ useEffect(() => {
 
   return (
     <MsalProvider instance={msalInstance}>
-      {children}
+      <ErrorBoundary>
+        {children}
+      </ErrorBoundary>
       <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
     </MsalProvider>
   );

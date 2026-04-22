@@ -126,17 +126,13 @@ export const searchSharePointFolderService = async (
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(
-        `SharePoint search failed: ${response.status} - ${JSON.stringify(
-          errorData
-        )}`
-      );
+      const text = await response.text().catch(() => response.statusText);
+      throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
     }
 
     const data = await response.json();
     const rawResults =
-      data.d?.query?.PrimaryQueryResult?.RelevantResults?.Table?.Rows.results ||
+      data.d?.query?.PrimaryQueryResult?.RelevantResults?.Table?.Rows?.results ||
       [];
 
     if (!Array.isArray(rawResults)) {
@@ -190,10 +186,8 @@ export const searchSharePointListService = async (
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(
-                `SharePoint list search failed: ${response.status} - ${JSON.stringify(errorData)}`
-            );
+            const text = await response.text().catch(() => response.statusText);
+            throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
         }
 
         const data = await response.json();
@@ -231,11 +225,14 @@ export const searchSharePointListService = async (
 
 // Helper function to build search query for lists
 const buildListSearchQuery = (siteUrl, listName, searchTerm, options = {}) => {
+    const safeTerm = searchTerm?.trim() || '';
+    if (!safeTerm) throw new Error('searchTerm is required');
+
     const baseUrl = `${siteUrl}/_api/search/query`;
     const rowLimit = options.rowLimit || 500;
 
     // Search query that targets the specific list and includes Note fields
-    const queryText = `${searchTerm} AND (contentclass:STS_ListItem_GenericList OR contentclass:STS_ListItem) AND ListId:{list:${listName}}`;
+    const queryText = `${safeTerm} AND (contentclass:STS_ListItem_GenericList OR contentclass:STS_ListItem) AND ListId:{list:${listName}}`;
 
     const params = new URLSearchParams({
         querytext: `'${queryText}'`,
@@ -267,10 +264,8 @@ const searchSharePointListFallback = async (accessToken, siteUrl, listName, sear
     });
 
     if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-            `SharePoint list fallback search failed: ${response.status} - ${JSON.stringify(errorData)}`
-        );
+        const text = await response.text().catch(() => response.statusText);
+        throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
     }
 
     const data = await response.json();
@@ -451,12 +446,8 @@ export const createSharePointListItemService = async (
     });
 
     if (!createResponse.ok) {
-      const errorData = await createResponse.json();
-      throw new Error(
-        `Failed to create item: ${createResponse.status} - ${JSON.stringify(
-          errorData
-        )}`
-      );
+      const text = await createResponse.text().catch(() => createResponse.statusText);
+      throw new Error(`HTTP ${createResponse.status}: ${text.slice(0, 200)}`);
     }
 
     const result = await createResponse.json();
@@ -486,6 +477,11 @@ export const createSharePointListItemServiceSimple = async (
       },
     });
 
+    if (!digestResponse.ok) {
+      const text = await digestResponse.text().catch(() => digestResponse.statusText);
+      throw new Error(`HTTP ${digestResponse.status}: ${text.slice(0, 200)}`);
+    }
+
     const digestData = await digestResponse.json();
     const requestDigest = digestData.d.GetContextWebInformation.FormDigestValue;
 
@@ -512,12 +508,8 @@ export const createSharePointListItemServiceSimple = async (
     });
 
     if (!createResponse.ok) {
-      const errorData = await createResponse.json();
-      throw new Error(
-        `Failed to create item: ${createResponse.status} - ${JSON.stringify(
-          errorData
-        )}`
-      );
+      const text = await createResponse.text().catch(() => createResponse.statusText);
+      throw new Error(`HTTP ${createResponse.status}: ${text.slice(0, 200)}`);
     }
 
     const result = await createResponse.json();
