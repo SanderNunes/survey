@@ -14,7 +14,12 @@ export const useOfflineStorage = () => {
     window.addEventListener('offline', handleOffline);
 
     // Load pending data on mount
-    const pending = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    let pending = [];
+    try {
+      pending = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    } catch {
+      pending = [];
+    }
     setPendingData(pending);
 
     return () => {
@@ -32,7 +37,12 @@ export const useOfflineStorage = () => {
       status: 'pending'
     };
     
-    const existing = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    let existing = [];
+    try {
+      existing = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    } catch {
+      existing = [];
+    }
     const updated = [...existing, dataWithTimestamp];
     localStorage.setItem('offline-surveys', JSON.stringify(updated));
     
@@ -43,36 +53,58 @@ export const useOfflineStorage = () => {
   const syncPendingData = async () => {
     if (!isOnline) return false;
 
-    const pending = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    let pending = [];
+    try {
+      pending = JSON.parse(localStorage.getItem('offline-surveys') || '[]');
+    } catch {
+      pending = [];
+    }
     if (pending.length === 0) return true;
 
-    try {
-      for (const survey of pending) {
-        // Convert survey data to SharePoint list item format
-        const listItem = {
-          Title: `Survey_${survey.id}`,
-          Bairro: survey.responses.bairro || '',
-          Idade: survey.responses.idade || '',
-          Genero: survey.responses.genero || '',
-          Ocupacao: survey.responses.ocupacao || '',
-          OperadoraPrincipal: survey.responses.operadora || '',
-          MultipleSIM: survey.responses.multipleSim || '',
-          // Add all other survey fields
-          SurveyData: JSON.stringify(survey),
-          CompletedAt: survey.completedAt,
-          Status: 'Synced'
-        };
+    const results = { synced: [], failed: [] };
 
-        await saveSurveyResponse({ responses: survey.responses, customInputs: survey.customInputs || {}, audioRecordings: {} });
+    for (const survey of pending) {
+      // FIX 10: guard against missing responses
+      if (!survey.responses) continue;
+
+      // FIX 8: convert base64 audio back to blobs
+      const audioRecordings = {};
+      if (survey.audioData) {
+        for (const [key, base64Data] of Object.entries(survey.audioData)) {
+          try {
+            const response = await fetch(base64Data);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            audioRecordings[key] = { blob, url };
+          } catch {
+            // skip this audio if conversion fails
+          }
+        }
       }
 
-      localStorage.removeItem('offline-surveys');
-      setPendingData([]);
-      return true;
-    } catch (error) {
-      console.error('SharePoint sync failed:', error);
-      return false;
+      // FIX 9: wrap each iteration so one failure doesn't block the rest
+      try {
+        await saveSurveyResponse({
+          responses: survey.responses,
+          customInputs: survey.customInputs || {},
+          audioRecordings,
+        });
+        results.synced.push(survey.id);
+      } catch (err) {
+        console.error('Failed to sync survey:', survey.id, err);
+        results.failed.push(survey.id);
+      } finally {
+        // Always revoke created blob URLs
+        Object.values(audioRecordings).forEach(r => { if (r.url) URL.revokeObjectURL(r.url); });
+      }
     }
+
+    // Only remove successfully synced surveys from localStorage
+    const remaining = pending.filter(s => !results.synced.includes(s.id));
+    localStorage.setItem('offline-surveys', JSON.stringify(remaining));
+    setPendingData(remaining);
+
+    return results.failed.length === 0;
   };
 
   return {
