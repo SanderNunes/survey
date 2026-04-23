@@ -144,6 +144,25 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
     return () => clearTimeout(t);
   }, [isOnline]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Audit log auto-sync every 60 s while online ──────────────────────────
+  useEffect(() => {
+    if (!isOnline || !syncAuditLogsFn) return;
+
+    const syncLogs = async () => {
+      if (!dbReady.current) return;
+      try {
+        const pending = await db.auditLogs.filter(log => !log.synced).count();
+        if (pending > 0) await auditLogger.syncAuditLogs(syncAuditLogsFn);
+      } catch { /* never break the app */ }
+    };
+
+    // Sync once immediately (catches logs written while online)
+    syncLogs();
+
+    const interval = setInterval(syncLogs, 60000);
+    return () => clearInterval(interval);
+  }, [isOnline, syncAuditLogsFn]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Helpers ──────────────────────────────────────────────────────────────
   const refreshPendingCount = async () => {
     try {
