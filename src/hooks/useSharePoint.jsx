@@ -1238,6 +1238,31 @@ export const useSharePoint = () => {
   );
 
   /**
+   * Fetch all entries from Survey_Audit_Log SP list.
+   * Returns [] if the list doesn't exist yet.
+   */
+  const getAuditLogs = useCallback(async (options = {}) => {
+    if (!sp?.web) return [];
+    try {
+      const query = sp.web.lists
+        .getByTitle('Survey_Audit_Log')
+        .items
+        .select(
+          'Id', 'Title', 'SurveyId', 'SurveyorId', 'ActionType',
+          'ActionTimestamp', 'NetworkStatus', 'SyncStatus', 'ErrorDetails',
+          'AppVersion', 'Province', 'FormType', 'RetryCount',
+          'CreatedFromOffline', 'RawMetadataJson'
+        )
+        .orderBy('ActionTimestamp', false)
+        .top(options.top || 5000);
+      return await query();
+    } catch (err) {
+      if (err.message?.includes('does not exist') || err.message?.includes('404')) return [];
+      throw err;
+    }
+  }, [sp]);
+
+  /**
    * Push a batch of unsynced audit log entries to the Survey_Audit_Log SP list.
    * Called from auditLogger.syncAuditLogs() — returns array of { id, success }.
    */
@@ -1351,7 +1376,10 @@ export const useSharePoint = () => {
   return {
     sp,
     isSharePointReady: !!sp?.web,
-    currentUserName: accounts[0]?.name || null,
+    currentUserName:  accounts[0]?.name     || null,
+    currentUserEmail: accounts[0]?.username || null,
+    // Audit log read
+    getAuditLogs,
     // Huila survey
     saveSurveyResponse,
     uploadAudioRecordings,
