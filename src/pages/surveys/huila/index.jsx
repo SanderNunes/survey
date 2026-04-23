@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronRight, ChevronLeft, Check, CheckCircle, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff } from 'lucide-react';
 import { useSharePoint } from '@/hooks/useSharePoint';
+import { auditLogger, fireAndForget, AUDIT_ACTIONS } from '@/services/auditLogger';
 
 const AfricellSurvey = () => {
   const [currentStep, setCurrentStep] = useState(0);
@@ -575,6 +576,12 @@ const AfricellSurvey = () => {
     setIsSaving(true);
     setSaveResult(null);
 
+    const huilaSurveyId = crypto.randomUUID();
+    fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SURVEY_COMPLETED, huilaSurveyId, {
+      province: 'huila',
+      formType: 'huila_customer',
+    }));
+
     try {
       const surveyDataToSave = {
         responses,
@@ -587,15 +594,37 @@ const AfricellSurvey = () => {
       };
 
       let result;
-      
+
       if (isOnline) {
+        fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SYNC_STARTED, huilaSurveyId, {
+          province: 'huila',
+          formType: 'huila_customer',
+          metadata: { method: 'direct_sharepoint' },
+        }));
         try {
           result = await saveToSharePoint(surveyDataToSave);
+          if (result.success) {
+            fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SYNC_SUCCEEDED, huilaSurveyId, {
+              province: 'huila',
+              formType: 'huila_customer',
+              metadata: { itemId: result.itemId },
+            }));
+          }
         } catch (error) {
           // Fall back to offline storage
+          fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SURVEY_SAVED_OFFLINE, huilaSurveyId, {
+            province: 'huila',
+            formType: 'huila_customer',
+            metadata: { reason: 'direct_save_failed' },
+          }));
           result = await saveOffline(surveyDataToSave);
         }
       } else {
+        fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SURVEY_SAVED_OFFLINE, huilaSurveyId, {
+          province: 'huila',
+          formType: 'huila_customer',
+          metadata: { reason: 'offline' },
+        }));
         result = await saveOffline(surveyDataToSave);
       }
 
@@ -607,6 +636,11 @@ const AfricellSurvey = () => {
       }
     } catch (error) {
       console.error('Error saving survey:', error);
+      fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SYNC_FAILED, huilaSurveyId, {
+        province:     'huila',
+        formType:     'huila_customer',
+        errorDetails: error.message,
+      }));
       setSaveResult({
         success: false,
         message: 'Erro inesperado ao guardar o inquérito.',

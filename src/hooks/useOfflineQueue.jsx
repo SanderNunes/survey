@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { db, initDB } from '@/db/offlineDB';
 import { storageService } from '@/services/storageService';
 import { syncEngine }     from '@/services/syncEngine';
+import { auditLogger, fireAndForget, AUDIT_ACTIONS } from '@/services/auditLogger';
 
 export class StorageError extends Error {
   constructor(message, code) {
@@ -98,7 +99,7 @@ async function migrateFromLocalStorage() {
  *   saveSurvey     — async ({ surveyData, audioRecordings, province }) → { success, surveyId }
  *   triggerSync    — manually kick off the sync queue
  */
-export function useOfflineQueue(saveFn) {
+export function useOfflineQueue(saveFn, syncAuditLogsFn) {
   const [isOnline,     setIsOnline]     = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [storageInfo,  setStorageInfo]  = useState(null);
@@ -154,6 +155,15 @@ export function useOfflineQueue(saveFn) {
   const refreshStorageInfo = async () => {
     const info = await storageService.getQuotaInfo();
     setStorageInfo(info);
+    if (info?.isCritical) {
+      fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.STORAGE_CRITICAL, 'system', {
+        metadata: { usageMB: info.usageMB, quotaMB: info.quotaMB, usageRatio: info.usageRatio },
+      }));
+    } else if (info?.isWarning) {
+      fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.STORAGE_WARNING, 'system', {
+        metadata: { usageMB: info.usageMB, quotaMB: info.quotaMB, usageRatio: info.usageRatio },
+      }));
+    }
   };
 
   // ── saveSurvey ────────────────────────────────────────────────────────────
@@ -208,6 +218,11 @@ export function useOfflineQueue(saveFn) {
         lastError:   null,
         data:        surveyData,
       });
+
+      fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SURVEY_SAVED_OFFLINE, surveyId, {
+        province,
+        metadata: { audioCount: Object.keys(audioRecordings).length },
+      }));
     } catch (err) {
       if (err.name === 'QuotaExceededError' || err.message?.includes('quota')) {
         await storageService.cleanupSyncedData(db);
@@ -237,10 +252,15 @@ export function useOfflineQueue(saveFn) {
       setSyncProgress({ isActive: true, ...progress });
     });
 
+    // Audit log sync — runs after survey sync, never breaks it
+    if (syncAuditLogsFn) {
+      try { await auditLogger.syncAuditLogs(syncAuditLogsFn); } catch { /* intentional */ }
+    }
+
     setSyncProgress({ isActive: false, current: 0, total: 0 });
     await refreshPendingCount();
     await refreshStorageInfo();
-  }, [isOnline, saveFn]);
+  }, [isOnline, saveFn, syncAuditLogsFn]);
 
   return { isOnline, pendingCount, storageInfo, syncProgress, saveSurvey, triggerSync };
 }
