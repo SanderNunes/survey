@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, Outlet, useNavigate } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import { LogOut, Settings, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import logoWhite from '@/assets/logo-white.png';
+import pcxLogo from '@/assets/pcx.png';
 
 export default function MainLayout() {
   const { userProfile, logout } = useAuth();
@@ -14,7 +16,9 @@ export default function MainLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
   const menuRef = useRef(null);
+  const location = useLocation();
   const navigate = useNavigate();
+  const isAdminRoute = location.pathname.startsWith('/home/admin');
 
   useEffect(() => {
     if (!sp) return;
@@ -68,27 +72,49 @@ export default function MainLayout() {
     <div className="min-h-screen bg-white">
       {/* Simple Header */}
       <header className="bg-primary shadow-sm">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+        <div className={`container mx-auto px-4 ${isAdminRoute ? 'py-5 sm:py-6' : 'py-4'}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {/* Logo */}
-            <Link to="/home" title="Telecom Market Insights" className="flex-shrink-0">
-              <span className="text-white font-bold text-xl tracking-tight">Telecom Market Insights</span>
+            <Link
+              to="/home"
+              title="Telecom Market Insights"
+              className="flex-shrink-0 self-center sm:self-auto"
+            >
+              {isAdminRoute ? (
+                <div className="flex items-center gap-2.5 sm:gap-4">
+                  <img
+                    src={logoWhite}
+                    alt="Africell"
+                    className="h-10 w-auto object-contain sm:h-14"
+                  />
+                  <span className="h-7 w-px bg-white/40 sm:h-10" aria-hidden="true" />
+                  <img
+                    src={pcxLogo}
+                    alt="PCX"
+                    className="h-7 w-auto object-contain sm:h-10"
+                  />
+                </div>
+              ) : (
+                <span className="text-center text-lg font-bold tracking-tight text-white sm:text-xl">
+                  Telecom Market Insights
+                </span>
+              )}
             </Link>
 
             {/* Nav + user avatar dropdown */}
             {userProfile && (
-              <div className="flex items-center space-x-5">
+              <div className="flex w-full flex-wrap items-center justify-between gap-3 sm:w-auto sm:flex-nowrap sm:justify-end sm:gap-5">
                 {isOwner && (
                   <Link
                     to="/home/admin"
-                    className="text-white/80 hover:text-white text-sm font-medium transition-colors"
+                    className="text-sm font-medium text-white/80 transition-colors hover:text-white"
                   >
                     {t('nav.admin')}
                   </Link>
                 )}
 
                 {/* Language toggle */}
-                <div className="flex items-center bg-white/10 rounded-full p-0.5">
+                <div className="order-2 flex items-center rounded-full bg-white/10 p-0.5 sm:order-none">
                   {['pt', 'en'].map(lang => (
                     <button
                       key={lang}
@@ -105,10 +131,10 @@ export default function MainLayout() {
                 </div>
 
                 {/* Avatar button */}
-                <div className="relative" ref={menuRef}>
+                <div className="relative ml-auto sm:ml-0" ref={menuRef}>
                   <button
                     onClick={() => setMenuOpen(o => !o)}
-                    className="flex items-center space-x-2.5 group focus:outline-none"
+                    className="group flex items-center space-x-2 focus:outline-none sm:space-x-2.5"
                   >
                     {/* Avatar circle */}
                     <div className="w-9 h-9 rounded-full bg-white/20 border-2 border-white/40 group-hover:border-white/80 flex items-center justify-center transition-colors ring-0 group-focus-visible:ring-2 group-focus-visible:ring-white">

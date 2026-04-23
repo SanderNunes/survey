@@ -11,11 +11,17 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSharePoint } from '@/hooks/useSharePoint';
+import {
+  ANALYTICS_MAPPING_FIELDS,
+  buildSurveyIntegrityReport,
+  normalizeSurveyRecord,
+  translateSurveyValue,
+} from '@/utils/surveyValueMapping';
 
 const PROVINCES = ['Cabinda', 'Zaire'];
+const LOCALE_MAP = { en: 'en-US', pt: 'pt-AO', fr: 'fr-FR' };
 
 const MUNICIPALITY_TARGETS = { 'Cabinda': 600, "M'banza Congo": 100, 'Soyo': 300 };
-const TOTAL_TARGET = 1000;
 
 const COLORS = {
   primary:    '#FF6B00',
@@ -45,6 +51,11 @@ const NAV_SECTIONS = [
 
 // ── Reusable UI components ───────────────────────────────────────────────────
 
+const truncateLabel = (value, maxLength = 14) => {
+  if (!value) return '';
+  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+};
+
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
@@ -59,14 +70,119 @@ const CustomTooltip = ({ active, payload, label }) => {
   );
 };
 
+function AxisTick({ x, y, payload, maxLength = 14, textAnchor = 'middle', dy = 12, dx = 0 }) {
+  const fullLabel = String(payload?.value ?? '');
+  const shortLabel = truncateLabel(fullLabel, maxLength);
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <title>{fullLabel}</title>
+      <text
+        x={dx}
+        y={dy}
+        textAnchor={textAnchor}
+        fill="#6B7280"
+        fontSize={11}
+      >
+        {shortLabel}
+      </text>
+    </g>
+  );
+}
+
+function ChartLegend({ payload = [] }) {
+  if (!payload.length) return null;
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 px-2 pt-2 text-[11px] min-w-0">
+      {payload.map((entry) => (
+        <div key={entry.value} className="flex items-center gap-1.5 min-w-0 max-w-full">
+          <span
+            className="inline-block h-2.5 w-2.5 rounded-sm flex-shrink-0"
+            style={{ backgroundColor: entry.color }}
+          />
+          <span className="truncate max-w-[110px] text-gray-500" title={entry.value}>
+            {entry.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PieBreakdown({ data = [], paletteOffset = 0 }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
+
+  return (
+    <div className="mt-3 space-y-2 min-w-0">
+      {data.map((item, index) => {
+        const pct = total ? Math.round((item.value / total) * 100) : 0;
+        return (
+          <div key={item.rawName || item.name || index} className="flex items-center justify-between gap-3 text-xs min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full flex-shrink-0"
+                style={{ backgroundColor: PALETTE[(index + paletteOffset) % PALETTE.length] }}
+              />
+              <span className="truncate text-gray-600" title={item.name}>
+                {item.name}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-500 flex-shrink-0">
+              <span className="font-semibold text-gray-700">{item.value}</span>
+              <span>{pct}%</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function PieChartPanel({
+  data = [],
+  dataKey = 'value',
+  nameKey = 'name',
+  height = 180,
+  innerRadius = 42,
+  outerRadius = 68,
+  paletteOffset = 0,
+  cy = '45%',
+}) {
+  return (
+    <div className="min-w-0">
+      <ResponsiveContainer width="100%" height={height}>
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey={dataKey}
+            nameKey={nameKey}
+            cx="50%"
+            cy={cy}
+            innerRadius={innerRadius}
+            outerRadius={outerRadius}
+            paddingAngle={2}
+            label={false}
+            labelLine={false}
+          >
+            {data.map((_, i) => <Cell key={i} fill={PALETTE[(i + paletteOffset) % PALETTE.length]} />)}
+          </Pie>
+          <Tooltip content={<CustomTooltip />} />
+        </PieChart>
+      </ResponsiveContainer>
+      <PieBreakdown data={data} paletteOffset={paletteOffset} />
+    </div>
+  );
+}
+
 function KPICard({ title, value, sub, icon: Icon, colorClass = 'bg-orange-50 text-orange-600' }) {
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
       <div className="flex items-start justify-between">
         <div className="min-w-0">
-          <p className="text-xs text-gray-400 font-medium uppercase tracking-wider truncate">{title}</p>
-          <p className="text-3xl font-bold text-gray-800 mt-1">{value ?? '—'}</p>
-          {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+          <p className="text-xs text-gray-400 font-medium uppercase tracking-wider truncate" title={title}>{title}</p>
+          <p className="text-3xl font-bold text-gray-800 mt-1 break-words leading-tight">{value ?? '—'}</p>
+          {sub && <p className="text-xs text-gray-400 mt-1 truncate" title={sub}>{sub}</p>}
         </div>
         {Icon && (
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ml-3 ${colorClass}`}>
@@ -80,14 +196,15 @@ function KPICard({ title, value, sub, icon: Icon, colorClass = 'bg-orange-50 tex
 
 function ChartCard({ title, children, className = '' }) {
   return (
-    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-5 ${className}`}>
-      <p className="text-sm font-semibold text-gray-700 mb-4">{title}</p>
-      {children}
+    <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-5 overflow-hidden min-w-0 ${className}`}>
+      <p className="text-sm font-semibold text-gray-700 mb-4 truncate" title={title}>{title}</p>
+      <div className="w-full min-w-0">{children}</div>
     </div>
   );
 }
 
-function SectionHeader({ title, subtitle, icon: Icon, colorClass, innerRef }) {
+function SectionHeader({ title, subtitle, icon, colorClass, innerRef }) {
+  const Icon = icon;
   return (
     <div className="flex items-center gap-3 mb-5" ref={innerRef}>
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${colorClass}`}>
@@ -108,7 +225,12 @@ function SectionDivider() {
 // ── Drill-down table: province → municipality ────────────────────────────────
 
 function DrilldownTable({ allRecords }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState({});
+  const translateValue = useCallback(
+    (field, value, fallback = value) => translateSurveyValue(field, value, t, { unknownLabel: fallback }),
+    [t]
+  );
 
   const byProvince = useMemo(() => {
     const map = {};
@@ -130,9 +252,9 @@ function DrilldownTable({ allRecords }) {
       <table className="w-full text-sm">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Província / Município</th>
-            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Respostas</th>
-            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">% total</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('analytics.drilldown.province')}</th>
+            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('analytics.drilldown.responses')}</th>
+            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">{t('analytics.drilldown.percent')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -150,7 +272,9 @@ function DrilldownTable({ allRecords }) {
                         ? <ChevronDown className="w-4 h-4 text-gray-400 flex-shrink-0" />
                         : <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       }
-                      {prov}
+                      <span className="truncate" title={translateValue('Provincia', prov, prov)}>
+                        {translateValue('Provincia', prov, prov)}
+                      </span>
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-primary">{provTotal}</td>
@@ -160,7 +284,9 @@ function DrilldownTable({ allRecords }) {
                 </tr>
                 {isOpen && Object.entries(munis).sort((a, b) => b[1] - a[1]).map(([mun, count]) => (
                   <tr key={mun} className="bg-orange-50/40 hover:bg-orange-50 transition-colors">
-                    <td className="px-4 py-2.5 pl-12 text-gray-600">{mun}</td>
+                    <td className="px-4 py-2.5 pl-12 text-gray-600 truncate max-w-[220px]" title={translateValue('Municipio', mun, mun)}>
+                      {translateValue('Municipio', mun, mun)}
+                    </td>
                     <td className="px-4 py-2.5 text-right text-gray-700">{count}</td>
                     <td className="px-4 py-2.5 text-right text-gray-400 text-xs">
                       {((count / totalAll) * 100).toFixed(1)}%
@@ -178,14 +304,14 @@ function DrilldownTable({ allRecords }) {
 
 // ── Helper functions ─────────────────────────────────────────────────────────
 
-function freq(records, key, unknown = 'N/A') {
+function freq(records, key, unknown = 'N/A', formatName = (value) => value) {
   const map = {};
   records.forEach(r => {
     const v = r[key] || unknown;
     map[v] = (map[v] || 0) + 1;
   });
   return Object.entries(map)
-    .map(([name, value]) => ({ name, value }))
+    .map(([rawName, value]) => ({ rawName, name: formatName(rawName), value }))
     .sort((a, b) => b.value - a.value);
 }
 
@@ -195,14 +321,17 @@ function avgNumber(records, key) {
   return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
 }
 
-function formatDuration(s) {
+function formatDuration(s, t) {
   if (!s || s <= 0) return '—';
   const h   = Math.floor(s / 3600);
   const m   = Math.floor((s % 3600) / 60);
   const sec = s % 60;
-  if (h > 0) return `${h}h ${m}min ${sec}seg`;
-  if (m > 0) return `${m} min ${sec} seg`;
-  return `${sec} seg`;
+  const hU  = t ? t('analytics.duration.hours', { defaultValue: 'h'    }) : 'h';
+  const mU  = t ? t('analytics.duration.mins',  { defaultValue: ' min' }) : ' min';
+  const sU  = t ? t('analytics.duration.secs',  { defaultValue: ' sec' }) : ' sec';
+  if (h > 0) return `${h}${hU} ${m}${mU} ${sec}${sU}`;
+  if (m > 0) return `${m}${mU} ${sec}${sU}`;
+  return `${sec}${sU}`;
 }
 
 function durationStats(records) {
@@ -233,7 +362,7 @@ function durationBuckets(records) {
   }));
 }
 
-function avgDurationByGroup(records, key) {
+function avgDurationByGroup(records, key, formatName = (value) => value) {
   const map = {};
   records.forEach(r => {
     const d = Number(r.DuracaoInquerito);
@@ -244,8 +373,9 @@ function avgDurationByGroup(records, key) {
     }
   });
   return Object.entries(map)
-    .map(([name, vals]) => ({
-      name,
+    .map(([rawName, vals]) => ({
+      rawName,
+      name: formatName(rawName),
       avg:   Math.round(vals.reduce((a, b) => a + b, 0) / vals.length),
       count: vals.length,
     }))
@@ -309,11 +439,11 @@ function velocityForecast(records, targets) {
   };
 }
 
-function responsesByDay(records) {
+function responsesByDay(records, locale = 'en-US') {
   const map = {};
   records.forEach(r => {
     if (!r.DataPreenchimento) return;
-    const d = new Date(r.DataPreenchimento).toLocaleDateString('pt-AO');
+    const d = new Date(r.DataPreenchimento).toLocaleDateString(locale);
     map[d] = (map[d] || 0) + 1;
   });
   return Object.entries(map)
@@ -325,7 +455,8 @@ function responsesByDay(records) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Analytics({ isOwner }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const localeTag = useMemo(() => LOCALE_MAP[i18n.language] || 'en-US', [i18n.language]);
   const { sp, getProvinceRecords } = useSharePoint();
 
   const [allRecords,    setAllRecords]    = useState([]);
@@ -339,6 +470,12 @@ export default function Analytics({ isOwner }) {
     setActiveSection(id);
     sectionRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  const unknown = t('analytics.charts.unknown');
+  const translateValue = useCallback(
+    (field, value, fallback = value) => translateSurveyValue(field, value, t, { unknownLabel: fallback || unknown }),
+    [t, unknown]
+  );
 
   const loadAll = useCallback(async () => {
     if (!sp) return;
@@ -372,54 +509,71 @@ export default function Analytics({ isOwner }) {
 
   // ── Derived data ─────────────────────────────────────────────────────────
 
+  const normalizedAllRecords = useMemo(
+    () => allRecords.map(record => normalizeSurveyRecord(record, ANALYTICS_MAPPING_FIELDS)),
+    [allRecords]
+  );
+
   const view = useMemo(() =>
     drillProvince
-      ? allRecords.filter(r => (r.Provincia || r._province) === drillProvince)
-      : allRecords,
-    [allRecords, drillProvince]
+      ? normalizedAllRecords.filter(r => (r.Provincia || r._province) === drillProvince)
+      : normalizedAllRecords,
+    [normalizedAllRecords, drillProvince]
   );
 
   const total       = view.length;
   const withAudio   = view.filter(r => r.TemGravacoes === 'Sim').length;
   const avgSatisf   = avgNumber(view, 'SatisfacaoOperador');
-  const avgCoverage = avgNumber(view, 'CoberturaDaRede');
 
-  const provinceData   = useMemo(() =>
+  const provinceData = useMemo(() =>
     PROVINCES.map(p => ({
-      name:      p,
-      respostas: allRecords.filter(r => (r.Provincia || r._province) === p).length,
+      key:       p,
+      name:      translateValue('Provincia', p, p),
+      respostas: normalizedAllRecords.filter(r => (r.Provincia || r._province) === p).length,
     })),
-    [allRecords]
+    [normalizedAllRecords, translateValue]
+  );
+  const audioProvinceData = useMemo(
+    () => PROVINCES.map(p => {
+      const rows = normalizedAllRecords.filter(r => (r.Provincia || r._province) === p);
+      return {
+        key: p,
+        name: translateValue('Provincia', p, p),
+        withAudio: rows.filter(r => r.TemGravacoes === 'Sim').length,
+        withoutAudio: rows.filter(r => r.TemGravacoes !== 'Sim').length,
+      };
+    }),
+    [normalizedAllRecords, translateValue]
   );
 
-  const unknown          = t('analytics.charts.unknown');
-  const genderData       = useMemo(() => freq(view, 'Genero',          unknown), [view, unknown]);
-  const operatorData     = useMemo(() => freq(view, 'OperadorAtual',   unknown).slice(0, 6), [view, unknown]);
-  const ageData          = useMemo(() => freq(view, 'FaixaEtaria',     unknown), [view, unknown]);
-  const phoneTypeData    = useMemo(() => freq(view, 'TipoTelefone',    unknown).slice(0, 5), [view, unknown]);
-  const sim4GData        = useMemo(() => freq(view, 'Suporta4G',       unknown), [view, unknown]);
-  const simConfigData    = useMemo(() => freq(view, 'ConfiguracaoSIM', unknown), [view, unknown]);
-  const rechargeFreqData = useMemo(() => freq(view, 'FrequenciaRecarga', unknown), [view, unknown]);
-  const rechargeValData  = useMemo(() => freq(view, 'ValorRecarga',    unknown).slice(0, 6), [view, unknown]);
-  const switchData       = useMemo(() => freq(view, 'MudariaOperador', unknown), [view, unknown]);
-  const mobileMoneyData  = useMemo(() => freq(view, 'UsaMobileMoney',  unknown), [view, unknown]);
-  const occupationData   = useMemo(() => freq(view, 'Ocupacao',        unknown).slice(0, 6), [view, unknown]);
-  const timelineData     = useMemo(() => responsesByDay(view), [view]);
-  const bundleData       = useMemo(() => freq(view, 'PacotePreferido', unknown).slice(0, 6), [view, unknown]);
-  const municipioData    = useMemo(() => freq(view, 'Municipio',       unknown).slice(0, 10), [view, unknown]);
+  const genderData       = useMemo(() => freq(view, 'Genero',            unknown, value => translateValue('Genero', value, unknown)), [view, unknown, translateValue]);
+  const operatorData     = useMemo(() => freq(view, 'OperadorAtual',     unknown, value => translateValue('OperadorAtual', value, unknown)).slice(0, 6), [view, unknown, translateValue]);
+  const ageData          = useMemo(() => freq(view, 'FaixaEtaria',       unknown, value => translateValue('FaixaEtaria', value, unknown)), [view, unknown, translateValue]);
+  const phoneTypeData    = useMemo(() => freq(view, 'TipoTelefone',      unknown, value => translateValue('TipoTelefone', value, unknown)).slice(0, 5), [view, unknown, translateValue]);
+  const sim4GData        = useMemo(() => freq(view, 'Suporta4G',         unknown, value => translateValue('Suporta4G', value, unknown)), [view, unknown, translateValue]);
+  const simConfigData    = useMemo(() => freq(view, 'ConfiguracaoSIM',   unknown, value => translateValue('ConfiguracaoSIM', value, unknown)), [view, unknown, translateValue]);
+  const rechargeFreqData = useMemo(() => freq(view, 'FrequenciaRecarga', unknown, value => translateValue('FrequenciaRecarga', value, unknown)), [view, unknown, translateValue]);
+  const rechargeValData  = useMemo(() => freq(view, 'ValorRecarga',      unknown, value => translateValue('ValorRecarga', value, unknown)).slice(0, 6), [view, unknown, translateValue]);
+  const switchData       = useMemo(() => freq(view, 'MudariaOperador',   unknown, value => translateValue('MudariaOperador', value, unknown)), [view, unknown, translateValue]);
+  const mobileMoneyData  = useMemo(() => freq(view, 'UsaMobileMoney',    unknown, value => translateValue('UsaMobileMoney', value, unknown)), [view, unknown, translateValue]);
+  const occupationData   = useMemo(() => freq(view, 'Ocupacao',          unknown, value => translateValue('Ocupacao', value, unknown)).slice(0, 6), [view, unknown, translateValue]);
+  const timelineData     = useMemo(() => responsesByDay(view, localeTag), [view, localeTag]);
+  const bundleData       = useMemo(() => freq(view, 'PacotePreferido',  unknown, value => translateValue('PacotePreferido', value, unknown)).slice(0, 6), [view, unknown, translateValue]);
+  const municipioData    = useMemo(() => freq(view, 'Municipio',        unknown, value => translateValue('Municipio', value, unknown)).slice(0, 10), [view, unknown, translateValue]);
   const surveyorData     = useMemo(() => freq(view, '_interviewer',    unknown).slice(0, 20), [view, unknown]);
   const duplicatesData   = useMemo(() => {
     const dups = view.filter(r => r.Duplicado === true);
     return freq(dups, '_interviewer', unknown).slice(0, 10);
   }, [view, unknown]);
 
-  const velocity        = useMemo(() => velocityForecast(allRecords, MUNICIPALITY_TARGETS), [allRecords]);
+  const velocity        = useMemo(() => velocityForecast(normalizedAllRecords, MUNICIPALITY_TARGETS), [normalizedAllRecords]);
 
   const durStats        = useMemo(() => durationStats(view), [view]);
   const durBucketData   = useMemo(() => durationBuckets(view), [view]);
-  const durByProvince   = useMemo(() => avgDurationByGroup(view, 'Provincia'), [view]);
+  const durByProvince   = useMemo(() => avgDurationByGroup(view, 'Provincia', value => translateValue('Provincia', value, value)), [view, translateValue]);
   const durBySurveyor   = useMemo(() => avgDurationByGroup(view, '_interviewer').slice(0, 15), [view]);
   const hasDurationData = durStats.avg !== null;
+  const integrityReport = useMemo(() => buildSurveyIntegrityReport(allRecords), [allRecords]);
 
   // ── Loading / empty states ────────────────────────────────────────────────
 
@@ -467,8 +621,9 @@ export default function Analytics({ isOwner }) {
               className={`px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
                 drillProvince === p ? 'bg-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
+              title={translateValue('Provincia', p, p)}
             >
-              {p}
+              {translateValue('Provincia', p, p)}
             </button>
           ))}
         </div>
@@ -521,7 +676,7 @@ export default function Analytics({ isOwner }) {
             value={total}
             icon={Users}
             colorClass="bg-orange-50 text-orange-600"
-            sub={drillProvince ? drillProvince : t('analytics.kpi.allProvinces')}
+            sub={drillProvince ? translateValue('Provincia', drillProvince, drillProvince) : t('analytics.kpi.allProvinces')}
           />
           <KPICard
             title={t('analytics.kpi.withAudio')}
@@ -552,35 +707,78 @@ export default function Analytics({ isOwner }) {
           })()}
         </div>
 
+        {(integrityReport.totalNormalized > 0 || integrityReport.totalUnmapped > 0) && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-amber-900">{t('analytics.integrity.title')}</p>
+                <p className="text-xs text-amber-800 mt-1">
+                  {t('analytics.integrity.summary', {
+                    normalized: integrityReport.totalNormalized,
+                    unmapped: integrityReport.totalUnmapped,
+                  })}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                <span className="rounded-full bg-white px-2 py-1 text-amber-700 border border-amber-200">
+                  {t('analytics.integrity.normalizedPill', { count: integrityReport.totalNormalized })}
+                </span>
+                <span className="rounded-full bg-white px-2 py-1 text-amber-700 border border-amber-200">
+                  {t('analytics.integrity.unmappedPill', { count: integrityReport.totalUnmapped })}
+                </span>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-2 lg:grid-cols-3">
+              {integrityReport.fields.slice(0, 3).map(({ field, normalizedCount, unmappedCount, examples }) => (
+                <div key={field} className="rounded-lg border border-amber-100 bg-white/80 p-3 min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-semibold text-amber-900 truncate" title={t(`survey.fields.${field}`, { defaultValue: field })}>
+                      {t(`survey.fields.${field}`, { defaultValue: field })}
+                    </p>
+                    <span className="text-[10px] text-amber-700 whitespace-nowrap">
+                      {normalizedCount}/{unmappedCount}
+                    </span>
+                  </div>
+                  {examples.length > 0 && (
+                    <p className="mt-1 text-[11px] text-amber-800 truncate" title={examples.map(({ rawValue, count }) => `${rawValue} (${count})`).join(', ')}>
+                      {examples.map(({ rawValue, count }) => `${rawValue} (${count})`).join(', ')}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Duration KPIs */}
         {hasDurationData && (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             <KPICard
               title={t('analytics.duration.avgTitle')}
-              value={formatDuration(durStats.avg)}
+              value={formatDuration(durStats.avg, t)}
               sub={t('analytics.duration.avgSub')}
               icon={Clock}
               colorClass="bg-blue-50 text-blue-600"
             />
             <KPICard
               title={t('analytics.velocity.kpiTitle')}
-              value={velocity ? `${velocity.avgPerDay}/dia` : '—'}
+              value={velocity ? `${velocity.avgPerDay}${t('analytics.velocity.perDay', { defaultValue: '/day' })}` : '—'}
               sub={velocity?.projectedCompletion
-                ? `${t('analytics.velocity.kpiSub')} ${velocity.projectedCompletion.toLocaleDateString('pt-AO', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                ? `${t('analytics.velocity.kpiSub')} ${velocity.projectedCompletion.toLocaleDateString(localeTag, { day: 'numeric', month: 'short', year: 'numeric' })}`
                 : t('analytics.velocity.noActivity')}
               icon={Zap}
               colorClass="bg-purple-50 text-purple-600"
             />
             <KPICard
               title={t('analytics.duration.fastestTitle')}
-              value={formatDuration(durStats.min)}
+              value={formatDuration(durStats.min, t)}
               sub={t('analytics.duration.fastestSub')}
               icon={Clock}
               colorClass="bg-green-50 text-green-600"
             />
             <KPICard
               title={t('analytics.duration.slowestTitle')}
-              value={formatDuration(durStats.max)}
+              value={formatDuration(durStats.max, t)}
               sub={t('analytics.duration.slowestSub')}
               icon={Clock}
               colorClass="bg-orange-50 text-orange-600"
@@ -596,7 +794,7 @@ export default function Analytics({ isOwner }) {
                 <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={durBucketData} barSize={32}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fontSize: 10 }} tickLine={false} />
+                    <XAxis dataKey="name" tick={<AxisTick maxLength={10} />} tickLine={false} />
                     <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="value" name={t('analytics.surveyor.colSurveys')} radius={[4, 4, 0, 0]}>
@@ -612,7 +810,7 @@ export default function Analytics({ isOwner }) {
                 <ResponsiveContainer width="100%" height={220}>
                   <LineChart data={timelineData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10 }} tickLine={false} />
+                    <XAxis dataKey="date" tick={<AxisTick maxLength={8} />} tickLine={false} />
                     <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip content={<CustomTooltip />} />
                     <Line
@@ -650,7 +848,7 @@ export default function Analytics({ isOwner }) {
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={provinceData} barSize={48}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} tickLine={false} />
+                  <XAxis dataKey="name" tick={<AxisTick maxLength={12} />} tickLine={false} />
                   <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="respostas" name={t('analytics.charts.responses')} radius={[6, 6, 0, 0]}>
@@ -661,19 +859,7 @@ export default function Analytics({ isOwner }) {
             </ChartCard>
 
             <ChartCard title={t('analytics.charts.distributionByProvince')}>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie
-                    data={provinceData} dataKey="respostas" nameKey="name"
-                    cx="50%" cy="50%" outerRadius={78}
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {provinceData.map((_, i) => <Cell key={i} fill={PALETTE[i % PALETTE.length]} />)}
-                  </Pie>
-                  <Tooltip content={<CustomTooltip />} />
-                </PieChart>
-              </ResponsiveContainer>
+              <PieChartPanel data={provinceData} dataKey="respostas" height={190} innerRadius={42} outerRadius={70} />
             </ChartCard>
           </div>
         )}
@@ -685,14 +871,14 @@ export default function Analytics({ isOwner }) {
               <BarChart data={municipioData} layout="vertical" barSize={14}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 11 }} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={132} tick={<AxisTick maxLength={18} textAnchor="end" dy={4} dx={-6} />} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" name={t('analytics.charts.responses')} fill={COLORS.primary} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
 
-          <DrilldownTable allRecords={allRecords} />
+          <DrilldownTable allRecords={normalizedAllRecords} />
         </div>
 
         {/* Velocity forecast */}
@@ -709,20 +895,22 @@ export default function Analytics({ isOwner }) {
                 <div className="text-right">
                   <p className="text-xs text-gray-400">{t('analytics.velocity.overallLabel')}</p>
                   <p className="text-sm font-bold text-primary">
-                    {velocity.projectedCompletion.toLocaleDateString('pt-AO', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    {velocity.projectedCompletion.toLocaleDateString(localeTag, { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                 </div>
               )}
             </div>
 
             <div className="space-y-3">
-              {velocity.forecasts.map(({ mun, current, target, remaining, avgPerDay: mAvg, projectedDate, done }) => {
+              {velocity.forecasts.map(({ mun, current, target, avgPerDay: mAvg, projectedDate, done }) => {
                 const pct = Math.min(100, Math.round((current / target) * 100));
                 return (
                   <div key={mun}>
                     <div className="flex items-center justify-between text-xs mb-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-800">{mun}</span>
+                        <span className="font-medium text-gray-800 truncate max-w-[180px]" title={translateValue('Municipio', mun, mun)}>
+                          {translateValue('Municipio', mun, mun)}
+                        </span>
                         <span className="text-gray-400">{current}/{target}</span>
                         {done && (
                           <span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[10px] font-semibold">
@@ -735,9 +923,9 @@ export default function Analytics({ isOwner }) {
                           <span className="text-green-600 font-semibold">✓</span>
                         ) : projectedDate ? (
                           <span className="text-gray-600">
-                            {projectedDate.toLocaleDateString('pt-AO', { day: 'numeric', month: 'short' })}
+                            {projectedDate.toLocaleDateString(localeTag, { day: 'numeric', month: 'short' })}
                             {mAvg > 0 && (
-                              <span className="text-gray-400 ml-1">· {mAvg}/dia</span>
+                              <span className="text-gray-400 ml-1">· {mAvg}{t('analytics.velocity.perDay', { defaultValue: '/day' })}</span>
                             )}
                           </span>
                         ) : (
@@ -770,18 +958,18 @@ export default function Analytics({ isOwner }) {
               {t('analytics.duration.byProvinceLabel')}
             </p>
             <div className="space-y-3">
-              {durByProvince.map(({ name, avg, count }) => {
+              {durByProvince.map(({ rawName, name, avg, count }) => {
                 const pct = durStats.max ? Math.round((avg / durStats.max) * 100) : 0;
                 return (
-                  <div key={name}>
+                  <div key={rawName}>
                     <div className="flex justify-between text-xs text-gray-600 mb-1">
-                      <span className="font-medium">
+                      <span className="font-medium truncate" title={name}>
                         {name}{' '}
                         <span className="text-gray-400 font-normal">
                           ({count} {t('analytics.duration.surveysUnit')})
                         </span>
                       </span>
-                      <span className="font-semibold text-blue-600">{formatDuration(avg)}</span>
+                      <span className="font-semibold text-blue-600">{formatDuration(avg, t)}</span>
                     </div>
                     <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-400 rounded-full transition-all" style={{ width: `${pct}%` }} />
@@ -835,9 +1023,9 @@ export default function Analytics({ isOwner }) {
                     const pct   = total ? ((row.value / total) * 100).toFixed(1) : 0;
                     const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i + 1}`;
                     return (
-                      <tr key={row.name} className={`hover:bg-gray-50 transition-colors ${i < 3 ? 'font-medium' : ''}`}>
+                      <tr key={row.rawName} className={`hover:bg-gray-50 transition-colors ${i < 3 ? 'font-medium' : ''}`}>
                         <td className="px-4 py-2.5 text-center text-base">{medal}</td>
-                        <td className="px-4 py-2.5 text-gray-800">{row.name}</td>
+                        <td className="px-4 py-2.5 text-gray-800 truncate max-w-[220px]" title={row.name}>{row.name}</td>
                         <td className="px-4 py-2.5 text-right font-bold text-primary">{row.value}</td>
                         <td className="px-4 py-2.5 text-right text-gray-400 text-xs">{pct}%</td>
                       </tr>
@@ -853,7 +1041,7 @@ export default function Analytics({ isOwner }) {
                 <BarChart data={surveyorData} layout="vertical" barSize={14}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                   <XAxis type="number" tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                  <YAxis type="category" dataKey="name" width={130} tick={{ fontSize: 11 }} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={140} tick={<AxisTick maxLength={18} textAnchor="end" dy={4} dx={-6} />} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Bar dataKey="value" name={t('analytics.surveyor.colSurveys')} radius={[0, 4, 4, 0]}>
                     {surveyorData.map((_, i) => (
@@ -888,10 +1076,10 @@ export default function Analytics({ isOwner }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {durBySurveyor.slice(0, 10).map(({ name, avg, count }) => (
-                    <tr key={name} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 text-gray-700 truncate max-w-[180px]">{name}</td>
-                      <td className="px-3 py-2 text-right font-semibold text-blue-600">{formatDuration(avg)}</td>
+                  {durBySurveyor.slice(0, 10).map(({ rawName, name, avg, count }) => (
+                    <tr key={rawName} className="hover:bg-gray-50">
+                      <td className="px-3 py-2 text-gray-700 truncate max-w-[180px]" title={name}>{name}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-blue-600">{formatDuration(avg, t)}</td>
                       <td className="px-3 py-2 text-right text-gray-400">{count}</td>
                     </tr>
                   ))}
@@ -920,13 +1108,13 @@ export default function Analytics({ isOwner }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-amber-50">
-                  {duplicatesData.map(({ name, value }) => {
-                    const surveyor = surveyorData.find(s => s.name === name);
+                  {duplicatesData.map(({ rawName, name, value }) => {
+                    const surveyor = surveyorData.find(s => s.rawName === rawName);
                     const total_s  = surveyor?.value || value;
                     const pct      = total_s ? ((value / total_s) * 100).toFixed(0) : '—';
                     return (
-                      <tr key={name} className="hover:bg-amber-50/60">
-                        <td className="px-3 py-2 text-gray-700 truncate max-w-[200px] flex items-center gap-1.5">
+                      <tr key={rawName} className="hover:bg-amber-50/60">
+                        <td className="px-3 py-2 text-gray-700 truncate max-w-[200px] flex items-center gap-1.5" title={name}>
                           <AlertTriangle className="w-3 h-3 text-amber-400 flex-shrink-0" />
                           {name}
                         </td>
@@ -959,26 +1147,14 @@ export default function Analytics({ isOwner }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <ChartCard title={t('analytics.charts.gender')}>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={genderData} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" innerRadius={50} outerRadius={80}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {genderData.map((_, i) => <Cell key={i} fill={PALETTE[i]} />)}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <PieChartPanel data={genderData} height={190} innerRadius={46} outerRadius={72} />
           </ChartCard>
 
           <ChartCard title={t('analytics.charts.ageGroup')}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={ageData} barSize={22}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 9 }} tickLine={false} />
+                <XAxis dataKey="name" tick={<AxisTick maxLength={12} />} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.secondary} radius={[4, 4, 0, 0]} />
@@ -991,7 +1167,7 @@ export default function Analytics({ isOwner }) {
               <BarChart data={occupationData} layout="vertical" barSize={12}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={132} tick={<AxisTick maxLength={18} textAnchor="end" dy={4} dx={-6} />} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.tertiary} radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -1017,42 +1193,18 @@ export default function Analytics({ isOwner }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <ChartCard title={t('analytics.charts.phoneType')}>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={phoneTypeData} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" outerRadius={78}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {phoneTypeData.map((_, i) => <Cell key={i} fill={PALETTE[i]} />)}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <PieChartPanel data={phoneTypeData} height={190} innerRadius={42} outerRadius={70} />
           </ChartCard>
 
           <ChartCard title={t('analytics.charts.supports4G')}>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={sim4GData} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" innerRadius={50} outerRadius={78}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {sim4GData.map((_, i) => <Cell key={i} fill={PALETTE[i + 2]} />)}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <PieChartPanel data={sim4GData} height={190} innerRadius={46} outerRadius={72} paletteOffset={2} />
           </ChartCard>
 
           <ChartCard title={t('analytics.charts.simConfig')}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={simConfigData} barSize={24}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 9 }} tickLine={false} />
+                <XAxis dataKey="name" tick={<AxisTick maxLength={12} />} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.quaternary} radius={[4, 4, 0, 0]} />
@@ -1077,12 +1229,12 @@ export default function Analytics({ isOwner }) {
           colorClass="bg-blue-100 text-blue-600"
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           <ChartCard title={t('analytics.charts.topOperators')}>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={operatorData} barSize={28}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} />
+                <XAxis dataKey="name" tick={<AxisTick maxLength={12} />} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" name={t('analytics.charts.people')} radius={[6, 6, 0, 0]}>
@@ -1093,7 +1245,7 @@ export default function Analytics({ isOwner }) {
           </ChartCard>
 
           <ChartCard title={t('analytics.charts.satisfactionCoverage')}>
-            <div className="grid grid-cols-2 gap-4 mb-5">
+            <div className="grid grid-cols-2 gap-4">
               {[
                 { labelKey: 'analytics.charts.operatorSatisfaction', key: 'SatisfacaoOperador', color: COLORS.primary },
                 { labelKey: 'analytics.charts.networkCoverage',      key: 'CoberturaDaRede',    color: COLORS.secondary },
@@ -1114,20 +1266,10 @@ export default function Analytics({ isOwner }) {
                 );
               })}
             </div>
-            <p className="text-xs text-gray-500 mb-3">{t('analytics.charts.wouldSwitch')}</p>
-            <ResponsiveContainer width="100%" height={120}>
-              <PieChart>
-                <Pie
-                  data={switchData} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" outerRadius={52}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {switchData.map((_, i) => <Cell key={i} fill={PALETTE[i]} />)}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+          </ChartCard>
+
+          <ChartCard title={t('analytics.charts.wouldSwitch')}>
+            <PieChartPanel data={switchData} height={180} innerRadius={42} outerRadius={68} />
           </ChartCard>
         </div>
       </div>
@@ -1153,7 +1295,7 @@ export default function Analytics({ isOwner }) {
               <BarChart data={rechargeFreqData} layout="vertical" barSize={14}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 10 }} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={132} tick={<AxisTick maxLength={18} textAnchor="end" dy={4} dx={-6} />} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.warning} radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -1161,10 +1303,17 @@ export default function Analytics({ isOwner }) {
           </ChartCard>
 
           <ChartCard title={t('analytics.charts.rechargeAmount')}>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={rechargeValData} barSize={22}>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={rechargeValData} barSize={22} margin={{ top: 8, right: 8, left: 0, bottom: 24 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 9 }} tickLine={false} />
+                <XAxis
+                  dataKey="name"
+                  tick={<AxisTick maxLength={12} dy={14} />}
+                  tickLine={false}
+                  interval={0}
+                  minTickGap={0}
+                  height={44}
+                />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.primary} radius={[4, 4, 0, 0]} />
@@ -1173,19 +1322,7 @@ export default function Analytics({ isOwner }) {
           </ChartCard>
 
           <ChartCard title={t('analytics.charts.mobileMoney')}>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie
-                  data={mobileMoneyData} dataKey="value" nameKey="name"
-                  cx="50%" cy="50%" innerRadius={52} outerRadius={78}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {mobileMoneyData.map((_, i) => <Cell key={i} fill={PALETTE[i + 1]} />)}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
+            <PieChartPanel data={mobileMoneyData} height={190} innerRadius={46} outerRadius={72} paletteOffset={1} />
           </ChartCard>
         </div>
 
@@ -1195,7 +1332,7 @@ export default function Analytics({ isOwner }) {
               <BarChart data={bundleData} layout="vertical" barSize={14}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" horizontal={false} />
                 <XAxis type="number" tick={{ fontSize: 9 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} tickLine={false} />
+                <YAxis type="category" dataKey="name" width={140} tick={<AxisTick maxLength={18} textAnchor="end" dy={4} dx={-6} />} tickLine={false} />
                 <Tooltip content={<CustomTooltip />} />
                 <Bar dataKey="value" name={t('analytics.charts.people')} fill={COLORS.tertiary} radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -1205,23 +1342,20 @@ export default function Analytics({ isOwner }) {
           <ChartCard title={t('analytics.charts.audioByProvince')}>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart
-                data={PROVINCES.map(p => {
-                  const rows = allRecords.filter(r => (r.Provincia || r._province) === p);
-                  return {
-                    name:                            p,
-                    [t('analytics.charts.withAudio')]:    rows.filter(r => r.TemGravacoes === 'Sim').length,
-                    [t('analytics.charts.withoutAudio')]: rows.filter(r => r.TemGravacoes !== 'Sim').length,
-                  };
-                })}
+                data={audioProvinceData}
                 barSize={32}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} tickLine={false} />
+                <XAxis dataKey="name" tick={<AxisTick maxLength={12} />} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey={t('analytics.charts.withAudio')}    stackId="a" fill={COLORS.secondary} radius={[0, 0, 0, 0]} />
-                <Bar dataKey={t('analytics.charts.withoutAudio')} stackId="a" fill="#E5E7EB"          radius={[4, 4, 0, 0]} />
+                <Legend
+                  verticalAlign="bottom"
+                  align="center"
+                  content={<ChartLegend />}
+                />
+                <Bar dataKey="withAudio" name={t('analytics.charts.withAudio')} stackId="a" fill={COLORS.secondary} radius={[0, 0, 0, 0]} />
+                <Bar dataKey="withoutAudio" name={t('analytics.charts.withoutAudio')} stackId="a" fill="#E5E7EB" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </ChartCard>
