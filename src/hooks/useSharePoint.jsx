@@ -1,6 +1,7 @@
 // src/hooks/useSharePoint.js
 import { useCallback, useEffect, useState } from "react";
 import { audioService } from "@/services/audioService";
+import { auditLogger, fireAndForget, AUDIT_ACTIONS } from "@/services/auditLogger";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "@/utils/msal-config";
 import { getSP } from "@/utils/pnpjs-config";
@@ -208,6 +209,13 @@ export const useSharePoint = () => {
         const item = list.items.getById(itemId);
         const uploadResults = [];
 
+        fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.AUDIO_UPLOAD_STARTED, 'unknown', {
+          surveyorId: accounts[0]?.username || '',
+          province:   'huila',
+          formType:   'huila_customer',
+          metadata:   { itemId, listName: 'Huila_CustumerExp_Survey', fileCount: Object.keys(audioRecordings).length },
+        }));
+
         for (const [questionId, recording] of Object.entries(audioRecordings)) {
           if (recording && recording.blob) {
             try {
@@ -250,6 +258,19 @@ export const useSharePoint = () => {
         const successful = uploadResults.filter(r => r.success);
         const failed = uploadResults.filter(r => !r.success);
 
+        const allSucceeded = failed.length === 0;
+        fireAndForget(() => auditLogger.logEvent(
+          allSucceeded ? AUDIT_ACTIONS.AUDIO_UPLOAD_COMPLETED : AUDIT_ACTIONS.AUDIO_UPLOAD_FAILED,
+          'unknown',
+          {
+            surveyorId:   accounts[0]?.username || '',
+            province:     'huila',
+            formType:     'huila_customer',
+            errorDetails: allSucceeded ? '' : `${failed.length} file(s) failed`,
+            metadata:     { itemId, successful: successful.length, failed: failed.length, total: uploadResults.length },
+          }
+        ));
+
         return {
           total: uploadResults.length,
           successful: successful.length,
@@ -262,7 +283,7 @@ export const useSharePoint = () => {
         throw error;
       }
     },
-    [sp]
+    [sp, accounts]
   );
 
   /**
@@ -443,6 +464,11 @@ export const useSharePoint = () => {
         const item = sp.web.lists.getByTitle(listName).items.getById(itemId);
         const uploadResults = [];
 
+        fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.AUDIO_UPLOAD_STARTED, 'unknown', {
+          surveyorId: accounts[0]?.username || '',
+          metadata:   { itemId, listName, fileCount: Object.keys(audioRecordings).length },
+        }));
+
         for (const [questionId, recording] of Object.entries(audioRecordings)) {
           if (recording?.blob) {
             try {
@@ -473,13 +499,25 @@ export const useSharePoint = () => {
 
         const successful = uploadResults.filter(r => r.success);
         const failed = uploadResults.filter(r => !r.success);
+
+        const allSucceeded = failed.length === 0;
+        fireAndForget(() => auditLogger.logEvent(
+          allSucceeded ? AUDIT_ACTIONS.AUDIO_UPLOAD_COMPLETED : AUDIT_ACTIONS.AUDIO_UPLOAD_FAILED,
+          'unknown',
+          {
+            surveyorId:   accounts[0]?.username || '',
+            errorDetails: allSucceeded ? '' : `${failed.length} file(s) failed`,
+            metadata:     { itemId, listName, successful: successful.length, failed: failed.length, total: uploadResults.length },
+          }
+        ));
+
         return { total: uploadResults.length, successful: successful.length, failed: failed.length, details: uploadResults, hasFailures: failed.length > 0 };
       } catch (error) {
         console.error('Error in uploadPreLaunchAudio:', error);
         throw error;
       }
     },
-    [sp]
+    [sp, accounts]
   );
 
   /** Escape single-quotes in OData string literals to prevent injection. */
@@ -1199,6 +1237,117 @@ export const useSharePoint = () => {
     [sp]
   );
 
+  /**
+   * Push a batch of unsynced audit log entries to the Survey_Audit_Log SP list.
+   * Called from auditLogger.syncAuditLogs() — returns array of { id, success }.
+   */
+  const syncAuditLogsToSharePoint = useCallback(async (logs) => {
+    if (!sp?.web || !logs?.length) return [];
+    const results = [];
+    const list = sp.web.lists.getByTitle('Survey_Audit_Log');
+
+    for (const log of logs) {
+      try {
+        await list.items.add({
+          Title:              `${log.actionType}_${(log.surveyId || '').substring(0, 8)}`,
+          SurveyId:           log.surveyId      || '',
+          SurveyorId:         log.surveyorId    || '',
+          ActionType:         log.actionType    || '',
+          ActionTimestamp:    log.timestamp     || new Date().toISOString(),
+          NetworkStatus:      log.networkStatus || '',
+          DeviceInfo:         log.deviceInfo    || '',
+          SyncStatus:         'synced',
+          ErrorDetails:       log.errorDetails  || '',
+          AppVersion:         log.appVersion    || '',
+          Region:             log.region        || '',
+          Province:           log.province      || '',
+          FormType:           log.formType      || '',
+          SubmissionId:       log.surveyId      || '',
+          RetryCount:         log.retryCount    || 0,
+          CreatedFromOffline: log.networkStatus === 'offline',
+          RawMetadataJson:    log.metadata      || '{}',
+        });
+        results.push({ id: log.id, success: true });
+      } catch (err) {
+        results.push({ id: log.id, success: false, error: err.message });
+      }
+      await new Promise(r => setTimeout(r, 200)); // throttle SP calls
+    }
+
+    return results;
+  }, [sp]);
+
+  /**
+   * Create the Survey_Audit_Log SharePoint list with all required columns.
+   * Idempotent — safe to run multiple times; existing lists and fields are skipped.
+   * Call once from the admin panel before first use.
+   */
+  const createAuditLogList = useCallback(async () => {
+    if (!sp?.web) return { success: false, message: 'SharePoint not initialized' };
+
+    const LIST_NAME = 'Survey_Audit_Log';
+    const columns = [
+      ['SurveyId',           'text'    ],
+      ['SurveyorId',         'text'    ],
+      ['ActionType',         'text'    ],
+      ['ActionTimestamp',    'datetime'],
+      ['NetworkStatus',      'text'    ],
+      ['DeviceInfo',         'note'    ],
+      ['SyncStatus',         'text'    ],
+      ['ErrorDetails',       'note'    ],
+      ['AppVersion',         'text'    ],
+      ['Region',             'text'    ],
+      ['Province',           'text'    ],
+      ['FormType',           'text'    ],
+      ['SubmissionId',       'text'    ],
+      ['RetryCount',         'number', { MinimumValue: 0 }],
+      ['CreatedFromOffline', 'boolean' ],
+      ['RawMetadataJson',    'note'    ],
+    ];
+
+    const report = { listName: LIST_NAME, created: false, skipped: false, fields: [], errors: [] };
+
+    try {
+      await sp.web.lists.add(LIST_NAME, 'Africell survey audit log — internal use only', 100);
+      report.created = true;
+    } catch (err) {
+      if (err.message?.includes('already exists') || err.message?.includes('já existe') || err.status === 409) {
+        report.skipped = true;
+      } else {
+        report.errors.push(parseSpError(err.message));
+        return { success: false, message: report.errors[0], report };
+      }
+    }
+
+    const list = sp.web.lists.getByTitle(LIST_NAME);
+    let existingFields = new Set();
+    try {
+      const fields = await list.fields.filter('Hidden eq false')();
+      existingFields = new Set(fields.map(f => f.InternalName));
+    } catch { /* proceed without skip check */ }
+
+    for (const [name, type, props = {}] of columns) {
+      if (existingFields.has(name)) { report.fields.push({ name, status: 'skipped' }); continue; }
+      try {
+        switch (type) {
+          case 'text':     await list.fields.addText(name, { MaxLength: 255, ...props }); break;
+          case 'note':     await list.fields.addMultilineText(name, { NumberOfLines: 6, RichText: false, ...props }); break;
+          case 'number':   await list.fields.addNumber(name, props); break;
+          case 'datetime': await list.fields.addDateTime(name, props); break;
+          case 'boolean':  await list.fields.addBoolean(name, props); break;
+        }
+        report.fields.push({ name, status: 'created' });
+      } catch (err) {
+        const clean = parseSpError(err.message);
+        report.fields.push({ name, status: 'error', error: clean });
+        report.errors.push(`Field "${name}": ${clean}`);
+      }
+    }
+
+    const allSucceeded = report.errors.length === 0;
+    return { success: allSucceeded, message: allSucceeded ? 'Survey_Audit_Log list ready.' : 'Completed with errors — check report.', report };
+  }, [sp]);
+
   return {
     sp,
     isSharePointReady: !!sp?.web,
@@ -1211,6 +1360,9 @@ export const useSharePoint = () => {
     uploadPreLaunchAudio,
     // List setup (run once)
     createPreLaunchLists,
+    // Audit log
+    syncAuditLogsToSharePoint,
+    createAuditLogList,
     // Admin panel
     checkIsOwner,
     getProvinceRecords,

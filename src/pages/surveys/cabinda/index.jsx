@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronRight, ChevronLeft, Check, CheckCircle, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff, User, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import { useOfflineQueue, StorageError } from '@/hooks/useOfflineQueue';
+import { useAuditLog } from '@/hooks/useAuditLog';
 import { audioService } from '@/services/audioService';
 import { db } from '@/db/offlineDB';
 import { assemblyClient } from '@/config/assemblyai';
@@ -95,13 +96,16 @@ const CabindaSurvey = () => {
   const syncTimerRef = useRef(null);
   const isSavingRef = useRef(false);
   const isMountedRef = useRef(true);
+  const sessionSurveyIdRef = useRef(crypto.randomUUID());
 
   const [transcribingFor, setTranscribingFor] = useState(null); // questionId being transcribed after upload
 
-  const { saveCabindaSurveyResponse, getSurveyDetailedStats, isSharePointReady, currentUserName } = useSharePoint();
+  const { saveCabindaSurveyResponse, getSurveyDetailedStats, isSharePointReady, currentUserName, syncAuditLogsToSharePoint } = useSharePoint();
 
   // Offline-first queue: handles IndexedDB storage, quota checks, retry + sync
-  const { isOnline, pendingCount, storageInfo, syncProgress, saveSurvey, triggerSync } = useOfflineQueue(saveCabindaSurveyResponse);
+  const { isOnline, pendingCount, storageInfo, syncProgress, saveSurvey, triggerSync } = useOfflineQueue(saveCabindaSurveyResponse, syncAuditLogsToSharePoint);
+
+  const { logSurveyEvent, AUDIT_ACTIONS } = useAuditLog({ province: 'cabinda', formType: 'cabinda_prelaunch' });
   const [detailedStats, setDetailedStats] = useState(null);
   const [detailedStatsLoading, setDetailedStatsLoading] = useState(false);
   const [surveyStartTime, setSurveyStartTime] = useState(null);
@@ -131,7 +135,10 @@ const CabindaSurvey = () => {
     setInterviewerName(name);
     localStorage.setItem(INTERVIEWER_NAME_KEY, name);
     setShowInterviewerModal(false);
-  }, [interviewerNameDraft]);
+    logSurveyEvent(AUDIT_ACTIONS.SURVEY_OPENED, sessionSurveyIdRef.current, {
+      surveyorId: name,
+    });
+  }, [interviewerNameDraft, logSurveyEvent, AUDIT_ACTIONS]);
 
   // Fetch SP stats on mount (when SP is ready)
   useEffect(() => {
@@ -415,6 +422,7 @@ const CabindaSurvey = () => {
     setSurveyStartTime(null);
     setSurveyDuration(null);
     setLocalTextValues({});
+    sessionSurveyIdRef.current = crypto.randomUUID();
     // Re-confirm interviewer identity for each new survey
     const stored = localStorage.getItem(INTERVIEWER_NAME_KEY) || currentUserName || '';
     setInterviewerNameDraft(stored);
@@ -429,6 +437,11 @@ const CabindaSurvey = () => {
 
     const duration    = surveyStartTime ? Math.round((Date.now() - surveyStartTime) / 1000) : 0;
     const fingerprint = generateFingerprint();
+    const auditSurveyId = sessionSurveyIdRef.current;
+
+    logSurveyEvent(AUDIT_ACTIONS.SURVEY_COMPLETED, auditSurveyId, {
+      metadata: { duration, province: responses.province, municipality: responses.municipality },
+    });
 
     const surveyPayload = {
       responses,
@@ -456,17 +469,20 @@ const CabindaSurvey = () => {
     try {
       let result;
       if (isOnline) {
+        logSurveyEvent(AUDIT_ACTIONS.SYNC_STARTED, auditSurveyId, { metadata: { method: 'direct_sharepoint' } });
         try {
           // Happy path: try direct SharePoint save first
           result = await saveToSharePoint(surveyPayload);
           if (duration > 0) setSurveyDuration(duration);
         } catch {
           // Network failed mid-save → queue to IndexedDB for retry
+          logSurveyEvent(AUDIT_ACTIONS.SURVEY_SAVED_OFFLINE, auditSurveyId, { metadata: { reason: 'direct_save_failed' } });
           await saveSurvey({ surveyData: surveyPayload, audioRecordings, province: 'cabinda' });
           result = { success: true, message: 'Falhou envio direto. Guardado para sincronização automática.', itemId: null };
         }
       } else {
         // Offline: persist to IndexedDB queue (no Base64, no localStorage)
+        logSurveyEvent(AUDIT_ACTIONS.SURVEY_SAVED_OFFLINE, auditSurveyId, { metadata: { reason: 'offline' } });
         await saveSurvey({ surveyData: surveyPayload, audioRecordings, province: 'cabinda' });
         result = { success: true, message: 'Inquérito guardado localmente. Será sincronizado quando houver conexão.', itemId: null };
       }
@@ -484,7 +500,7 @@ const CabindaSurvey = () => {
       setSaveStep(null);
       isSavingRef.current = false;
     }
-  }, [responses, customInputs, currentSection, isOnline, saveToSharePoint, saveSurvey, interviewerName, currentUserName, surveyStartTime, audioRecordings, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [responses, customInputs, currentSection, isOnline, saveToSharePoint, saveSurvey, interviewerName, currentUserName, surveyStartTime, audioRecordings, logSurveyEvent, AUDIT_ACTIONS, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSaveSurvey = useCallback(async () => {
     if (isSavingRef.current) return;

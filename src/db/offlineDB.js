@@ -8,6 +8,10 @@ db.version(1).stores({
   syncLog:    '++id, surveyId, action, timestamp',
 });
 
+db.version(2).stores({
+  auditLogs: '++id, logId, surveyId, surveyorId, actionType, timestamp, synced, syncedAt, formType, province',
+});
+
 export async function initDB() {
   await db.open();
 

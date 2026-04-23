@@ -1,5 +1,6 @@
 import { db } from '@/db/offlineDB';
 import { storageService } from './storageService';
+import { auditLogger, fireAndForget, AUDIT_ACTIONS } from '@/services/auditLogger';
 
 const MAX_RETRIES = 5;
 const BACKOFF_MS  = [2000, 4000, 8000, 16000, 32000]; // exponential: 2s→4s→8s→16s→32s
@@ -31,6 +32,11 @@ class SyncEngine {
           await db.surveys.update(survey.id, { status: 'failed_permanent' });
           continue;
         }
+
+        fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SYNC_STARTED, survey.surveyId, {
+          province: survey.province,
+          metadata: { retryCount: survey.retryCount, batchIndex: i, batchTotal: pending.length },
+        }));
 
         await this._syncOne(survey, saveFn);
 
@@ -77,6 +83,20 @@ class SyncEngine {
 
         // Delete audio blobs immediately — no permanent local audio storage after sync
         await db.audioBlobs.where('surveyId').equals(survey.surveyId).delete();
+
+        if (result.isDuplicate) {
+          fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.DUPLICATE_DETECTED, survey.surveyId, {
+            province: survey.province,
+          }));
+        } else {
+          fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SYNC_SUCCEEDED, survey.surveyId, {
+            province: survey.province,
+            metadata: { itemId: result.itemId },
+          }));
+          fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SUBMISSION_CONFIRMED, survey.surveyId, {
+            province: survey.province,
+          }));
+        }
       } else {
         throw new Error(result.message || 'saveFn returned failure');
       }
@@ -100,6 +120,19 @@ class SyncEngine {
         retryCount,
         timestamp:  new Date().toISOString(),
       });
+
+      const isPermanent = retryCount >= MAX_RETRIES;
+      fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SYNC_FAILED, survey.surveyId, {
+        province:     survey.province,
+        errorDetails: err.message,
+        metadata:     { retryCount, backoffMs: backoff, isPermanentFailure: isPermanent },
+      }));
+      if (!isPermanent) {
+        fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.RETRY_TRIGGERED, survey.surveyId, {
+          province: survey.province,
+          metadata: { retryCount, nextRetryAt: new Date(Date.now() + backoff).toISOString() },
+        }));
+      }
     }
   }
 
