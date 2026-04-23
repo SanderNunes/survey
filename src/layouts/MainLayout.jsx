@@ -122,13 +122,13 @@ export default function MainLayout() {
                   <img
                     src={logoWhite}
                     alt="Africell"
-                    className="h-10 w-auto object-contain sm:h-14"
+                    className="h-44 w-auto object-contain sm:h-20"
                   />
-                  <span className="h-7 w-px bg-white/40 sm:h-10" aria-hidden="true" />
+                  <span className="h-12 w-px bg-white/40 sm:h-16" aria-hidden="true" />
                   <img
                     src={pcxLogo}
                     alt="PCX"
-                    className="h-7 w-auto object-contain sm:h-10"
+                    className="h-32 w-auto object-contain sm:h-14"
                   />
                 </div>
               ) : (
