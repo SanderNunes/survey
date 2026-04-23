@@ -24,11 +24,13 @@ import {
   MessageSquare,
   Phone,
   AlertTriangle,
+  Shield,
 } from 'lucide-react';
 import { assemblyClient } from '@/config/assemblyai';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import Analytics from './Analytics';
+import AuditiesTab from './AuditiesTab';
 
 // ── Record detail sections (uses i18n keys for title + field labels) ──────────
 const DETAIL_SECTIONS = [
@@ -436,6 +438,7 @@ export default function AdminPage() {
   const {
     sp,
     checkIsOwner,
+    currentUserEmail,
     getProvinceRecords,
     getProvinceCount,
     deleteProvinceRecord,
@@ -445,6 +448,8 @@ export default function AdminPage() {
     exportProvincePackage,
     buildExcelWorksheet,
   } = useSharePoint();
+
+  const canSeeAudities = currentUserEmail === 'bteixeira@africell.ao';
 
   // ── access guard ──────────────────────────────────────────────────────────
   const [isOwner, setIsOwner] = useState(null); // null = still checking
@@ -775,11 +780,25 @@ export default function AdminPage() {
               <BarChart2 className="w-4 h-4" />
               <span className="hidden xs:inline">{t('admin.tabs.analytics')}</span>
             </button>
+            {canSeeAudities && (
+              <button
+                onClick={() => setMainTab('audities')}
+                className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  mainTab === 'audities' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Shield className="w-4 h-4" />
+                <span className="hidden xs:inline">Audities</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* Analytics view */}
         {mainTab === 'analytics' && <Analytics isOwner={isOwner} />}
+
+        {/* Audities view */}
+        {mainTab === 'audities' && canSeeAudities && <AuditiesTab />}
 
         {/* Data view */}
         {mainTab === 'data' && <>

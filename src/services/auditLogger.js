@@ -58,20 +58,20 @@ class AuditLogger {
       province:      opts.province || '',
       formType:      opts.formType || '',
       metadata:      opts.metadata ? JSON.stringify(opts.metadata) : '{}',
-      synced:        false,
+      synced:        0,
       syncedAt:      null,
       retryCount:    0,
     });
   }
 
   async getUnsyncedLogs(limit = 50) {
-    // Dexie 4.x indexes booleans as 0/1 — use 0 to match false
-    return db.auditLogs.where('synced').equals(0).limit(limit).sortBy('timestamp');
+    // Use filter so it catches both boolean false and numeric 0 (older records)
+    return db.auditLogs.orderBy('timestamp').filter(log => !log.synced).limit(limit).toArray();
   }
 
   async markLogSynced(id) {
     await db.auditLogs.update(id, {
-      synced:     true,
+      synced:     1,
       syncedAt:   new Date().toISOString(),
       syncStatus: 'synced',
     });

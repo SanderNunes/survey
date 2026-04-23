@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useSharePoint } from '@/hooks/useSharePoint';
@@ -7,10 +7,47 @@ import { LogOut, Settings, WifiOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import logoWhite from '@/assets/logo-white.png';
 import pcxLogo from '@/assets/pcx.png';
+import { auditLogger } from '@/services/auditLogger';
+import { db } from '@/db/offlineDB';
 
 export default function MainLayout() {
   const { userProfile, logout } = useAuth();
-  const { sp, checkIsOwner } = useSharePoint();
+  const { sp, checkIsOwner, syncAuditLogsToSharePoint } = useSharePoint();
+
+  // ── Dev-only audit log panel state ──────────────────────────────────────
+  const [devPanelOpen, setDevPanelOpen] = useState(false);
+  const [unsyncedCount, setUnsyncedCount] = useState(0);
+  const [isSyncingLogs, setIsSyncingLogs] = useState(false);
+  const [syncLogResult, setSyncLogResult] = useState(null);
+
+  const refreshUnsyncedCount = useCallback(async () => {
+    try {
+      const count = await db.auditLogs.filter(log => !log.synced).count();
+      setUnsyncedCount(count);
+    } catch { /* db may not be ready */ }
+  }, []);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    refreshUnsyncedCount();
+    const interval = setInterval(refreshUnsyncedCount, 5000);
+    return () => clearInterval(interval);
+  }, [refreshUnsyncedCount]);
+
+  const handleSyncAuditLogs = async () => {
+    if (isSyncingLogs) return;
+    setIsSyncingLogs(true);
+    setSyncLogResult(null);
+    try {
+      const result = await auditLogger.syncAuditLogs(syncAuditLogsToSharePoint);
+      setSyncLogResult(result);
+      await refreshUnsyncedCount();
+    } catch (err) {
+      setSyncLogResult({ error: err.message });
+    } finally {
+      setIsSyncingLogs(false);
+    }
+  };
   const { t, i18n } = useTranslation();
   const [isOwner, setIsOwner] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -209,6 +246,56 @@ export default function MainLayout() {
       <main className="flex-1">
         <Outlet />
       </main>
+
+      {/* Dev-only audit log panel */}
+      {import.meta.env.DEV && (
+        <div className="fixed bottom-4 right-4 z-[200] flex flex-col items-end gap-2">
+          {devPanelOpen && (
+            <div className="w-64 rounded-xl bg-gray-900 text-white shadow-2xl border border-gray-700 overflow-hidden text-xs">
+              <div className="px-3 py-2 bg-gray-800 flex items-center justify-between">
+                <span className="font-semibold text-gray-200">Audit Log Dev Panel</span>
+                <span className="text-gray-400">{navigator.onLine ? '🟢 online' : '🔴 offline'}</span>
+              </div>
+              <div className="px-3 py-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">Unsynced logs</span>
+                  <span className={`font-bold ${unsyncedCount > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+                    {unsyncedCount}
+                  </span>
+                </div>
+
+                <button
+                  onClick={handleSyncAuditLogs}
+                  disabled={isSyncingLogs || !navigator.onLine || unsyncedCount === 0}
+                  className="w-full rounded-lg bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-medium py-1.5 transition-colors"
+                >
+                  {isSyncingLogs ? 'Syncing…' : 'Sync Audit Logs to SP'}
+                </button>
+
+                {syncLogResult && (
+                  <div className={`rounded-lg px-2.5 py-2 ${syncLogResult.error ? 'bg-red-900/50 text-red-300' : 'bg-green-900/50 text-green-300'}`}>
+                    {syncLogResult.error
+                      ? `Error: ${syncLogResult.error}`
+                      : `✓ ${syncLogResult.synced} synced · ${syncLogResult.failed} failed`}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => { setDevPanelOpen(o => !o); setSyncLogResult(null); }}
+            className="flex items-center gap-1.5 rounded-full bg-gray-900 border border-gray-700 text-white px-3 py-1.5 text-xs font-semibold shadow-lg hover:bg-gray-800 transition-colors"
+          >
+            <span>🛠 DEV</span>
+            {unsyncedCount > 0 && (
+              <span className="bg-yellow-500 text-black rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none">
+                {unsyncedCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Session expired modal */}
       {sessionExpired && (
