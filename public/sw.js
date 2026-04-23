@@ -117,3 +117,13 @@ self.addEventListener('fetch', (event) => {
       .catch(() => caches.match(request))
   );
 });
+
+// Background Sync — notify the active tab to run the sync queue
+self.addEventListener('sync', (event) => {
+  if (event.tag !== 'sync-surveys') return;
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clients) => clients.forEach((c) => c.postMessage({ type: 'BACKGROUND_SYNC_TRIGGERED' })))
+  );
+});

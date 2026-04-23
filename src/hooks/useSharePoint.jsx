@@ -1,8 +1,10 @@
 // src/hooks/useSharePoint.js
 import { useCallback, useEffect, useState } from "react";
+import { audioService } from "@/services/audioService";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "@/utils/msal-config";
 import { getSP } from "@/utils/pnpjs-config";
+import { normalizeSurveyValue } from "@/utils/surveyValueMapping";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import "@pnp/sp/webs";
@@ -122,7 +124,7 @@ function buildExcelWorksheet(items, extraFn = () => ({})) {
   const rows = items.map(r => buildExportRow(r, extraFn(r)));
   const ws   = XLSX.utils.json_to_sheet(rows);
   // Auto-width based on longest value per column
-  const colWidths = EXPORT_COLUMNS.map((c, i) => {
+  const colWidths = EXPORT_COLUMNS.map((c) => {
     const maxLen = rows.reduce((m, row) => {
       const v = row[c.label];
       return Math.max(m, v ? String(v).length : 0);
@@ -210,9 +212,10 @@ export const useSharePoint = () => {
           if (recording && recording.blob) {
             try {
               const arrayBuffer = await recording.blob.arrayBuffer();
-              const timestamp = new Date().getTime();
+              const timestamp    = new Date().getTime();
               const randomSuffix = Math.random().toString(36).substring(2, 8);
-              const fileName = `${questionId}_${timestamp}_${randomSuffix}.wav`;
+              const ext          = audioService.getFileExtension(recording.blob.type);
+              const fileName     = `${questionId}_${timestamp}_${randomSuffix}.${ext}`;
 
               let uploadResult = null;
               let attempts = 0;
@@ -444,7 +447,8 @@ export const useSharePoint = () => {
           if (recording?.blob) {
             try {
               const arrayBuffer = await recording.blob.arrayBuffer();
-              const fileName = `${questionId}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.wav`;
+              const ext      = audioService.getFileExtension(recording.blob.type);
+              const fileName = `${questionId}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
               let uploadResult = null;
               let attempts = 0;
               while (attempts < 3 && !uploadResult) {
@@ -495,8 +499,12 @@ export const useSharePoint = () => {
       }
 
       try {
-        const r = surveyData.responses || {};
+        const r  = surveyData.responses   || {};
         const ci = surveyData.customInputs || {};
+        // Accept UUID from SyncEngine's idempotencyKey or existing meta.surveyId
+        if (surveyData.idempotencyKey && surveyData.metadata) {
+          surveyData.metadata.surveyId = surveyData.idempotencyKey;
+        }
         const meta = surveyData.metadata || {};
 
         // Resolve the list from the selected province
@@ -979,11 +987,11 @@ export const useSharePoint = () => {
           const genders = { 'Masculino': 0, 'Feminino': 0 };
           const ages = {};
           for (const item of items) {
-            const mun = item.Municipio || 'Desconhecido';
+            const mun = normalizeSurveyValue('Municipio', item.Municipio) || 'Desconhecido';
             municipalities[mun] = (municipalities[mun] || 0) + 1;
-            const gen = item.Genero;
+            const gen = normalizeSurveyValue('Genero', item.Genero);
             if (gen === 'Masculino' || gen === 'Feminino') genders[gen]++;
-            const age = item.FaixaEtaria;
+            const age = normalizeSurveyValue('FaixaEtaria', item.FaixaEtaria);
             if (age) ages[age] = (ages[age] || 0) + 1;
           }
           return { municipalities, genders, ages, total: items.length };

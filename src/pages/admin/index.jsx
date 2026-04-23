@@ -194,7 +194,8 @@ const AUDIO_Q_LABEL_KEYS = {
 };
 
 function RecordDetailModal({ record, onClose, province, getItemAttachments, downloadAttachment }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const localeTag = LOCALE_MAP[i18n.language] || 'en-US';
   const [audioFiles, setAudioFiles]   = useState([]); // [{ label, url, fileName }]
   const [audioLoading, setAudioLoading] = useState(false);
 
@@ -283,7 +284,7 @@ function RecordDetailModal({ record, onClose, province, getItemAttachments, down
             </h2>
             {record.DataPreenchimento && (
               <p className="text-xs text-gray-400">
-                {new Date(record.DataPreenchimento).toLocaleString('pt-AO', {
+                {new Date(record.DataPreenchimento).toLocaleString(localeTag, {
                   day: '2-digit', month: 'long', year: 'numeric',
                   hour: '2-digit', minute: '2-digit',
                 })}
@@ -427,8 +428,11 @@ const TABLE_COLS = [
   { key: 'DataPreenchimento',   labelKey: 'admin.cols.date'      },
 ];
 
+const LOCALE_MAP = { en: 'en-US', pt: 'pt-AO', fr: 'fr-FR' };
+
 export default function AdminPage() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const localeTag = LOCALE_MAP[i18n.language] || 'en-US';
   const {
     sp,
     checkIsOwner,
@@ -744,7 +748,9 @@ export default function AdminPage() {
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-gray-900">{t('admin.title')}</h1>
               <p className="text-xs text-gray-400 mt-0.5 hidden sm:block">
-                Cabinda Pre-Launch &middot; {new Date().toLocaleDateString('pt-AO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                {t('admin.subtitle', {
+                  date: new Date().toLocaleDateString(localeTag, { month: 'long', day: 'numeric', year: 'numeric' }),
+                })}
               </p>
             </div>
           </div>
@@ -938,7 +944,7 @@ export default function AdminPage() {
                       {TABLE_COLS.map(col => (
                         <td key={col.key} className="px-3 sm:px-4 py-3 text-gray-700 whitespace-nowrap max-w-[160px] truncate">
                           {col.key === 'DataPreenchimento' && row[col.key]
-                            ? new Date(row[col.key]).toLocaleDateString('pt-AO')
+                            ? new Date(row[col.key]).toLocaleDateString(localeTag)
                             : col.key === 'TemGravacoes'
                               ? row[col.key] === 'Sim'
                                 ? <span className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">{t('ui.yes')}</span>
