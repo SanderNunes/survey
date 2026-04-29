@@ -109,7 +109,7 @@ export default function MainLayout() {
     <div className="min-h-screen bg-white">
       {/* Simple Header */}
       <header className="bg-primary shadow-sm">
-        <div className={`container mx-auto px-4 ${isAdminRoute ? 'py-5 sm:py-6' : 'py-4'}`}>
+        <div className={`container mx-auto px-4 ${isAdminRoute ? 'py-2 sm:py-6' : 'py-4'}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {/* Logo */}
             <Link
@@ -122,13 +122,13 @@ export default function MainLayout() {
                   <img
                     src={logoWhite}
                     alt="Africell"
-                    className="h-44 w-auto object-contain sm:h-20"
+                    className="h-14 w-auto object-contain sm:h-20"
                   />
-                  <span className="h-12 w-px bg-white/40 sm:h-16" aria-hidden="true" />
+                  <span className="h-10 w-px bg-white/40 sm:h-16" aria-hidden="true" />
                   <img
                     src={pcxLogo}
                     alt="PCX"
-                    className="h-32 w-auto object-contain sm:h-14"
+                    className="h-10 w-auto object-contain sm:h-14"
                   />
                 </div>
               ) : (
