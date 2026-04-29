@@ -427,6 +427,11 @@ const CabindaSurvey = () => {
     if (showSyncPanel) loadPendingItems();
   }, [showSyncPanel, pendingCount, loadPendingItems]);
 
+  // Reload list when a sync run finishes so statuses update in the panel
+  useEffect(() => {
+    if (!syncProgress.isActive && showSyncPanel) loadPendingItems();
+  }, [syncProgress.isActive]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ─── Reset ─────────────────────────────────────────────────────────────────
 
   const startNewSurvey = () => {
@@ -1093,14 +1098,32 @@ const CabindaSurvey = () => {
       {showSyncPanel && (
         <div className="fixed bottom-28 right-4 z-50 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
           {/* Panel header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-              <span className="text-sm font-semibold text-gray-800">
-                {pendingCount} inquérito{pendingCount !== 1 ? 's' : ''} por sincronizar
-              </span>
+          <div className="border-b border-gray-100 bg-gray-50">
+            <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex items-center gap-2">
+                {syncProgress.isActive
+                  ? <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin" />
+                  : <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                }
+                <span className="text-sm font-semibold text-gray-800">
+                  {syncProgress.isActive
+                    ? `A enviar ${syncProgress.current} de ${syncProgress.total}…`
+                    : `${pendingCount} inquérito${pendingCount !== 1 ? 's' : ''} por sincronizar`
+                  }
+                </span>
+              </div>
+              <button onClick={() => setShowSyncPanel(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
             </div>
-            <button onClick={() => setShowSyncPanel(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+            {syncProgress.isActive && syncProgress.total > 0 && (
+              <div className="px-4 pb-2">
+                <div className="w-full bg-blue-100 rounded-full h-1">
+                  <div
+                    className="bg-blue-500 h-1 rounded-full transition-all duration-300"
+                    style={{ width: `${(syncProgress.current / syncProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Survey list */}
@@ -1118,25 +1141,32 @@ const CabindaSurvey = () => {
               const timeStr = date.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
               const isPermanent = item.status === 'failed_permanent';
               const isFailed = item.status === 'sync_failed';
+              const isCurrentlySyncing = syncProgress.isActive && syncProgress.surveyId === item.surveyId;
               return (
-                <div key={item.surveyId} className="flex items-center gap-3 px-4 py-2.5">
+                <div key={item.surveyId} className={`flex items-center gap-3 px-4 py-2.5 transition-colors ${isCurrentlySyncing ? 'bg-blue-50' : ''}`}>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-gray-800 truncate">{municipality}</p>
                     <p className="text-xs text-gray-400">{dateStr} {timeStr}</p>
-                    {item.retryCount > 0 && (
+                    {item.retryCount > 0 && !isCurrentlySyncing && (
                       <p className="text-xs text-amber-500">{item.retryCount} tentativa{item.retryCount !== 1 ? 's' : ''}</p>
                     )}
-                    {isPermanent && item.lastError && (
+                    {isCurrentlySyncing && (
+                      <p className="text-xs text-blue-500">A enviar…</p>
+                    )}
+                    {isPermanent && item.lastError && !isCurrentlySyncing && (
                       <p className="text-xs text-red-400 truncate" title={item.lastError}>{item.lastError}</p>
                     )}
                   </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
-                    isPermanent ? 'bg-red-100 text-red-700' :
-                    isFailed    ? 'bg-red-50 text-red-600'  :
-                                  'bg-amber-50 text-amber-700'
-                  }`}>
-                    {isPermanent ? 'Sem retry' : isFailed ? 'Falhou' : 'Pendente'}
-                  </span>
+                  {isCurrentlySyncing
+                    ? <Loader2 className="w-4 h-4 text-blue-500 animate-spin flex-shrink-0" />
+                    : <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+                        isPermanent ? 'bg-red-100 text-red-700' :
+                        isFailed    ? 'bg-red-50 text-red-600'  :
+                                      'bg-amber-50 text-amber-700'
+                      }`}>
+                        {isPermanent ? 'Sem retry' : isFailed ? 'Falhou' : 'Pendente'}
+                      </span>
+                  }
                 </div>
               );
             })}
@@ -1145,7 +1175,7 @@ const CabindaSurvey = () => {
           {/* Sync button */}
           <div className="px-4 py-3 border-t border-gray-100">
             <button
-              onClick={() => { triggerSync(); setShowSyncPanel(false); }}
+              onClick={() => triggerSync()}
               disabled={syncProgress.isActive || !isOnline}
               className="w-full flex items-center justify-center gap-2 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primaryDark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >

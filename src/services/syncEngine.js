@@ -70,7 +70,7 @@ class SyncEngine {
           },
           idempotencyKey: survey.surveyId, // UUID → SurveyId field in SharePoint
         }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('Timeout após 45s')), 45000)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error(`Timeout após 45s [${survey.surveyId.slice(0, 8)} · ${survey.data?.responses?.municipality || survey.province}]`)), 45000)),
       ]);
 
       Object.values(audioRecordings).forEach(r => URL.revokeObjectURL(r.url));
