@@ -114,6 +114,12 @@ const CabindaSurvey = () => {
   const [interviewerName, setInterviewerName] = useState('');
   const [showInterviewerModal, setShowInterviewerModal] = useState(false);
   const [interviewerNameDraft, setInterviewerNameDraft] = useState('');
+  const [pendingSurveys, setPendingSurveys] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]'); } catch { return []; }
+  });
+  const [showSyncPanel, setShowSyncPanel] = useState(false);
+  const [pendingItems, setPendingItems] = useState([]);
+  const [loadingItems, setLoadingItems] = useState(false);
 
 
 
@@ -407,6 +413,19 @@ const CabindaSurvey = () => {
       setDetailedStatsLoading(false);
     }
   }, [getSurveyDetailedStats]);
+
+  const loadPendingItems = useCallback(async () => {
+    setLoadingItems(true);
+    try {
+      const items = await db.surveys.where('status').anyOf(['pending', 'sync_failed', 'failed_permanent']).toArray();
+      setPendingItems(items.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
+    } catch { /* db not ready */ }
+    finally { setLoadingItems(false); }
+  }, []);
+
+  useEffect(() => {
+    if (showSyncPanel) loadPendingItems();
+  }, [showSyncPanel, pendingCount, loadPendingItems]);
 
   // ─── Reset ─────────────────────────────────────────────────────────────────
 
@@ -1043,17 +1062,104 @@ const CabindaSurvey = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 py-4 px-3 sm:py-8 sm:px-4">
       {/* Connection status badge */}
-      <div className={`fixed bottom-4 right-4 z-40 px-3 py-2 rounded-full shadow-lg transition-all duration-300 ${isOnline ? 'bg-green-500 text-white' : 'bg-red-500 text-white'} ${(pendingCount > 0 || syncProgress.isActive) ? 'animate-pulse' : ''}`}>
+      <div className={`fixed bottom-4 right-4 z-40 px-3 py-2 rounded-full shadow-lg transition-all duration-300 ${isOnline ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
         <div className="flex items-center gap-2 text-xs sm:text-sm">
           {isOnline ? <Wifi className="w-3 h-3 sm:w-4 sm:h-4" /> : <WifiOff className="w-3 h-3 sm:w-4 sm:h-4" />}
           <span className="hidden sm:inline">{isOnline ? t('ui.online') : t('ui.offline')}</span>
-          {(pendingCount > 0 || syncProgress.isActive) && (
-            <span className="px-2 py-1 bg-white bg-opacity-20 rounded-full text-xs">
-              {syncProgress.isActive ? `${syncProgress.current}/${syncProgress.total}` : pendingCount}
-            </span>
-          )}
         </div>
       </div>
+
+      {/* Manual sync FAB */}
+      {(pendingCount > 0 || syncProgress.isActive) && (
+        <button
+          onClick={() => setShowSyncPanel(v => !v)}
+          title={`${pendingCount} inquérito${pendingCount !== 1 ? 's' : ''} por sincronizar`}
+          className="fixed bottom-16 right-4 z-40 flex items-center gap-2 px-3 py-2.5 rounded-full shadow-lg bg-primary text-white hover:bg-primaryDark active:scale-95 transition-all duration-200 cursor-pointer"
+        >
+          {syncProgress.isActive
+            ? <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+            : <RefreshCw className="w-4 h-4 flex-shrink-0" />
+          }
+          <span className="text-xs font-bold min-w-[1rem] text-center leading-none">
+            {syncProgress.isActive
+              ? `${syncProgress.current}/${syncProgress.total}`
+              : pendingCount
+            }
+          </span>
+        </button>
+      )}
+
+      {/* Sync panel */}
+      {showSyncPanel && (
+        <div className="fixed bottom-28 right-4 z-50 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+          {/* Panel header */}
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+              <span className="text-sm font-semibold text-gray-800">
+                {pendingCount} inquérito{pendingCount !== 1 ? 's' : ''} por sincronizar
+              </span>
+            </div>
+            <button onClick={() => setShowSyncPanel(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+          </div>
+
+          {/* Survey list */}
+          <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
+            {loadingItems ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="w-5 h-5 text-primary animate-spin" />
+              </div>
+            ) : pendingItems.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-6">Nenhum inquérito pendente</p>
+            ) : pendingItems.map(item => {
+              const municipality = item.data?.responses?.municipality || item.data?.responses?.province || '—';
+              const date = new Date(item.createdAt);
+              const dateStr = date.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit' });
+              const timeStr = date.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+              const isPermanent = item.status === 'failed_permanent';
+              const isFailed = item.status === 'sync_failed';
+              return (
+                <div key={item.surveyId} className="flex items-center gap-3 px-4 py-2.5">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-800 truncate">{municipality}</p>
+                    <p className="text-xs text-gray-400">{dateStr} {timeStr}</p>
+                    {item.retryCount > 0 && (
+                      <p className="text-xs text-amber-500">{item.retryCount} tentativa{item.retryCount !== 1 ? 's' : ''}</p>
+                    )}
+                    {isPermanent && item.lastError && (
+                      <p className="text-xs text-red-400 truncate" title={item.lastError}>{item.lastError}</p>
+                    )}
+                  </div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+                    isPermanent ? 'bg-red-100 text-red-700' :
+                    isFailed    ? 'bg-red-50 text-red-600'  :
+                                  'bg-amber-50 text-amber-700'
+                  }`}>
+                    {isPermanent ? 'Sem retry' : isFailed ? 'Falhou' : 'Pendente'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Sync button */}
+          <div className="px-4 py-3 border-t border-gray-100">
+            <button
+              onClick={() => { triggerSync(); setShowSyncPanel(false); }}
+              disabled={syncProgress.isActive || !isOnline}
+              className="w-full flex items-center justify-center gap-2 py-2 bg-primary text-white text-sm font-semibold rounded-xl hover:bg-primaryDark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {syncProgress.isActive
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> A sincronizar…</>
+                : <><RefreshCw className="w-4 h-4" /> Sincronizar agora</>
+              }
+            </button>
+            {!isOnline && (
+              <p className="text-xs text-gray-400 text-center mt-1.5">Sem ligação — sincronização automática quando online</p>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="max-w-lg mx-auto sm:max-w-2xl">
         <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8">
