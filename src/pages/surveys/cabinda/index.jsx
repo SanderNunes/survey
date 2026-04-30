@@ -280,11 +280,40 @@ const CabindaSurvey = () => {
   const TOTAL_TARGET = 1000;
 
   const fetchDetailedStats = useCallback(async () => {
-    if (!getSurveyDetailedStats) return;
     setDetailedStatsLoading(true);
     try {
-      const stats = await getSurveyDetailedStats();
-      if (stats) setDetailedStats(stats);
+      // Fetch synced surveys from SharePoint and unsynced ones from local IndexedDB in parallel
+      const [spStats, localSurveys] = await Promise.all([
+        getSurveyDetailedStats?.() ?? null,
+        db.surveys.where('status').anyOf(['pending', 'syncing', 'sync_failed', 'failed_permanent']).toArray(),
+      ]);
+
+      // Aggregate local pending surveys by the same fields the SP report uses
+      const localMun  = {};
+      const localGen  = { 'Masculino': 0, 'Feminino': 0 };
+      const localAge  = {};
+      for (const s of localSurveys) {
+        const r = s.data?.responses || {};
+        const mun = r.municipality || 'Desconhecido';
+        localMun[mun] = (localMun[mun] || 0) + 1;
+        if (r.gender === 'Masculino' || r.gender === 'Feminino') localGen[r.gender]++;
+        if (r.ageGroup) localAge[r.ageGroup] = (localAge[r.ageGroup] || 0) + 1;
+      }
+
+      const base = spStats ?? { municipalities: {}, genders: { 'Masculino': 0, 'Feminino': 0 }, ages: {}, total: 0 };
+      const merged = {
+        municipalities: { ...base.municipalities },
+        genders: {
+          'Masculino': (base.genders['Masculino'] || 0) + localGen['Masculino'],
+          'Feminino':  (base.genders['Feminino']  || 0) + localGen['Feminino'],
+        },
+        ages:  { ...base.ages },
+        total: base.total + localSurveys.length,
+      };
+      for (const [k, v] of Object.entries(localMun)) merged.municipalities[k] = (merged.municipalities[k] || 0) + v;
+      for (const [k, v] of Object.entries(localAge)) merged.ages[k] = (merged.ages[k] || 0) + v;
+
+      if (merged.total > 0 || spStats) setDetailedStats(merged);
     } finally {
       setDetailedStatsLoading(false);
     }

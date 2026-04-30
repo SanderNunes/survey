@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { assemblyClient } from '@/config/assemblyai';
 import { useSharePoint } from '@/hooks/useSharePoint';
+import { db } from '@/db/offlineDB';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import Analytics from './Analytics';
 import AuditiesTab from './AuditiesTab';
@@ -478,21 +479,30 @@ export default function AdminPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 25;
 
-  // ── load counts — 404 means list not created yet, show 0 silently ─────────
+  // ── load counts — SP count + local IndexedDB pending on this device ─────────
   const refreshCounts = useCallback(async () => {
-    const results = await Promise.allSettled(
-      PROVINCES.map(p => getProvinceCount(p))
-    );
+    const [spResults, localSurveys] = await Promise.all([
+      Promise.allSettled(PROVINCES.map(p => getProvinceCount(p))),
+      db.surveys.where('status').anyOf(['pending', 'syncing', 'sync_failed', 'failed_permanent']).toArray().catch(() => []),
+    ]);
+
+    // Count unsynced local surveys by province (responses.province field)
+    const localByProvince = {};
+    for (const s of localSurveys) {
+      const prov = s.data?.responses?.province;
+      if (prov) localByProvince[prov] = (localByProvince[prov] || 0) + 1;
+    }
+
     const next = {};
     PROVINCES.forEach((p, i) => {
-      const r = results[i];
-      // 404 = list doesn't exist yet → 0; other errors → '—'
+      const r = spResults[i];
+      const local = localByProvince[p] || 0;
       if (r.status === 'fulfilled') {
-        next[p] = r.value;
+        next[p] = r.value + local;
       } else if (r.reason?.message?.includes('404') || r.reason?.message?.includes('does not exist')) {
-        next[p] = 0;
+        next[p] = local;
       } else {
-        next[p] = '—';
+        next[p] = local > 0 ? local : '—';
       }
     });
     setCounts(next);
