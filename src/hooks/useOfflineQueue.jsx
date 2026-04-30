@@ -83,6 +83,23 @@ async function migrateFromLocalStorage() {
   }
 }
 
+// ─── Real connectivity probe ───────────────────────────────────────────────
+// navigator.onLine returns true when connected to any network (e.g. a mobile tower
+// with no data). Probe the actual SharePoint tenant to confirm data can flow.
+const probeConnectivity = async () => {
+  try {
+    await fetch('https://africellcloud.sharepoint.com', {
+      method: 'HEAD',
+      mode: 'no-cors',   // avoids CORS errors; opaque response still confirms reachability
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // ─── Hook ──────────────────────────────────────────────────────────────────
 
 /**
@@ -118,7 +135,10 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
 
   // ── Network detection ────────────────────────────────────────────────────
   useEffect(() => {
-    const handleOnline  = () => setIsOnline(true);
+    // Probe on mount: navigator.onLine is unreliable on mobile (true even with no data)
+    if (navigator.onLine) probeConnectivity().then(setIsOnline);
+
+    const handleOnline  = () => probeConnectivity().then(setIsOnline);
     const handleOffline = () => setIsOnline(false);
     window.addEventListener('online',  handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -250,13 +270,16 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
       throw err;
     }
 
-    await refreshPendingCount();
-    await refreshStorageInfo();
-
-    if (isOnline) {
-      await syncEngine.registerBackgroundSync();
-      triggerSync();
-    }
+    // Return to the caller immediately — modal closes as soon as the DB write is done.
+    // All post-save bookkeeping (counters, SW registration, sync) runs in the background.
+    Promise.resolve().then(async () => {
+      await refreshPendingCount();
+      await refreshStorageInfo();
+      if (isOnline) {
+        syncEngine.registerBackgroundSync().catch(() => {});
+        triggerSync();
+      }
+    }).catch(() => {});
 
     return { success: true, surveyId };
   };

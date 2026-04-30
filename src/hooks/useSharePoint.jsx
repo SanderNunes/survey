@@ -16,6 +16,13 @@ import "@pnp/sp/fields";
 import "@pnp/sp/site-groups";
 import "@pnp/sp/site-users";
 
+// Collect all pages from a PnPJS v4 items query using $skiptoken pagination
+const collectAllPages = async (query) => {
+  const all = [];
+  for await (const page of query.top(4999)) all.push(...page);
+  return all;
+};
+
 // Human-readable labels for voice question IDs used in transcription exports
 const QUESTION_LABELS = {
   mainInsight:     'Insight principal (áudio)',
@@ -558,28 +565,36 @@ export const useSharePoint = () => {
         // ── Server-side duplicate prevention ──────────────────────────────
 
         onStepChange?.('checkingDuplicates');
-        // 1. Exact match by SurveyId
+        // 1. Exact match by SurveyId (non-blocking if column not indexed)
         if (meta.surveyId) {
-          const existingById = await sp.web.lists
-            .getByTitle(listName)
-            .items
-            .filter(`SurveyId eq '${escOData(meta.surveyId)}'`)
-            .top(1)();
-          if (existingById.length > 0) {
-            return { success: false, message: 'Inquérito duplicado detectado.', isDuplicate: true };
+          try {
+            const existingById = await sp.web.lists
+              .getByTitle(listName)
+              .items
+              .filter(`SurveyId eq '${escOData(meta.surveyId)}'`)
+              .top(1)();
+            if (existingById.length > 0) {
+              return { success: false, message: 'Inquérito duplicado detectado.', isDuplicate: true };
+            }
+          } catch (err) {
+            console.warn('SurveyId duplicate check failed (non-blocking):', err?.message || err);
           }
         }
 
-        // 2. Same device fingerprint within last 5 minutes
+        // 2. Same device fingerprint within last 5 minutes (non-blocking if column not indexed)
         if (meta.fingerprint) {
-          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-          const existingByFingerprint = await sp.web.lists
-            .getByTitle(listName)
-            .items
-            .filter(`Fingerprint eq '${escOData(meta.fingerprint)}' and DataPreenchimento ge '${fiveMinutesAgo}'`)
-            .top(1)();
-          if (existingByFingerprint.length > 0) {
-            return { success: false, message: 'Submissão recente detectada para este dispositivo.', isDuplicate: true };
+          try {
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+            const existingByFingerprint = await sp.web.lists
+              .getByTitle(listName)
+              .items
+              .filter(`Fingerprint eq '${escOData(meta.fingerprint)}' and DataPreenchimento ge '${fiveMinutesAgo}'`)
+              .top(1)();
+            if (existingByFingerprint.length > 0) {
+              return { success: false, message: 'Submissão recente detectada para este dispositivo.', isDuplicate: true };
+            }
+          } catch (err) {
+            console.warn('Fingerprint duplicate check failed (non-blocking):', err?.message || err);
           }
         }
 
@@ -961,9 +976,9 @@ export const useSharePoint = () => {
       let q = sp.web.lists.getByTitle(listName).items
         .select('*', 'Author/Title', 'Author/EMail')
         .expand('Author')
-        .orderBy('DataPreenchimento', false)
-        .top(top)
-        .skip(skip);
+        .orderBy('Id', false)
+        .top(top);
+      if (skip > 0) q = q.skip(skip);
       if (filter) q = q.filter(filter);
       return await q();
     },
@@ -977,8 +992,8 @@ export const useSharePoint = () => {
     async (province) => {
       if (!sp?.web) return 0;
       const listName = getProvinceListName(province);
-      const items = await sp.web.lists.getByTitle(listName).items.select('Id').top(5000)();
-      return items.length;
+      const list = await sp.web.lists.getByTitle(listName).select('ItemCount')();
+      return list.ItemCount ?? 0;
     },
     [sp]
   );
@@ -1014,10 +1029,10 @@ export const useSharePoint = () => {
       if (!sp?.web) return null;
       try {
         const [cabindaItems, zaireItems] = await Promise.all([
-          sp.web.lists.getByTitle('Cabinda_PreLaunch_Survey').items
-            .select('Municipio', 'Genero', 'FaixaEtaria').top(5000)(),
-          sp.web.lists.getByTitle('Zaire_PreLaunch_Survey').items
-            .select('Municipio', 'Genero', 'FaixaEtaria').top(5000)(),
+          collectAllPages(sp.web.lists.getByTitle('Cabinda_PreLaunch_Survey').items
+            .select('Municipio', 'Genero', 'FaixaEtaria')),
+          collectAllPages(sp.web.lists.getByTitle('Zaire_PreLaunch_Survey').items
+            .select('Municipio', 'Genero', 'FaixaEtaria')),
         ]);
 
         const aggregate = (items) => {
@@ -1241,10 +1256,10 @@ export const useSharePoint = () => {
    * Fetch all entries from Survey_Audit_Log SP list.
    * Returns [] if the list doesn't exist yet.
    */
-  const getAuditLogs = useCallback(async (options = {}) => {
+  const getAuditLogs = useCallback(async () => {
     if (!sp?.web) return [];
     try {
-      const query = sp.web.lists
+      const logs = await collectAllPages(sp.web.lists
         .getByTitle('Survey_Audit_Log')
         .items
         .select(
@@ -1252,10 +1267,8 @@ export const useSharePoint = () => {
           'ActionTimestamp', 'NetworkStatus', 'SyncStatus', 'ErrorDetails',
           'AppVersion', 'Province', 'FormType', 'RetryCount',
           'CreatedFromOffline', 'RawMetadataJson'
-        )
-        .orderBy('ActionTimestamp', false)
-        .top(options.top || 5000);
-      return await query();
+        ));
+      return logs.sort((a, b) => (b.ActionTimestamp ?? '').localeCompare(a.ActionTimestamp ?? ''));
     } catch (err) {
       if (err.message?.includes('does not exist') || err.message?.includes('404')) return [];
       throw err;
