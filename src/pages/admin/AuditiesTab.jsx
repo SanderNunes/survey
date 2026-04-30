@@ -106,7 +106,7 @@ export default function AuditiesTab() {
     setLoading(true);
     setError(null);
     try {
-      const data = await getAuditLogs({ top: 5000 });
+      const data = await getAuditLogs();
       setLogs(data);
     } catch (err) {
       setError(err.message);

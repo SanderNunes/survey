@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronLeft, Check, CheckCircle, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff, User, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Check, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff, User, AlertTriangle, RefreshCw } from 'lucide-react';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import { useOfflineQueue, StorageError } from '@/hooks/useOfflineQueue';
 import { useAuditLog } from '@/hooks/useAuditLog';
 import { audioService } from '@/services/audioService';
 import { db } from '@/db/offlineDB';
-import { assemblyClient } from '@/config/assemblyai';
+
 import { useTranslation } from 'react-i18next';
 
 const INTERVIEWER_NAME_KEY = 'cabinda_interviewer_name';
@@ -85,7 +86,6 @@ const CabindaSurvey = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveStep, setSaveStep] = useState(null);
   const [saveResult, setSaveResult] = useState(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
 
@@ -93,12 +93,9 @@ const CabindaSurvey = () => {
   const audioChunksRef = useRef([]);
   const audioRef = useRef(null);
   const timerRef = useRef(null);
-  const syncTimerRef = useRef(null);
   const isSavingRef = useRef(false);
   const isMountedRef = useRef(true);
   const sessionSurveyIdRef = useRef(crypto.randomUUID());
-
-  const [transcribingFor, setTranscribingFor] = useState(null); // questionId being transcribed after upload
 
   const { saveCabindaSurveyResponse, getSurveyDetailedStats, isSharePointReady, currentUserName, syncAuditLogsToSharePoint } = useSharePoint();
 
@@ -114,9 +111,6 @@ const CabindaSurvey = () => {
   const [interviewerName, setInterviewerName] = useState('');
   const [showInterviewerModal, setShowInterviewerModal] = useState(false);
   const [interviewerNameDraft, setInterviewerNameDraft] = useState('');
-  const [pendingSurveys, setPendingSurveys] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]'); } catch { return []; }
-  });
   const [showSyncPanel, setShowSyncPanel] = useState(false);
   const [pendingItems, setPendingItems] = useState([]);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -256,146 +250,28 @@ const CabindaSurvey = () => {
 
   // ─── Duplicate prevention ──────────────────────────────────────────────────
 
-  const generateSurveyId = () => crypto.randomUUID();
-
   const generateFingerprint = () => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.textBaseline = 'top';
-    ctx.font = '14px Arial';
-    ctx.fillText('Survey fingerprint', 2, 2);
-    const fingerprint = {
-      screen: `${screen.width}x${screen.height}`,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      language: navigator.language,
-      canvas: canvas.toDataURL(),
-      userAgent: navigator.userAgent.substring(0, 50),
-    };
-    return btoa(JSON.stringify(fingerprint)).substring(0, 20);
-  };
-
-  const checkForDuplicates = (newSurveyData) => {
-    let existingSurveys = [];
     try {
-      existingSurveys = JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]');
-    } catch {
-      existingSurveys = [];
-    }
-    const duplicateByResponses = existingSurveys.find(
-      survey => JSON.stringify(survey.responses) === JSON.stringify(newSurveyData.responses)
-    );
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    const recentDuplicate = existingSurveys.find(
-      survey => new Date(survey.timestamp).getTime() > fiveMinutesAgo
-    );
-    return {
-      hasExactDuplicate: !!duplicateByResponses,
-      hasRecentSubmission: !!recentDuplicate,
-      duplicateId: duplicateByResponses?.id || recentDuplicate?.id,
-    };
-  };
-
-  const convertBlobToBase64 = (blob) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result);
-      reader.onerror = () => reject(new Error('FileReader failed to encode audio'));
-      reader.readAsDataURL(blob);
-    });
-
-  // ─── Offline save ──────────────────────────────────────────────────────────
-
-  const saveOffline = async (surveyDataToSave) => {
-    try {
-      const surveyId = generateSurveyId();
-      const fingerprint = generateFingerprint();
-      const timestamp = new Date().toISOString();
-
-      const duplicateCheck = checkForDuplicates(surveyDataToSave);
-      if (duplicateCheck.hasExactDuplicate) {
-        return { success: false, message: 'Este inquérito já foi submetido anteriormente.', isDuplicate: true, duplicateId: duplicateCheck.duplicateId };
-      }
-      if (duplicateCheck.hasRecentSubmission) {
-        const confirmed = window.confirm('Detectámos uma submissão recente. Tem certeza que deseja submeter outro inquérito?');
-        if (!confirmed) return { success: false, message: 'Submissão cancelada pelo utilizador.', wasCancelled: true };
-      }
-
-      const audioData = {};
-      for (const [key, recording] of Object.entries(audioRecordings)) {
-        if (recording?.blob) audioData[key] = await convertBlobToBase64(recording.blob);
-      }
-
-      const offlineData = {
-        ...surveyDataToSave,
-        id: surveyId,
-        timestamp,
-        fingerprint,
-        status: 'pending',
-        audioData,
-        metadata: { ...surveyDataToSave.metadata, submissionMethod: 'offline', deviceInfo: { userAgent: navigator.userAgent, screen: `${screen.width}x${screen.height}`, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone } },
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('no-canvas');
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.fillText('Survey fingerprint', 2, 2);
+      const fp = {
+        screen:    `${screen.width}x${screen.height}`,
+        timezone:  Intl.DateTimeFormat().resolvedOptions().timeZone,
+        language:  navigator.language,
+        canvas:    canvas.toDataURL(),
+        userAgent: navigator.userAgent.substring(0, 50),
       };
-
-      let existing = [];
-      try {
-        existing = JSON.parse(localStorage.getItem('offline-cabinda-surveys') || '[]');
-      } catch {
-        existing = [];
-      }
-      try {
-        const updated = [...existing, offlineData];
-        localStorage.setItem('offline-cabinda-surveys', JSON.stringify(updated));
-        setPendingSurveys(updated);
-      } catch (e) {
-        if (e.name === 'QuotaExceededError') {
-          return { success: false, message: 'Armazenamento local cheio. Liberte espaço e tente novamente.' };
-        }
-        throw e;
-      }
-
-      return { success: true, message: 'Inquérito guardado localmente. Será sincronizado quando houver conexão.', itemId: `OFFLINE_${surveyId}`, surveyId };
-    } catch (error) {
-      return { success: false, message: 'Erro ao guardar offline.', error: error.message };
+      return btoa(JSON.stringify(fp)).substring(0, 20);
+    } catch {
+      // Canvas not supported (some old Android WebViews) — use a time-based fallback
+      return btoa(`${Date.now()}-${Math.random()}`).substring(0, 20);
     }
   };
 
-  // ─── SharePoint save ───────────────────────────────────────────────────────
-
-  const saveToSharePoint = useCallback(async (_surveyDataToSave) => {
-    const surveyId = generateSurveyId();
-    const fingerprint = generateFingerprint();
-    const duration = surveyStartTime ? Math.round((Date.now() - surveyStartTime) / 1000) : 0;
-
-    const formattedData = {
-      responses: responses,
-      customInputs: customInputs,
-      audioRecordings: audioRecordings,
-      metadata: {
-        section: currentSection,
-        completedAt: new Date().toISOString(),
-        surveyId,
-        fingerprint,
-        duration,
-        interviewerName: interviewerName || currentUserName || '',
-        submissionMethod: 'online',
-        deviceInfo: { userAgent: navigator.userAgent, screen: `${screen.width}x${screen.height}`, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
-      },
-    };
-
-    if (responses.interestedInDiscussion === 'Sim' && responses.phoneNumber) {
-      formattedData.contactInfo = { name: responses.nomeCliente, phone: responses.phoneNumber };
-    }
-
-    const result = await saveCabindaSurveyResponse(formattedData, setSaveStep);
-    if (!result.success) throw new Error(result.message || 'SharePoint save failed');
-
-    if (duration > 0) setSurveyDuration(duration);
-    return {
-      success: true,
-      message: result.message || 'Inquérito enviado com sucesso para SharePoint!',
-      itemId: result.itemId || `SP_${surveyId}`,
-      surveyId,
-    };
-  }, [responses, customInputs, audioRecordings, currentSection, surveyStartTime, interviewerName, currentUserName, saveCabindaSurveyResponse]);
 
 
   // ─── Submission targets ────────────────────────────────────────────────────
@@ -422,6 +298,17 @@ const CabindaSurvey = () => {
     } catch { /* db not ready */ }
     finally { setLoadingItems(false); }
   }, []);
+
+  const forceRetry = useCallback(async (surveyId) => {
+    await db.surveys.where('surveyId').equals(surveyId).modify({
+      status:      'pending',
+      retryCount:  0,
+      lastError:   null,
+      nextRetryAt: null,
+    });
+    await loadPendingItems();
+    triggerSync();
+  }, [loadPendingItems, triggerSync]);
 
   useEffect(() => {
     if (showSyncPanel) loadPendingItems();
@@ -459,8 +346,8 @@ const CabindaSurvey = () => {
     setIsSaving(true);
     setSaveResult(null);
 
-    const duration    = surveyStartTime ? Math.round((Date.now() - surveyStartTime) / 1000) : 0;
-    const fingerprint = generateFingerprint();
+    const duration      = surveyStartTime ? Math.round((Date.now() - surveyStartTime) / 1000) : 0;
+    const fingerprint   = generateFingerprint();
     const auditSurveyId = sessionSurveyIdRef.current;
 
     logSurveyEvent(AUDIT_ACTIONS.SURVEY_COMPLETED, auditSurveyId, {
@@ -472,12 +359,12 @@ const CabindaSurvey = () => {
       customInputs,
       fingerprint,
       metadata: {
-        section:            currentSection,
-        completedAt:        new Date().toISOString(),
+        section:          currentSection,
+        completedAt:      new Date().toISOString(),
         fingerprint,
         duration,
-        interviewerName:    interviewerName || currentUserName || '',
-        submissionMethod:   isOnline ? 'online' : 'offline',
+        interviewerName:  interviewerName || currentUserName || '',
+        submissionMethod: 'offline_first',
         deviceInfo: {
           userAgent: navigator.userAgent,
           screen:    `${screen.width}x${screen.height}`,
@@ -491,28 +378,12 @@ const CabindaSurvey = () => {
     }
 
     try {
-      let result;
-      if (isOnline) {
-        logSurveyEvent(AUDIT_ACTIONS.SYNC_STARTED, auditSurveyId, { metadata: { method: 'direct_sharepoint' } });
-        try {
-          // Happy path: try direct SharePoint save first
-          result = await saveToSharePoint(surveyPayload);
-          if (duration > 0) setSurveyDuration(duration);
-        } catch {
-          // Network failed mid-save → queue to IndexedDB for retry
-          logSurveyEvent(AUDIT_ACTIONS.SURVEY_SAVED_OFFLINE, auditSurveyId, { metadata: { reason: 'direct_save_failed' } });
-          await saveSurvey({ surveyData: surveyPayload, audioRecordings, province: 'cabinda' });
-          result = { success: true, message: 'Falhou envio direto. Guardado para sincronização automática.', itemId: null };
-        }
-      } else {
-        // Offline: persist to IndexedDB queue (no Base64, no localStorage)
-        logSurveyEvent(AUDIT_ACTIONS.SURVEY_SAVED_OFFLINE, auditSurveyId, { metadata: { reason: 'offline' } });
-        await saveSurvey({ surveyData: surveyPayload, audioRecordings, province: 'cabinda' });
-        result = { success: true, message: 'Inquérito guardado localmente. Será sincronizado quando houver conexão.', itemId: null };
-      }
-
-      setSaveResult(result);
-      if (result.success) fetchDetailedStats();
+      // Always save to IndexedDB first — instant and reliable regardless of network.
+      // saveSurvey automatically triggers background sync if online.
+      await saveSurvey({ surveyData: surveyPayload, audioRecordings, province: 'cabinda' });
+      if (duration > 0) setSurveyDuration(duration);
+      setSaveResult({ success: true, message: 'Inquérito guardado. A sincronizar em segundo plano.', itemId: null });
+      fetchDetailedStats();
     } catch (error) {
       if (error instanceof StorageError) {
         setSaveResult({ success: false, message: error.message });
@@ -521,10 +392,9 @@ const CabindaSurvey = () => {
       }
     } finally {
       setIsSaving(false);
-      setSaveStep(null);
       isSavingRef.current = false;
     }
-  }, [responses, customInputs, currentSection, isOnline, saveToSharePoint, saveSurvey, interviewerName, currentUserName, surveyStartTime, audioRecordings, logSurveyEvent, AUDIT_ACTIONS, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [responses, customInputs, currentSection, saveSurvey, interviewerName, currentUserName, surveyStartTime, audioRecordings, logSurveyEvent, AUDIT_ACTIONS, t]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSaveSurvey = useCallback(async () => {
     if (isSavingRef.current) return;
@@ -556,31 +426,8 @@ const CabindaSurvey = () => {
         stream.getTracks().forEach(track => track.stop());
 
         // Save recording immediately with placeholder response
-        setAudioRecordings(prev => ({ ...prev, [questionId]: { blob: audioBlob, url: audioUrl, transcript: '' } }));
+        setAudioRecordings(prev => ({ ...prev, [questionId]: { blob: audioBlob, url: audioUrl } }));
         handleResponse(questionId, `[Gravação de Áudio - ${new Date().toLocaleTimeString()}]`);
-
-        // Upload to AssemblyAI for transcription (non-blocking, non-fatal)
-        if (isOnline && import.meta.env.VITE_ASSEMBLYAI_API_KEY) {
-          setTranscribingFor(questionId);
-          try {
-            const result = await assemblyClient.transcripts.transcribe({
-              audio: audioBlob,
-              language_code: 'pt',
-            });
-            if (!isMountedRef.current) return;
-            const transcript = result.text || '';
-            if (transcript) {
-              setAudioRecordings(prev =>
-                prev[questionId] ? { ...prev, [questionId]: { ...prev[questionId], transcript } } : prev
-              );
-              handleResponse(questionId, transcript);
-            }
-          } catch (err) {
-            console.warn('Transcription upload failed:', err.message);
-          } finally {
-            if (isMountedRef.current) setTranscribingFor(null);
-          }
-        }
       };
 
       const MAX_RECORDING_SECONDS = 120;
@@ -619,7 +466,7 @@ const CabindaSurvey = () => {
       audioRef.current.src = recording.url;
       audioRef.current.play().catch((err) => console.warn('Audio playback blocked:', err));
       setIsPlaying(questionId);
-      audioRef.current.onended = () => setIsPlaying(false);
+      audioRef.current.onended = () => { if (isMountedRef.current) setIsPlaying(false); };
     }
   };
 
@@ -661,7 +508,7 @@ const CabindaSurvey = () => {
 
   // ─── Navigation ────────────────────────────────────────────────────────────
 
-  const getCurrentQuestion = () => sections[currentSection].questions[currentStep];
+  const getCurrentQuestion = () => sections[currentSection]?.questions[currentStep];
 
   const nextStep = () => {
     if (isRecording) stopRecording();
@@ -946,17 +793,6 @@ const CabindaSurvey = () => {
                         <div className="w-3 h-3 bg-green-500 rounded-full mr-3"></div>
                         <span className="text-green-700 font-medium text-sm sm:text-base">{t('cabinda.recording.done')}</span>
                       </div>
-                      {transcribingFor === question.id && (
-                        <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 rounded px-2 py-1">
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                          <span>A transcrever…</span>
-                        </div>
-                      )}
-                      {!transcribingFor && audioRecordings[question.id]?.transcript && (
-                        <p className="text-xs text-gray-600 leading-relaxed bg-white rounded px-2 py-1 max-w-xs sm:max-w-sm italic">
-                          {audioRecordings[question.id].transcript}
-                        </p>
-                      )}
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => playAudio(question.id)}
@@ -1032,7 +868,11 @@ const CabindaSurvey = () => {
   // ─── Derived state ─────────────────────────────────────────────────────────
 
   const currentQuestion = getCurrentQuestion();
-  if (!currentQuestion) return null;
+  if (!currentQuestion) return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+    </div>
+  );
   const currentSectionData = sections[currentSection];
   const totalSteps = currentSectionData.questions.length;
   const isLastStep = currentStep === totalSteps - 1;
@@ -1046,23 +886,8 @@ const CabindaSurvey = () => {
     .reduce((sum, sec) => sum + sections[sec].questions.length, 0);
   const currentGlobalStep = questionsBeforeCurrentSection + currentStep + 1;
 
-  // ─── Save step constants ───────────────────────────────────────────────────
-
-  const SAVE_STEPS_ALL = ['checkingDuplicates', 'sendingData', 'uploadingAudio', 'done'];
-  const SAVE_STEPS_LABELS = {
-    checkingDuplicates: 'A verificar duplicados…',
-    sendingData:        'A enviar dados…',
-    uploadingAudio:     'A carregar áudio…',
-    done:               'Concluído!',
-  };
-  const SAVE_STEPS_SHORT = {
-    checkingDuplicates: 'Duplicados',
-    sendingData:        'Envio',
-    uploadingAudio:     'Áudio',
-    done:               'Concluído',
-  };
-
   // ─── Render ────────────────────────────────────────────────────────────────
+  const permanentCount = pendingItems.filter(i => i.status === 'failed_permanent').length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 py-4 px-3 sm:py-8 sm:px-4">
@@ -1079,7 +904,7 @@ const CabindaSurvey = () => {
         <button
           onClick={() => setShowSyncPanel(v => !v)}
           title={`${pendingCount} inquérito${pendingCount !== 1 ? 's' : ''} por sincronizar`}
-          className="fixed bottom-16 right-4 z-40 flex items-center gap-2 px-3 py-2.5 rounded-full shadow-lg bg-primary text-white hover:bg-primaryDark active:scale-95 transition-all duration-200 cursor-pointer"
+          className={`fixed bottom-16 right-4 z-40 flex items-center gap-2 px-3 py-2.5 rounded-full shadow-lg text-white active:scale-95 transition-all duration-200 cursor-pointer ${permanentCount > 0 ? 'bg-red-500 hover:bg-red-600' : 'bg-primary hover:bg-primaryDark'}`}
         >
           {syncProgress.isActive
             ? <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
@@ -1126,6 +951,19 @@ const CabindaSurvey = () => {
             )}
           </div>
 
+          {/* Permanent failure warning */}
+          {permanentCount > 0 && (
+            <div className="flex items-start gap-2 px-4 py-3 bg-red-50 border-b border-red-100">
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-red-700">
+                {permanentCount === 1
+                  ? '1 inquérito falhou permanentemente. Prima "Tentar novamente" ou contacte o administrador.'
+                  : `${permanentCount} inquéritos falharam permanentemente. Prima "Tentar novamente" ou contacte o administrador.`
+                }
+              </p>
+            </div>
+          )}
+
           {/* Survey list */}
           <div className="max-h-64 overflow-y-auto divide-y divide-gray-50">
             {loadingItems ? (
@@ -1159,13 +997,19 @@ const CabindaSurvey = () => {
                   </div>
                   {isCurrentlySyncing
                     ? <Loader2 className="w-4 h-4 text-blue-500 animate-spin flex-shrink-0" />
-                    : <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
-                        isPermanent ? 'bg-red-100 text-red-700' :
-                        isFailed    ? 'bg-red-50 text-red-600'  :
-                                      'bg-amber-50 text-amber-700'
-                      }`}>
-                        {isPermanent ? 'Sem retry' : isFailed ? 'Falhou' : 'Pendente'}
-                      </span>
+                    : isPermanent
+                      ? <button
+                          onClick={() => forceRetry(item.surveyId)}
+                          className="text-xs px-2 py-1 rounded-lg font-medium flex-shrink-0 bg-red-100 text-red-700 hover:bg-red-200 active:scale-95 transition-all flex items-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          Tentar
+                        </button>
+                      : <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+                          isFailed ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-700'
+                        }`}>
+                          {isFailed ? 'Falhou' : 'Pendente'}
+                        </span>
                   }
                 </div>
               );
@@ -1439,43 +1283,13 @@ const CabindaSurvey = () => {
                       {responses.interestedInDiscussion === 'Sim' && <p>{t('cabinda.saveDialog.focusGroup')}</p>}
                     </div>
                   </div>
-                  {/* Step progress indicator — shown while saving */}
-                  {isSaving && (() => {
-                    const steps = Object.keys(audioRecordings).length > 0
-                      ? SAVE_STEPS_ALL
-                      : SAVE_STEPS_ALL.filter(s => s !== 'uploadingAudio');
-                    const activeIdx = steps.indexOf(saveStep);
-                    return (
-                      <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
-                          <span className="text-sm font-medium text-gray-700">
-                            {SAVE_STEPS_LABELS[saveStep] ?? t('ui.saving')}
-                          </span>
-                        </div>
-                        <div className="flex gap-0.5 mb-2">
-                          {steps.map((step, idx) => (
-                            <div key={step} className={`h-1.5 flex-1 rounded-full transition-colors duration-300 ${idx < activeIdx ? 'bg-green-400' : idx === activeIdx ? 'bg-primary' : 'bg-gray-200'}`} />
-                          ))}
-                        </div>
-                        <div className="flex">
-                          {steps.map((step, idx) => (
-                            <div key={step} className="flex flex-col items-center gap-0.5 flex-1">
-                              {idx < activeIdx
-                                ? <CheckCircle className="w-3.5 h-3.5 text-green-500" />
-                                : idx === activeIdx
-                                  ? <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
-                                  : <div className="w-3.5 h-3.5 rounded-full border border-gray-300" />
-                              }
-                              <span className={`text-xs ${idx === activeIdx ? 'text-primary font-medium' : idx < activeIdx ? 'text-green-600' : 'text-gray-400'}`}>
-                                {SAVE_STEPS_SHORT[step]}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                  {/* Saving spinner */}
+                  {isSaving && (
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                      <span className="text-sm font-medium text-gray-700">{t('ui.saving')}</span>
+                    </div>
+                  )}
 
                   <div className="flex gap-3">
                     <button onClick={() => setShowSaveDialog(false)} disabled={isSaving} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-50 disabled:opacity-50">
@@ -1535,4 +1349,10 @@ const CabindaSurvey = () => {
   );
 };
 
-export default CabindaSurvey;
+const CabindaSurveyWithBoundary = () => (
+  <ErrorBoundary>
+    <CabindaSurvey />
+  </ErrorBoundary>
+);
+
+export default CabindaSurveyWithBoundary;
