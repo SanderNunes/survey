@@ -992,8 +992,11 @@ export const useSharePoint = () => {
     async (province) => {
       if (!sp?.web) return 0;
       const listName = getProvinceListName(province);
-      const list = await sp.web.lists.getByTitle(listName).select('ItemCount')();
-      return list.ItemCount ?? 0;
+      // ItemCount includes hidden system/folder items — fetch actual item IDs for a true count
+      const items = await collectAllPages(
+        sp.web.lists.getByTitle(listName).items.select('Id')
+      );
+      return items.length;
     },
     [sp]
   );
