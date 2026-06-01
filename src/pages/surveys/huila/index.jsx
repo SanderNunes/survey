@@ -683,7 +683,7 @@ const AfricellSurvey = () => {
       setIsRecording(questionId);
       setRecordingTime(0);
 
-      const MAX_RECORDING_SECONDS = 120;
+      const MAX_RECORDING_SECONDS = 240;
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => {

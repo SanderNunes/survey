@@ -1,3 +1,8 @@
+import {
+  PRELAUNCH_MUNICIPALITY_TARGETS,
+  PRELAUNCH_PROVINCES,
+} from '@/config/preLaunchSurvey';
+
 const MULTI_VALUE_FIELDS = new Set([
   'ZonasPiorCobertura',
   'LocalRecarga',
@@ -7,15 +12,17 @@ const MULTI_VALUE_FIELDS = new Set([
 
 const FIELD_DEFINITIONS = {
   Provincia: {
-    canonical: ['Cabinda', 'Zaire'],
+    canonical: PRELAUNCH_PROVINCES,
     aliases: {
       Cabinda: ['cabinda province'],
+      'Bié': ['bie', 'bié province', 'bie province'],
       Zaire: ['zaire province'],
     },
   },
   Municipio: {
-    canonical: ['Cabinda', "M'banza Congo", 'Soyo'],
+    canonical: Object.keys(PRELAUNCH_MUNICIPALITY_TARGETS),
     aliases: {
+      Kuito: ['cuito'],
       "M'banza Congo": ['mbanza congo', 'm banza congo'],
     },
   },

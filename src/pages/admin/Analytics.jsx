@@ -17,11 +17,15 @@ import {
   normalizeSurveyRecord,
   translateSurveyValue,
 } from '@/utils/surveyValueMapping';
+import {
+  PRELAUNCH_MUNICIPALITY_TARGETS,
+  PRELAUNCH_PROVINCES,
+} from '@/config/preLaunchSurvey';
 
-const PROVINCES = ['Cabinda', 'Zaire'];
+const PROVINCES = PRELAUNCH_PROVINCES;
 const LOCALE_MAP = { en: 'en-US', pt: 'pt-AO', fr: 'fr-FR' };
 
-const MUNICIPALITY_TARGETS = { 'Cabinda': 600, "M'banza Congo": 100, 'Soyo': 300 };
+const MUNICIPALITY_TARGETS = PRELAUNCH_MUNICIPALITY_TARGETS;
 
 const COLORS = {
   primary:    '#FF6B00',

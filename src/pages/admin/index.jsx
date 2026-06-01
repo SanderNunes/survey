@@ -25,10 +25,19 @@ import {
   Phone,
   AlertTriangle,
   Shield,
+  Clock,
+  RotateCcw,
 } from 'lucide-react';
 import { assemblyClient } from '@/config/assemblyai';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import { db } from '@/db/offlineDB';
+import { syncEngine } from '@/services/syncEngine';
+import { storageService } from '@/services/storageService';
+import {
+  PRELAUNCH_PROVINCE_TARGETS,
+  PRELAUNCH_PROVINCES,
+  PRELAUNCH_TOTAL_TARGET,
+} from '@/config/preLaunchSurvey';
 import LoadingSkeleton from '@/components/LoadingSkeleton';
 import Analytics from './Analytics';
 import AuditiesTab from './AuditiesTab';
@@ -195,6 +204,17 @@ const AUDIO_Q_LABEL_KEYS = {
   mainInsight:     'survey.audio.insight',
   newShopLocation: 'survey.audio.newShop',
 };
+
+function ProgressBar({ value, color = 'orange' }) {
+  return (
+    <div className="h-2 bg-gray-100 rounded-full overflow-hidden mt-2">
+      <div
+        className={`h-full transition-all duration-300 ${color === 'purple' ? 'bg-purple-500' : 'bg-orange-500'}`}
+        style={{ width: `${Math.min(100, Math.max(0, value || 0))}%` }}
+      />
+    </div>
+  );
+}
 
 function RecordDetailModal({ record, onClose, province, getItemAttachments, downloadAttachment }) {
   const { t, i18n } = useTranslation();
@@ -413,9 +433,9 @@ function RecordDetailModal({ record, onClose, province, getItemAttachments, down
   );
 }
 
-const PROVINCES = ['Cabinda', 'Zaire'];
-const PROVINCE_TARGETS = { 'Cabinda': 600, 'Zaire': 400 };
-const TOTAL_TARGET = 1000;
+const PROVINCES = PRELAUNCH_PROVINCES;
+const PROVINCE_TARGETS = PRELAUNCH_PROVINCE_TARGETS;
+const TOTAL_TARGET = PRELAUNCH_TOTAL_TARGET;
 
 // Columns to show in the table (internal name → display label)
 const TABLE_COLS = [
@@ -448,6 +468,7 @@ export default function AdminPage() {
     downloadAttachment,
     exportProvincePackage,
     buildExcelWorksheet,
+    readProvinceRecord,
   } = useSharePoint();
 
   const canSeeAudities = currentUserEmail === 'bteixeira@africell.ao';
@@ -462,7 +483,7 @@ export default function AdminPage() {
 
   // ── main state ────────────────────────────────────────────────────────────
   const [activeProvince, setActiveProvince] = useState(null); // null = All
-  const [counts, setCounts] = useState({ Cabinda: null, 'Bié': null, Zaire: null });
+  const [counts, setCounts] = useState(() => Object.fromEntries(PROVINCES.map((province) => [province, null])));
   const [records, setRecords] = useState([]);
   const [listNotFound, setListNotFound] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -473,11 +494,23 @@ export default function AdminPage() {
   const [mainTab, setMainTab] = useState('data'); // 'data' | 'analytics'
   const [exportingTranscript, setExportingTranscript] = useState(false);
   const [transcriptProgress, setTranscriptProgress] = useState({ current: 0, total: 0 });
-  const [transcribingRows, setTranscribingRows] = useState({}); // { [itemId]: true }
-  const [transcribingAll, setTranscribingAll] = useState(false);
-  const [transcribeAllProgress, setTranscribeAllProgress] = useState({ current: 0, total: 0 });
+  const [transcribingRows, setTranscribingRows] = useState({});
+  const [showTranscribeModal, setShowTranscribeModal] = useState(false);
+  const [transcribeProgress, setTranscribeProgress] = useState({
+    active: false, done: false,
+    surveyIndex: 0, surveyTotal: 0, surveyName: '',
+    audioIndex: 0, audioTotal: 0,
+    surveysProcessed: 0, results: [], failed: [],
+  });
   const [page, setPage] = useState(1);
+  const [transcriptFilter, setTranscriptFilter] = useState('all'); // 'all' | 'transcribed' | 'missing'
   const PAGE_SIZE = 25;
+
+  // ── pending/failed local surveys (IndexedDB) ──────────────────────────────
+  const [pendingLocalSurveys, setPendingLocalSurveys] = useState([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [confirmDeleteLocal, setConfirmDeleteLocal] = useState(null); // { id, surveyId }
+  const [syncDiagnostics, setSyncDiagnostics] = useState(null); // { lastSynced, quota, unsyncedAudio, recentLog }
 
   // ── load counts — SP count + local IndexedDB pending on this device ─────────
   const refreshCounts = useCallback(async () => {
@@ -507,6 +540,58 @@ export default function AdminPage() {
     });
     setCounts(next);
   }, [getProvinceCount]);
+
+  // ── pending local surveys + sync diagnostics ──────────────────────────────
+  const loadPendingLocalSurveys = useCallback(async () => {
+    setPendingLoading(true);
+    try {
+      const surveys = await db.surveys
+        .where('status').anyOf(['pending', 'syncing', 'sync_failed', 'audio_pending', 'failed_permanent'])
+        .sortBy('createdAt');
+      setPendingLocalSurveys(surveys);
+
+      // Diagnostics: last successful sync, storage usage, unsynced audio, recent log
+      const [lastSynced, quota, unsyncedAudio, recentLog] = await Promise.all([
+        db.surveys.where('status').equals('synced').reverse().sortBy('syncedAt').then(rows => rows[0]?.syncedAt || null).catch(() => null),
+        storageService.getQuotaInfo().catch(() => null),
+        db.audioBlobs.where('status').anyOf(['pending', 'upload_failed']).count().catch(() => 0),
+        db.syncLog.reverse().limit(15).toArray().catch(() => []),
+      ]);
+      setSyncDiagnostics({ lastSynced, quota, unsyncedAudio, recentLog });
+    } catch {
+      setPendingLocalSurveys([]);
+    } finally {
+      setPendingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mainTab === 'pendentes') loadPendingLocalSurveys();
+  }, [mainTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRetryLocalSurvey = async (id) => {
+    await db.surveys.update(id, { status: 'pending', retryCount: 0, nextRetryAt: null, lastError: null });
+    await loadPendingLocalSurveys();
+    toast.success('Inquérito marcado para nova tentativa');
+  };
+
+  const handleRetryAllLocal = async () => {
+    await db.surveys
+      .where('status').anyOf(['sync_failed', 'failed_permanent'])
+      .modify({ status: 'pending', retryCount: 0, nextRetryAt: null, lastError: null });
+    await syncEngine.registerBackgroundSync();
+    await loadPendingLocalSurveys();
+    toast.success('Todos os inquéritos marcados para nova tentativa');
+  };
+
+  const handleDeleteLocalSurvey = async () => {
+    if (!confirmDeleteLocal) return;
+    await db.surveys.delete(confirmDeleteLocal.id);
+    await db.audioBlobs.where('surveyId').equals(confirmDeleteLocal.surveyId).delete();
+    setConfirmDeleteLocal(null);
+    await loadPendingLocalSurveys();
+    toast.success('Inquérito local eliminado');
+  };
 
   // ── load records — 404 shows an inline notice, not a toast ────────────────
   const loadRecords = useCallback(async (province) => {
@@ -547,6 +632,7 @@ export default function AdminPage() {
     if (isOwner !== true || !sp) return;
     refreshCounts();
     loadRecords(activeProvince);
+    loadPendingLocalSurveys();
   }, [isOwner, sp]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-load records when switching province tab
@@ -554,23 +640,108 @@ export default function AdminPage() {
     if (isOwner !== true || !sp) return;
     setSearchTerm('');
     setPage(1);
+    setTranscriptFilter('all');
     loadRecords(activeProvince);
   }, [activeProvince]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── filtered rows ─────────────────────────────────────────────────────────
+  const noTranscript = (val) => {
+    const v = (val || '').replace(/<[^>]*>/g, '').trim();
+    return !v || v.startsWith('Audio recording captured');
+  };
+
+  // Detect real audio container from magic bytes — used only for logging.
+  const detectAudioMimeType = (buf) => {
+    const b = new Uint8Array(buf.slice(0, 12));
+    if (b[0] === 0x1A && b[1] === 0x45 && b[2] === 0xDF && b[3] === 0xA3) return 'audio/webm';
+    if (b[0] === 0x4F && b[1] === 0x67 && b[2] === 0x67 && b[3] === 0x53) return 'audio/ogg';
+    if (b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70) return 'audio/mp4';
+    if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return 'audio/wav';
+    return 'audio/webm';
+  };
+
+  // Decode any browser-supported audio format and re-encode as 16-bit mono WAV PCM.
+  // AssemblyAI accepts WAV reliably; WebM/Opus files stored with .wav extension would fail otherwise.
+  const convertToWav = async (buf) => {
+    const audioCtx = new AudioContext();
+    try {
+      const audioBuffer = await audioCtx.decodeAudioData(buf.slice(0));
+      const numSamples = audioBuffer.length;
+      const sampleRate = audioBuffer.sampleRate;
+
+      // Mix all channels down to mono
+      const mono = new Float32Array(numSamples);
+      for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+        const channelData = audioBuffer.getChannelData(ch);
+        for (let i = 0; i < numSamples; i++) mono[i] += channelData[i] / audioBuffer.numberOfChannels;
+      }
+
+      // Build WAV container: 44-byte header + 16-bit PCM samples
+      const wavBuf = new ArrayBuffer(44 + numSamples * 2);
+      const v = new DataView(wavBuf);
+      const str = (off, s) => { for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i)); };
+
+      str(0, 'RIFF'); v.setUint32(4, 36 + numSamples * 2, true);
+      str(8, 'WAVE'); str(12, 'fmt ');
+      v.setUint32(16, 16, true);        // PCM chunk size
+      v.setUint16(20, 1, true);         // PCM format
+      v.setUint16(22, 1, true);         // mono
+      v.setUint32(24, sampleRate, true);
+      v.setUint32(28, sampleRate * 2, true); // byte rate
+      v.setUint16(32, 2, true);         // block align
+      v.setUint16(34, 16, true);        // bits per sample
+      str(36, 'data'); v.setUint32(40, numSamples * 2, true);
+
+      for (let i = 0; i < numSamples; i++) {
+        const s = Math.max(-1, Math.min(1, mono[i]));
+        v.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+
+      return wavBuf;
+    } finally {
+      audioCtx.close();
+    }
+  };
+
+  const surveyLabel = (row) => row.SurveyId ? `Survey ${row.SurveyId}` : `Survey #${row.Id}`;
+  const rowMeta = (row) => ({
+    surveyId:     row.SurveyId || row.Id,
+    surveyName:   surveyLabel(row),
+    province:     row.Provincia || row._province,
+    municipality: row.Municipio,
+    date:         row.DataPreenchimento,
+    interviewer:  row.NomeEntrevistador?.trim() || row.AuthorName || '',
+  });
+
   const totalCount = Object.values(counts).reduce((sum, c) => sum + (Number(c) || 0), 0);
   const isAllView  = activeProvince === null;
 
   const term = searchTerm.toLowerCase();
-  const filtered = term
-    ? records.filter(r =>
+  const filtered = records.filter(r => {
+    if (term) {
+      const matchesSearch =
+        String(r.Id).includes(term) ||
+        (r.SurveyId   || '').toLowerCase().includes(term) ||
         (r.Provincia  || r._province || '').toLowerCase().includes(term) ||
         (r.Municipio  || '').toLowerCase().includes(term) ||
         (r.OperadorAtual || '').toLowerCase().includes(term) ||
         (r.Genero     || '').toLowerCase().includes(term) ||
-        (r.Ocupacao   || '').toLowerCase().includes(term)
-      )
-    : records;
+        (r.Ocupacao   || '').toLowerCase().includes(term);
+      if (!matchesSearch) return false;
+    }
+    if (transcriptFilter === 'withAudio') {
+      if (r.TemGravacoes !== 'Sim') return false;
+    } else if (transcriptFilter === 'noAudio') {
+      if (r.TemGravacoes === 'Sim') return false;
+    } else if (transcriptFilter === 'transcribed') {
+      if (r.TemGravacoes !== 'Sim') return false;
+      if (noTranscript(r.InsightPrincipal) || noTranscript(r.LocalNovasLojas)) return false;
+    } else if (transcriptFilter === 'missing') {
+      if (r.TemGravacoes !== 'Sim') return false;
+      if (!noTranscript(r.InsightPrincipal) && !noTranscript(r.LocalNovasLojas)) return false;
+    }
+    return true;
+  });
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage    = Math.min(page, totalPages);
@@ -643,57 +814,161 @@ export default function AdminPage() {
   };
 
   // ── per-row transcription (admin, pre-recorded audio) ─────────────────────
-  const handleTranscribeRow = async (row) => {
-    setTranscribingRows(prev => ({ ...prev, [row.Id]: true }));
-    const toastId = toast.loading(t('admin.export.transcribeProgress', { id: row.Id }));
+  const handleTranscribeRow = async (row, batchOptions = null) => {
+    const isBatch = !!batchOptions;
+    if (!isBatch) setTranscribingRows(prev => ({ ...prev, [row.Id]: true }));
+    const toastId = isBatch ? null : toast.loading(t('admin.export.transcribeProgress', { id: row.Id }));
     try {
       const rowProvince = row._province || activeProvince;
       const atts = await getItemAttachments(rowProvince, row.Id);
+
+      console.group(`[Transcription] Row #${row.Id} — ${surveyLabel(row)} (${rowProvince})`);
+      console.log(`Total attachments on SharePoint: ${atts.length}`);
+
+      const audioAtts = atts.filter(att => {
+        const n = att.FileName;
+        return (
+          n.startsWith('mainInsight') || n.startsWith('newShopLocation') ||
+          n.includes('_mainInsight')  || n.includes('_newShopLocation')
+        ) && att.ServerRelativeUrl;
+      });
+
+      // Log every attachment so filename issues are immediately visible
+      atts.forEach(att => {
+        const recognized = audioAtts.some(a => a.FileName === att.FileName);
+        if (recognized) {
+          console.log(`  ✓ ${att.FileName} → recognized as audio question`);
+        } else {
+          console.warn(`  ✗ ${att.FileName} → SKIPPED (filename does not match mainInsight/newShopLocation pattern)`);
+        }
+      });
+
+      const failed = [];
+      const results = [];
+
+      // Record skipped attachments in results so they appear in the Excel export
+      atts.filter(att => !audioAtts.some(a => a.FileName === att.FileName)).forEach(att => {
+        results.push({ ...rowMeta(row), question: 'unknown', audioName: att.FileName, text: '', status: 'skipped', error: 'Filename not recognized as audio question' });
+      });
+
+      if (audioAtts.length === 0) {
+        console.warn('No recognized audio attachments — nothing to transcribe.');
+        console.groupEnd();
+        if (!isBatch) toast(t('admin.export.noAudioToTranscribe'), { id: toastId });
+        return { fields: {}, failed, results };
+      }
+
+      if (isBatch) batchOptions.onAudioStart?.(0, audioAtts.length);
+
       const fields = {};
+      let audioIdx = 0;
 
-      for (const att of atts) {
+      for (const att of audioAtts) {
+        audioIdx++;
         const name = att.FileName;
-        const qId  = name.startsWith('mainInsight')      ? 'mainInsight'
-                   : name.startsWith('newShopLocation')   ? 'newShopLocation'
-                   : name.includes('_mainInsight')         ? 'mainInsight'
-                   : name.includes('_newShopLocation')     ? 'newShopLocation'
-                   : null;
-        if (!qId) continue;
-        if (!att.ServerRelativeUrl) continue;
+        const qId = (name.startsWith('mainInsight') || name.includes('_mainInsight'))
+          ? 'mainInsight' : 'newShopLocation';
 
-        const buf = await downloadAttachment(att.ServerRelativeUrl);
-        if (!buf) continue;
-        const blob   = new Blob([buf], { type: 'audio/wav' });
-        const result = await assemblyClient.transcripts.transcribe({
-          audio: blob,
-          language_code: 'pt',
-          speech_models: ['universal-3-pro'],
-        });
+        if (isBatch) batchOptions.onAudioStart?.(audioIdx, audioAtts.length);
+        console.group(`  [${audioIdx}/${audioAtts.length}] ${att.FileName} → ${qId}`);
 
-        if (result.text) {
-          fields[qId === 'mainInsight' ? 'InsightPrincipal' : 'LocalNovasLojas'] = result.text;
+        let transcribedText = '';
+        let audioStatus = 'success';
+        let audioError = '';
+
+        try {
+          const buf = await downloadAttachment(att.ServerRelativeUrl);
+          if (!buf) throw new Error('Downloaded buffer is empty — attachment may be corrupt or missing');
+          const detectedMime = detectAudioMimeType(buf);
+          console.log(`  Downloaded: ${buf.byteLength.toLocaleString()} bytes — detected format: ${detectedMime}`);
+
+          // Always convert to WAV PCM — AssemblyAI does not support WebM/Opus reliably
+          const wavBuf = await convertToWav(buf);
+          console.log(`  Converted to WAV: ${wavBuf.byteLength.toLocaleString()} bytes`);
+          const blob = new Blob([wavBuf], { type: 'audio/wav' });
+          const result = await assemblyClient.transcripts.transcribe({
+            audio: blob,
+            language_code: 'pt',
+            speech_model: 'best',
+          });
+
+          if (result.text) {
+            transcribedText = result.text;
+            fields[qId === 'mainInsight' ? 'InsightPrincipal' : 'LocalNovasLojas'] = result.text;
+            console.log(`  AssemblyAI result: "${result.text.slice(0, 80)}${result.text.length > 80 ? '…' : ''}"`);
+          } else {
+            // AssemblyAI succeeded but found no speech — distinct from an error
+            audioStatus = 'empty';
+            audioError = 'AssemblyAI returned no text — audio may be silent, too short, or too noisy';
+            console.warn(`  AssemblyAI returned no text (status: ${result.status}). Audio may be silent or too short.`);
+          }
+        } catch (err) {
+          audioStatus = 'failed';
+          audioError = err.message;
+          console.error(`  Error: ${err.message}`);
+          failed.push({ surveyId: row.SurveyId || row.Id, surveyName: surveyLabel(row), audioName: att.FileName, error: err.message });
+        }
+
+        console.groupEnd();
+
+        const entry = { ...rowMeta(row), question: qId, audioName: att.FileName, text: transcribedText, status: audioStatus, error: audioError };
+        results.push(entry);
+        if (isBatch) {
+          batchOptions.onAudioDone?.(audioIdx, audioAtts.length);
+          batchOptions.onResult?.(entry);
         }
       }
 
       if (Object.keys(fields).length > 0) {
         await updateProvinceRecord(rowProvince, row.Id, fields);
-        setRecords(prev => prev.map(r => r.Id === row.Id ? { ...r, ...fields } : r));
-        toast.success(t('admin.export.transcribeDone', { id: row.Id }), { id: toastId });
+        console.log(`Saved to SharePoint: ${Object.keys(fields).join(', ')}`);
+
+        // Validate that SharePoint persisted the transcription correctly
+        try {
+          const savedItem = await readProvinceRecord(rowProvince, row.Id, Object.keys(fields));
+          // SharePoint rich-text fields wrap content in HTML on read-back — strip it before comparing
+          const stripHtml = (s) => (s || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+          const mismatches = Object.entries(fields).filter(([field, expected]) =>
+            stripHtml(savedItem[field]) !== expected.trim()
+          );
+          if (mismatches.length > 0) {
+            const validationErr = `Save validation failed for: ${mismatches.map(([f]) => f).join(', ')}`;
+            console.error(validationErr);
+            mismatches.forEach(([field]) => {
+              const qKey = field === 'InsightPrincipal' ? 'mainInsight' : 'newShopLocation';
+              failed.push({ surveyId: row.SurveyId || row.Id, surveyName: surveyLabel(row), audioName: qKey, error: validationErr });
+              const ri = results.findIndex(r => r.question === qKey);
+              if (ri >= 0) results[ri] = { ...results[ri], status: 'failed', error: validationErr };
+            });
+            if (!isBatch) toast.error(validationErr, { id: toastId });
+          } else {
+            console.log('Save validation ✓ — all fields match');
+            setRecords(prev => prev.map(r => r.Id === row.Id ? { ...r, ...fields } : r));
+            if (!isBatch) toast.success(t('admin.export.transcribeDone', { id: row.Id }), { id: toastId });
+          }
+        } catch (verifyErr) {
+          console.warn('Save verification fetch failed (non-blocking):', verifyErr.message);
+          setRecords(prev => prev.map(r => r.Id === row.Id ? { ...r, ...fields } : r));
+          if (!isBatch) toast.success(t('admin.export.transcribeDone', { id: row.Id }), { id: toastId });
+        }
       } else {
-        toast(t('admin.export.noAudioToTranscribe'), { id: toastId });
+        console.warn('No text was saved — all audio files returned empty or failed.');
+        if (!isBatch) toast(t('admin.export.noAudioToTranscribe'), { id: toastId });
       }
+
+      console.groupEnd();
+      return { fields, failed, results };
     } catch (err) {
-      toast.error(t('admin.export.transcribeError', { id: row.Id }) + err.message, { id: toastId });
+      console.error(`[Transcription] Row #${row.Id} — fatal error:`, err.message);
+      console.groupEnd();
+      if (!isBatch) toast.error(t('admin.export.transcribeError', { id: row.Id }) + err.message, { id: toastId });
+      return { fields: {}, failed: [{ surveyId: row.SurveyId || row.Id, surveyName: surveyLabel(row), audioName: 'unknown', error: err.message }], results: [] };
     } finally {
-      setTranscribingRows(prev => { const n = { ...prev }; delete n[row.Id]; return n; });
+      if (!isBatch) setTranscribingRows(prev => { const n = { ...prev }; delete n[row.Id]; return n; });
     }
   };
 
   // ── records missing transcription ────────────────────────────────────────
-  const noTranscript = (val) => {
-    const v = (val || '').replace(/<[^>]*>/g, '').trim();
-    return !v || v.startsWith('Audio recording captured');
-  };
   const missingTranscription = records.filter(r =>
     r.TemGravacoes === 'Sim' && (noTranscript(r.InsightPrincipal) || noTranscript(r.LocalNovasLojas))
   );
@@ -701,16 +976,58 @@ export default function AdminPage() {
   // ── transcribe all missing ────────────────────────────────────────────────
   const handleTranscribeAll = async () => {
     if (missingTranscription.length === 0) return;
-    setTranscribingAll(true);
-    setTranscribeAllProgress({ current: 0, total: missingTranscription.length });
-    let done = 0;
-    for (const row of missingTranscription) {
-      await handleTranscribeRow(row);
-      done += 1;
-      setTranscribeAllProgress({ current: done, total: missingTranscription.length });
+
+    setTranscribeProgress({
+      active: true, done: false,
+      surveyIndex: 0, surveyTotal: missingTranscription.length,
+      surveyName: '', audioIndex: 0, audioTotal: 0,
+      surveysProcessed: 0, results: [], failed: [],
+    });
+    setShowTranscribeModal(true);
+
+    const allResults = [];
+    const allFailed = [];
+
+    for (let i = 0; i < missingTranscription.length; i++) {
+      const row = missingTranscription[i];
+
+      setTranscribeProgress(prev => ({
+        ...prev,
+        surveyIndex: i + 1,
+        surveyName: surveyLabel(row),
+        audioIndex: null,
+        audioTotal: 0,
+      }));
+
+      const response = await handleTranscribeRow(row, {
+        onAudioStart: (audioIndex, audioTotal) => {
+          setTranscribeProgress(prev => ({ ...prev, audioIndex, audioTotal }));
+        },
+        onAudioDone: (audioIndex, audioTotal) => {
+          setTranscribeProgress(prev => ({ ...prev, audioIndex, audioTotal }));
+        },
+        onResult: (result) => {
+          allResults.push(result);
+          setTranscribeProgress(prev => ({ ...prev, results: [...prev.results, result] }));
+        },
+      });
+
+      allFailed.push(...response.failed);
+      setTranscribeProgress(prev => ({
+        ...prev,
+        surveysProcessed: i + 1,
+        failed: [...prev.failed, ...response.failed],
+      }));
     }
-    setTranscribingAll(false);
-    setTranscribeAllProgress({ current: 0, total: 0 });
+
+    setTranscribeProgress(prev => ({
+      ...prev,
+      active: false,
+      done: true,
+      surveyIndex: missingTranscription.length,
+      results: allResults,
+      failed: allFailed,
+    }));
   };
 
   // ── transcript export ─────────────────────────────────────────────────────
@@ -729,6 +1046,27 @@ export default function AdminPage() {
       setExportingTranscript(false);
       setTranscriptProgress({ current: 0, total: 0 });
     }
+  };
+
+  // ── transcription results Excel export ───────────────────────────────────
+  const handleDownloadTranscriptionExcel = () => {
+    const rows = transcribeProgress.results.map(r => ({
+      'Survey ID':     r.surveyId,
+      'Survey Name':   r.surveyName,
+      'Province':      r.province || '',
+      'Municipality':  r.municipality || '',
+      'Date':          r.date ? new Date(r.date).toLocaleDateString() : '',
+      'Interviewer':   r.interviewer || '',
+      'Question':      r.question === 'mainInsight' ? 'Principal Insight' : r.question === 'newShopLocation' ? 'New Shop Location' : r.question,
+      'Audio File':    r.audioName || '',
+      'Transcription': r.text || '',
+      'Status':        r.status,
+      'Error':         r.error || '',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Transcriptions');
+    XLSX.writeFile(wb, `transcriptions_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   // ── render guards ─────────────────────────────────────────────────────────
@@ -801,6 +1139,20 @@ export default function AdminPage() {
                 <span className="hidden xs:inline">Audities</span>
               </button>
             )}
+            <button
+              onClick={() => setMainTab('pendentes')}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                mainTab === 'pendentes' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              <span className="hidden xs:inline">Pendentes</span>
+              {pendingLocalSurveys.length > 0 && (
+                <span className="min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold bg-orange-500 text-white px-1">
+                  {pendingLocalSurveys.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -810,11 +1162,195 @@ export default function AdminPage() {
         {/* Audities view */}
         {mainTab === 'audities' && canSeeAudities && <AuditiesTab />}
 
+        {/* Pendentes view — offline surveys waiting to sync */}
+        {mainTab === 'pendentes' && (
+          <div className="space-y-4">
+            {/* Summary row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'A aguardar', statuses: ['pending', 'syncing'], color: 'text-blue-500'   },
+                { label: 'Com erros',  statuses: ['sync_failed'],        color: 'text-orange-500' },
+                { label: 'Só áudio',   statuses: ['audio_pending'],      color: 'text-purple-500' },
+                { label: 'Bloqueados', statuses: ['failed_permanent'],   color: 'text-red-500'    },
+              ].map(({ label, statuses, color }) => {
+                const n = pendingLocalSurveys.filter(s => statuses.includes(s.status)).length;
+                return (
+                  <div key={label} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                    <p className={`text-xs font-semibold uppercase tracking-wider ${color}`}>{label}</p>
+                    <p className="text-3xl font-bold text-gray-900 mt-1">{n}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Sync diagnostics */}
+            {syncDiagnostics && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Última sincronização</p>
+                  <p className="text-sm font-medium text-gray-800 mt-1">
+                    {syncDiagnostics.lastSynced
+                      ? new Date(syncDiagnostics.lastSynced).toLocaleString(localeTag, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                      : '—'}
+                  </p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Armazenamento</p>
+                  <p className="text-sm font-medium text-gray-800 mt-1">
+                    {syncDiagnostics.quota
+                      ? `${syncDiagnostics.quota.usageMB} / ${syncDiagnostics.quota.quotaMB} MB (${Math.round((syncDiagnostics.quota.usageRatio || 0) * 100)}%)`
+                      : '—'}
+                  </p>
+                  {syncDiagnostics.quota?.isCritical && <p className="text-xs text-red-500 mt-0.5">Crítico — sincronize já</p>}
+                  {syncDiagnostics.quota?.isWarning && !syncDiagnostics.quota?.isCritical && <p className="text-xs text-orange-500 mt-0.5">Aviso</p>}
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Áudio por enviar</p>
+                  <p className="text-3xl font-bold text-gray-900 mt-1">{syncDiagnostics.unsyncedAudio ?? 0}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Action bar */}
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-gray-500">
+                Inquéritos guardados neste dispositivo que ainda não foram enviados para o servidor.
+              </p>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={loadPendingLocalSurveys}
+                  className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <RefreshCw className={`w-4 h-4 ${pendingLoading ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Atualizar</span>
+                </button>
+                <button
+                  onClick={handleRetryAllLocal}
+                  disabled={pendingLocalSurveys.filter(s => s.status !== 'pending').length === 0}
+                  className="flex items-center gap-1.5 text-sm text-white bg-primary px-3 py-2 rounded-lg hover:bg-primary/90 disabled:opacity-40 transition-colors"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  Tentar novamente todos
+                </button>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              {pendingLoading ? (
+                <div className="flex items-center justify-center h-40">
+                  <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              ) : pendingLocalSurveys.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-40 text-gray-400 space-y-2">
+                  <Clock className="w-8 h-8 text-gray-300" />
+                  <p className="text-sm">Nenhum inquérito pendente neste dispositivo</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
+                        <th className="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Província</th>
+                        <th className="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Criado em</th>
+                        <th className="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Tentativas</th>
+                        <th className="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">Próx. tentativa</th>
+                        <th className="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider max-w-[200px]">Último erro</th>
+                        <th className="px-4 py-3 w-24" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {pendingLocalSurveys.map(s => {
+                        const statusBadge = s.status === 'pending'
+                          ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">Pendente</span>
+                          : s.status === 'syncing'
+                            ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">A enviar…</span>
+                          : s.status === 'audio_pending'
+                            ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">Só áudio</span>
+                          : s.status === 'sync_failed'
+                            ? <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">Com erro</span>
+                            : <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Bloqueado</span>;
+                        const nextRetry = s.nextRetryAt
+                          ? new Date(s.nextRetryAt) > new Date()
+                            ? new Date(s.nextRetryAt).toLocaleTimeString(localeTag, { hour: '2-digit', minute: '2-digit' })
+                            : 'Imediato'
+                          : '—';
+                        return (
+                          <tr key={s.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">{statusBadge}</td>
+                            <td className="px-4 py-3 text-gray-700 capitalize">{s.province || '—'}</td>
+                            <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                              {s.createdAt ? new Date(s.createdAt).toLocaleString(localeTag, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 text-center">{s.retryCount || 0}</td>
+                            <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{nextRetry}</td>
+                            <td className="px-4 py-3 text-gray-400 text-xs max-w-[200px] truncate" title={s.lastError || ''}>
+                              {s.lastError || '—'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleRetryLocalSurvey(s.id)}
+                                  disabled={s.status === 'pending'}
+                                  className="text-gray-400 hover:text-primary disabled:opacity-30 transition-colors"
+                                  title="Tentar novamente"
+                                >
+                                  <RotateCcw className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteLocal({ id: s.id, surveyId: s.surveyId })}
+                                  className="text-gray-400 hover:text-red-500 transition-colors"
+                                  title="Eliminar"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {pendingLocalSurveys.length > 0 && (
+                <div className="px-4 py-2 border-t border-gray-100 bg-gray-50/50">
+                  <p className="text-xs text-gray-400">
+                    {pendingLocalSurveys.length} inquérito{pendingLocalSurveys.length !== 1 ? 's' : ''} neste dispositivo · Abra a app de inquéritos para sincronizar
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Recent sync log */}
+            {syncDiagnostics?.recentLog?.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">Registo de sincronização recente</p>
+                </div>
+                <div className="max-h-56 overflow-y-auto divide-y divide-gray-50">
+                  {syncDiagnostics.recentLog.map((log) => (
+                    <div key={log.id} className="flex items-start gap-2 px-4 py-2 text-xs">
+                      <span className="text-gray-400 whitespace-nowrap">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleTimeString(localeTag, { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                      </span>
+                      <span className={`font-medium ${log.action === 'sync_failed' ? 'text-red-500' : 'text-gray-600'}`}>{log.action}</span>
+                      {log.error && <span className="text-gray-400 truncate" title={log.error}>· {log.error}</span>}
+                      {log.retryCount != null && <span className="ml-auto text-gray-300 whitespace-nowrap">#{log.retryCount}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Data view */}
         {mainTab === 'data' && <>
 
-        {/* Summary KPI cards — 1 col on xs, 3 on sm+ */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+        {/* Summary KPI cards — 1 col on xs, 2 on sm, 4 on lg+ */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
             { label: t('admin.allAnswers.all'), count: totalCount, target: TOTAL_TARGET, province: null },
             ...PROVINCES.map(p => ({ label: p, count: counts[p] ?? 0, target: PROVINCE_TARGETS[p] ?? 0, province: p })),
@@ -872,6 +1408,39 @@ export default function AdminPage() {
 
             <div className="hidden sm:block w-px h-5 bg-gray-200 flex-shrink-0" />
 
+            {/* Transcript filter pills */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {[
+                { value: 'all',         label: t('admin.filter.all')         },
+                { value: 'withAudio',   label: t('admin.filter.withAudio')   },
+                { value: 'noAudio',     label: t('admin.filter.noAudio')     },
+                { value: 'transcribed', label: t('admin.filter.transcribed') },
+                { value: 'missing',     label: t('admin.filter.missing')     },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => { setTranscriptFilter(opt.value); setPage(1); }}
+                  className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
+                    transcriptFilter === opt.value
+                      ? opt.value === 'missing'
+                        ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                        : opt.value === 'transcribed'
+                          ? 'bg-green-100 text-green-700 border border-green-300'
+                          : opt.value === 'withAudio'
+                            ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                            : opt.value === 'noAudio'
+                              ? 'bg-slate-100 text-slate-600 border border-slate-300'
+                              : 'bg-gray-200 text-gray-700 border border-gray-300'
+                      : 'text-gray-400 hover:text-gray-600 border border-transparent hover:border-gray-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="hidden sm:block w-px h-5 bg-gray-200 flex-shrink-0" />
+
             {/* Search — full width on mobile */}
             <div className="relative w-full sm:flex-1 sm:min-w-48 order-last sm:order-none">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -903,14 +1472,29 @@ export default function AdminPage() {
                 <span className="hidden md:inline">{t('admin.export.excel')}</span>
               </button>
               <button
+                onClick={() => setShowTranscribeModal(true)}
+                className="flex items-center gap-1.5 text-sm text-gray-600 border border-gray-200 bg-white px-2.5 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                title={t('admin.transcribeProgress.openProgress')}
+              >
+                <BarChart2 className="w-4 h-4" />
+                <span className="hidden md:inline">
+                  {transcribeProgress.active
+                    ? `${transcribeProgress.surveyIndex}/${transcribeProgress.surveyTotal}`
+                    : transcribeProgress.done
+                      ? t('admin.transcribeProgress.openResults')
+                      : t('admin.transcribeProgress.openProgress')}
+                </span>
+                {transcribeProgress.active && <RefreshCw className="w-3 h-3 animate-spin" />}
+              </button>
+              <button
                 onClick={handleTranscribeAll}
-                disabled={transcribingAll || missingTranscription.length === 0}
+                disabled={transcribeProgress.active || missingTranscription.length === 0}
                 className="flex items-center gap-1.5 text-sm text-orange-700 border border-orange-200 bg-orange-50 px-2.5 py-2 rounded-lg hover:bg-orange-100 disabled:opacity-50 transition-colors"
               >
-                {transcribingAll ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+                {transcribeProgress.active ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
                 <span className="hidden md:inline">
-                  {transcribingAll
-                    ? `${transcribeAllProgress.current}/${transcribeAllProgress.total}`
+                  {transcribeProgress.active
+                    ? `${transcribeProgress.surveyIndex}/${transcribeProgress.surveyTotal}`
                     : `${t('admin.transcribeAll')} (${missingTranscription.length})`}
                 </span>
               </button>
@@ -1082,6 +1666,154 @@ export default function AdminPage() {
         </> /* end data tab */}
       </div>
 
+      {/* Transcription progress modal */}
+      {showTranscribeModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+          onClick={() => !transcribeProgress.active && setShowTranscribeModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-semibold text-gray-900">{t('admin.transcribeProgress.title')}</h2>
+              {!transcribeProgress.active && (
+                <button
+                  onClick={() => setShowTranscribeModal(false)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Overall Progress */}
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                {t('admin.transcribeProgress.overall')}
+              </p>
+              {transcribeProgress.done ? (
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-green-700">{t('admin.transcribeProgress.done')}</p>
+                  <p className="text-sm text-gray-500">
+                    {t('admin.transcribeProgress.surveysDone', {
+                      processed: transcribeProgress.surveysProcessed,
+                      total: transcribeProgress.surveyTotal,
+                    })}
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-sm text-gray-800">
+                    {transcribeProgress.surveyIndex > 0
+                      ? t('admin.transcribeProgress.transcribingSurvey', {
+                          index: transcribeProgress.surveyIndex,
+                          total: transcribeProgress.surveyTotal,
+                        })
+                      : '…'}
+                  </p>
+                  <ProgressBar
+                    value={transcribeProgress.surveyTotal > 0
+                      ? (transcribeProgress.surveysProcessed / transcribeProgress.surveyTotal) * 100
+                      : 0}
+                  />
+                  <p className="text-xs text-gray-400 mt-1">
+                    {transcribeProgress.surveyTotal > 0
+                      ? `${((transcribeProgress.surveysProcessed / transcribeProgress.surveyTotal) * 100).toFixed(1)}%`
+                      : '0.0%'}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Current Survey Progress */}
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                {t('admin.transcribeProgress.currentSurvey')}
+              </p>
+              {transcribeProgress.done ? (
+                <p className="text-sm text-gray-500">{t('admin.transcribeProgress.audioDone')}</p>
+              ) : (
+                <div>
+                  {transcribeProgress.surveyName && (
+                    <p className="text-sm font-medium text-gray-700 mb-1 truncate">{transcribeProgress.surveyName}</p>
+                  )}
+                  {transcribeProgress.audioIndex === null ? (
+                    <p className="text-sm text-gray-400 italic">{t('admin.transcribeProgress.preparingAudio')}</p>
+                  ) : transcribeProgress.audioTotal > 0 ? (
+                    <div>
+                      <p className="text-sm text-gray-800">
+                        {t('admin.transcribeProgress.transcribingAudio', {
+                          index: transcribeProgress.audioIndex,
+                          total: transcribeProgress.audioTotal,
+                        })}
+                      </p>
+                      <ProgressBar
+                        value={(transcribeProgress.audioIndex / transcribeProgress.audioTotal) * 100}
+                        color="purple"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        {((transcribeProgress.audioIndex / transcribeProgress.audioTotal) * 100).toFixed(0)}%
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-400">{t('admin.transcribeProgress.noAudio')}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Failure banner with expandable details */}
+            {transcribeProgress.failed.length > 0 && (
+              <div className="mb-4 p-3 bg-red-50 rounded-lg border border-red-100 space-y-2">
+                <p className="text-sm text-red-700 font-medium flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  {t('admin.transcribeProgress.failedCount', { count: transcribeProgress.failed.length })}
+                </p>
+                <div className="max-h-36 overflow-y-auto space-y-1">
+                  {transcribeProgress.failed.map((f, i) => (
+                    <div key={i} className="text-xs text-red-600 bg-red-100/60 rounded px-2 py-1">
+                      <span className="font-semibold">{f.surveyName}</span>
+                      {f.audioName && f.audioName !== 'unknown' && (
+                        <span className="text-red-400 ml-1">· {f.audioName}</span>
+                      )}
+                      <span className="block text-red-500 mt-0.5">{f.error}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-red-400 italic">Open browser DevTools → Console for full diagnostic logs</p>
+              </div>
+            )}
+
+            {/* Empty-transcript notice */}
+            {(() => {
+              const emptyCount = transcribeProgress.results.filter(r => r.status === 'empty').length;
+              return emptyCount > 0 ? (
+                <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-100">
+                  <p className="text-sm text-amber-700 font-medium flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    {emptyCount} audio{emptyCount > 1 ? 's' : ''} returned no speech — may be silent, too short, or too noisy
+                  </p>
+                </div>
+              ) : null;
+            })()}
+
+            {/* Excel download after completion */}
+            {transcribeProgress.done && transcribeProgress.results.length > 0 && (
+              <button
+                onClick={handleDownloadTranscriptionExcel}
+                className="w-full flex items-center justify-center gap-2 text-sm bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                {t('admin.transcribeProgress.downloadExcel')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Record detail modal */}
       <RecordDetailModal
         record={selectedRecord}
@@ -1090,6 +1822,35 @@ export default function AdminPage() {
         getItemAttachments={getItemAttachments}
         downloadAttachment={downloadAttachment}
       />
+
+      {/* Local survey delete confirmation */}
+      {confirmDeleteLocal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4 space-y-4">
+            <div className="flex items-center space-x-3 text-red-600">
+              <Trash2 className="w-6 h-6 flex-shrink-0" />
+              <h2 className="text-base font-semibold">Eliminar inquérito local?</h2>
+            </div>
+            <p className="text-sm text-gray-600">
+              Este inquérito ainda não foi enviado ao servidor. Eliminar apaga-o permanentemente deste dispositivo.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setConfirmDeleteLocal(null)}
+                className="px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                {t('ui.cancel')}
+              </button>
+              <button
+                onClick={handleDeleteLocalSurvey}
+                className="px-4 py-2 text-sm text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
+              >
+                {t('ui.delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete confirmation modal */}
       {confirmDelete && (

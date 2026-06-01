@@ -118,12 +118,20 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Background Sync — notify the active tab to run the sync queue
+// Notify any open tab to run the sync queue.
+const notifyClientsToSync = () =>
+  self.clients
+    .matchAll({ type: 'window', includeUncontrolled: true })
+    .then((clients) => clients.forEach((c) => c.postMessage({ type: 'BACKGROUND_SYNC_TRIGGERED' })));
+
+// Background Sync — fires once when connectivity returns
 self.addEventListener('sync', (event) => {
   if (event.tag !== 'sync-surveys') return;
-  event.waitUntil(
-    self.clients
-      .matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clients) => clients.forEach((c) => c.postMessage({ type: 'BACKGROUND_SYNC_TRIGGERED' })))
-  );
+  event.waitUntil(notifyClientsToSync());
+});
+
+// Periodic Background Sync — fires on the browser's schedule while installed
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag !== 'sync-surveys-periodic') return;
+  event.waitUntil(notifyClientsToSync());
 });
