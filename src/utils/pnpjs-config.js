@@ -14,7 +14,7 @@ import "@pnp/sp/attachments";
 
 let _sp = null;
 // Live access token. The PnP client is created ONCE, but every request reads the
-// CURRENT token from here via the on.pre observer below. This is critical: SharePoint
+// CURRENT token from here via the pre-request observer below. This is critical: SharePoint
 // tokens expire (~60 min) and a baked-in token would make every later request 401,
 // silently stopping all sync for a surveyor who keeps the app open.
 let _currentToken = null;
@@ -24,17 +24,28 @@ export const setSPToken = (token) => {
   if (token) _currentToken = token;
 };
 
+const LiveSharePointAuth = () => (instance) => {
+  // Inject the live token on EVERY request (not a static header baked in at creation).
+  // OAuth bearer requests do not need SharePoint form digests; this prevents PnP
+  // from calling /_api/contextinfo, which can be blocked for some OAuth grants.
+  instance.on.pre.prepend(async (url, init, result) => {
+    init.headers = {
+      ...init.headers,
+      Authorization: `Bearer ${_currentToken}`,
+      "X-PnPjs-NoDigest": "1",
+    };
+    return [url, init, result];
+  });
+  return instance;
+};
+
 export const getSP = (token) => {
   if (token) _currentToken = token;
   if (!_sp) {
     _sp = spfi().using(
-      SPBrowser({ baseUrl: "https://africellcloud.sharepoint.com/sites/KnowledgeBase" })
+      SPBrowser({ baseUrl: "https://africellcloud.sharepoint.com/sites/KnowledgeBase" }),
+      LiveSharePointAuth()
     );
-    // Inject the live token on EVERY request (not a static header baked in at creation).
-    _sp.on.pre(async (url, init, result) => {
-      init.headers = { ...init.headers, Authorization: `Bearer ${_currentToken}` };
-      return [url, init, result];
-    });
   }
   return _sp;
 };

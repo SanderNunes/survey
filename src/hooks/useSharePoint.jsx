@@ -18,8 +18,23 @@ import "@pnp/sp/lists";
 import "@pnp/sp/items";
 import "@pnp/sp/attachments";
 import "@pnp/sp/fields";
-import "@pnp/sp/site-groups";
 import "@pnp/sp/site-users";
+
+const KNOWLEDGE_BASE_OWNER_GROUP = "KnowledgeBase Owners";
+const KNOWLEDGE_BASE_CURRENT_USER_GROUPS_URL =
+  "https://africellcloud.sharepoint.com/sites/KnowledgeBase/_api/web/currentUser/groups";
+
+const logAdminAccessCheck = (stage, detail) => {
+  if (import.meta.env.DEV) {
+    console.info(`[admin-access] ${stage}`, detail);
+  }
+};
+
+const getGroupsFromSharePointResponse = (payload) => {
+  if (Array.isArray(payload?.value)) return payload.value;
+  if (Array.isArray(payload?.d?.results)) return payload.d.results;
+  return [];
+};
 
 // Collect all pages from a PnPJS v4 items query using $skiptoken pagination
 const collectAllPages = async (query) => {
@@ -38,6 +53,48 @@ const getProvinceListName = (province) => {
   const listName = getPreLaunchListName(province);
   if (!listName) throw new Error(`Unknown province: "${province}". Cannot determine SharePoint list.`);
   return listName;
+};
+
+const PRELAUNCH_OPTIONAL_SAVE_FIELDS = new Set([
+  'DuracaoInquerito',
+  'NomeEntrevistador',
+  'DataPreenchimento',
+  'StatusInquerito',
+  'Duplicado',
+  'TemGravacoes',
+  'CamposComGravacao',
+]);
+
+const getMissingSharePointProperty = (error) => {
+  const message = String(error?.message || error || '');
+  return message.match(/property '([^']+)' does not exist/i)?.[1] || '';
+};
+
+const addPreLaunchItem = async (list, itemData, listName) => {
+  let payload = itemData;
+  const removedFields = new Set();
+
+  for (;;) {
+    try {
+      return await list.items.add(payload);
+    } catch (error) {
+      const missingField = getMissingSharePointProperty(error);
+      const canRetry =
+        missingField &&
+        PRELAUNCH_OPTIONAL_SAVE_FIELDS.has(missingField) &&
+        Object.prototype.hasOwnProperty.call(payload, missingField) &&
+        !removedFields.has(missingField);
+
+      if (!canRetry) throw error;
+
+      removedFields.add(missingField);
+      const { [missingField]: _removed, ...nextPayload } = payload;
+      payload = nextPayload;
+      console.warn(
+        `SharePoint list "${listName}" is missing optional field "${missingField}". Retrying save without it.`
+      );
+    }
+  }
 };
 
 /**
@@ -789,7 +846,8 @@ export const useSharePoint = () => {
         // ── Insert ─────────────────────────────────────────────────────────
 
         onStepChange?.('sendingData');
-        const result = await sp.web.lists.getByTitle(listName).items.add(itemData);
+        const list = sp.web.lists.getByTitle(listName);
+        const result = await addPreLaunchItem(list, itemData, listName);
 
         const itemId = result?.data?.Id ?? result?.data?.ID ?? result?.Id ?? result?.ID ?? result?.id ?? null;
         const createdItem = result?.data || result;
@@ -1026,42 +1084,57 @@ export const useSharePoint = () => {
   // ── Admin panel helpers ──────────────────────────────────────────────────
 
   /**
-   * Returns true if the signed-in user has site-owner level access.
-   *
-   * Three-stage fallback (each stage is tried only if the previous throws):
-   *   1. Associated Owner Group membership — most accurate, but requires
-   *      ManagePermissions; throws 403 for some OAuth token configurations.
-   *   2. IsSiteAdmin flag on the current user object — works for site
-   *      collection admins without needing group-read permissions.
-   *   3. User's own group list — checks whether the user belongs to any
-   *      group whose title contains "Owner"; readable by any authenticated user.
+   * Returns true if the signed-in user belongs to the KnowledgeBase Owners
+   * SharePoint group, using the same currentUser/groups endpoint that
+   * knowledge_portal relies on through PnP.
    */
   const checkIsOwner = useCallback(async () => {
     if (!sp?.web) return false;
 
-    // Stage 1 — Associated Owner Group
     try {
-      const [currentUser, ownerUsers] = await Promise.all([
-        sp.web.currentUser(),
-        sp.web.associatedOwnerGroup.users(),
-      ]);
-      return ownerUsers.some(u => u.Id === currentUser.Id);
-    } catch { /* 403 — fall through */ }
+      const accessToken = await acquireToken({ interactive: false });
+      if (!accessToken) {
+        logAdminAccessCheck('No SharePoint token for owner check');
+        return false;
+      }
 
-    // Stage 2 — IsSiteAdmin
-    try {
-      const user = await sp.web.currentUser();
-      if (user.IsSiteAdmin === true) return true;
-    } catch { /* fall through */ }
+      const response = await fetch(KNOWLEDGE_BASE_CURRENT_USER_GROUPS_URL, {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json;odata=nometadata',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
 
-    // Stage 3 — own group membership
-    try {
-      const groups = await sp.web.currentUser.groups();
-      return groups.some(g => g.Title?.toLowerCase().includes('owner'));
-    } catch {
-      return false;
+      if (!response.ok) {
+        const body = await response.text().catch(() => response.statusText);
+        logAdminAccessCheck('currentUser/groups request failed', {
+          status: response.status,
+          body: body.slice(0, 500),
+        });
+        return false;
+      }
+
+      const groups = getGroupsFromSharePointResponse(await response.json());
+      const isKnowledgeBaseOwner = groups.some(
+        group => group.Title?.trim().toLowerCase() === KNOWLEDGE_BASE_OWNER_GROUP.toLowerCase()
+      );
+      logAdminAccessCheck('currentUser/groups owner result', {
+        isOwner: isKnowledgeBaseOwner,
+        expectedGroup: KNOWLEDGE_BASE_OWNER_GROUP,
+        groupTitles: groups.map(g => g.Title),
+      });
+      if (isKnowledgeBaseOwner) return true;
+      logAdminAccessCheck('KnowledgeBase owner group not found', {
+        expectedGroup: KNOWLEDGE_BASE_OWNER_GROUP,
+        groupTitles: groups.map(g => g.Title),
+      });
+    } catch (error) {
+      logAdminAccessCheck('KnowledgeBase owner group check failed', error);
     }
-  }, [sp]);
+
+    return false;
+  }, [sp, acquireToken]);
 
   /**
    * Fetch items from a province list, ordered newest first.
@@ -1407,6 +1480,12 @@ export const useSharePoint = () => {
     if (!sp?.web || !logs?.length) return [];
     const results = [];
     const list = sp.web.lists.getByTitle('Survey_Audit_Log');
+    const isOwner = await checkIsOwner();
+    logAdminAccessCheck('before Survey_Audit_Log POST', {
+      isOwner,
+      count: logs.length,
+      note: 'If the next request is POST /_api/contextinfo, it is PnP requesting a form digest before list.items.add.',
+    });
 
     for (const log of logs) {
       try {
@@ -1437,7 +1516,7 @@ export const useSharePoint = () => {
     }
 
     return results;
-  }, [sp]);
+  }, [sp, checkIsOwner]);
 
   /**
    * Create the Survey_Audit_Log SharePoint list with all required columns.
