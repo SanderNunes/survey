@@ -4,8 +4,13 @@ import { audioService } from "@/services/audioService";
 import { auditLogger, fireAndForget, AUDIT_ACTIONS } from "@/services/auditLogger";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "@/utils/msal-config";
-import { getSP } from "@/utils/pnpjs-config";
+import { getSP, setSPToken } from "@/utils/pnpjs-config";
 import { normalizeSurveyValue } from "@/utils/surveyValueMapping";
+import {
+  PRELAUNCH_LIST_NAMES,
+  PRELAUNCH_PROVINCES,
+  getPreLaunchListName,
+} from "@/config/preLaunchSurvey";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
 import "@pnp/sp/webs";
@@ -27,6 +32,12 @@ const collectAllPages = async (query) => {
 const QUESTION_LABELS = {
   mainInsight:     'Insight principal (áudio)',
   newShopLocation: 'Local para novas lojas (áudio)',
+};
+
+const getProvinceListName = (province) => {
+  const listName = getPreLaunchListName(province);
+  if (!listName) throw new Error(`Unknown province: "${province}". Cannot determine SharePoint list.`);
+  return listName;
 };
 
 /**
@@ -158,7 +169,7 @@ export const useSharePoint = () => {
    * If both attempts fail, fires a global 'auth:session-expired' event so
    * the UI can show a warning and prompt the user to log in again.
    */
-  const acquireToken = useCallback(async () => {
+  const acquireToken = useCallback(async ({ interactive = true } = {}) => {
     if (!isAuthenticated) return null;
     try {
       const response = await instance.acquireTokenSilent({
@@ -166,12 +177,22 @@ export const useSharePoint = () => {
         account: accounts[0],
         scopes: ["https://africellcloud.sharepoint.com/.default"],
       });
+      setSPToken(response.accessToken); // push live token to the PnP client immediately
       setTokenSP(response.accessToken);
       return response.accessToken;
     } catch (error) {
       console.error("Silent token acquisition failed:", error);
+      // During background sync there is no user gesture — a popup would be blocked
+      // and is the wrong UX. Signal session expiry and let the survey stay queued;
+      // it will sync once the user re-authenticates interactively.
+      if (!interactive) {
+        window.dispatchEvent(new CustomEvent('auth:session-expired'));
+        return null;
+      }
       try {
         const response = await instance.acquireTokenPopup(loginRequest);
+        setSPToken(response.accessToken);
+        setTokenSP(response.accessToken);
         return response.accessToken;
       } catch (popupError) {
         console.error("Interactive token acquisition failed:", popupError);
@@ -201,6 +222,16 @@ export const useSharePoint = () => {
     };
     setupPnP().catch(err => console.error('PnP setup failed:', err));
   }, [sp, tokenSP]);
+
+  // Proactive silent token refresh: SharePoint access tokens last ~60 min. Refresh
+  // every 30 min so a long field session never falls back to an expired token mid-sync.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const id = setInterval(() => {
+      acquireToken({ interactive: false }).catch(() => {});
+    }, 30 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [isAuthenticated, acquireToken]);
 
   /**
    * Upload audio recordings as attachments to a survey response item
@@ -301,6 +332,12 @@ export const useSharePoint = () => {
       if (!sp?.web) {
         console.error('SharePoint context not available');
         return { success: false, message: 'SharePoint not initialized' };
+      }
+
+      // Ensure a fresh, live token before writing (see saveCabindaSurveyResponse).
+      const freshToken = await acquireToken({ interactive: false });
+      if (!freshToken) {
+        return { success: false, message: 'Sessão expirada. Inicie sessão novamente para sincronizar.', authExpired: true };
       }
 
       try {
@@ -440,25 +477,8 @@ export const useSharePoint = () => {
         return { success: false, message: errorMessage, error: error.message, details: error };
       }
     },
-    [sp, uploadAudioRecordings]
+    [sp, uploadAudioRecordings, acquireToken]
   );
-
-  /**
-   * Resolve the SharePoint list name from the selected province.
-   * Cabinda → Cabinda_PreLaunch_Survey
-   * Bié     → Bie_PreLaunch_Survey
-   * Zaire   → Zaire_PreLaunch_Survey
-   */
-  const getProvinceListName = (province) => {
-    const map = {
-      'Cabinda': 'Cabinda_PreLaunch_Survey',
-      'Bié':     'Bie_PreLaunch_Survey',
-      'Zaire':   'Zaire_PreLaunch_Survey',
-    };
-    const listName = map[province];
-    if (!listName) throw new Error(`Unknown province: "${province}". Cannot determine SharePoint list.`);
-    return listName;
-  };
 
   /**
    * Upload audio recordings as attachments to a pre-launch survey item.
@@ -476,19 +496,55 @@ export const useSharePoint = () => {
           metadata:   { itemId, listName, fileCount: Object.keys(audioRecordings).length },
         }));
 
+        // Idempotency: fetch attachments already on the item so retries / audio-only
+        // re-runs / dangling uploads never create a second copy of a question's audio.
+        // Filenames are `${questionId}_<ts>_<rand>.<ext>`, so a prefix match is reliable.
+        let existingPrefixes = new Set();
+        try {
+          const existing = await item.attachmentFiles();
+          existingPrefixes = new Set((existing || []).map(a => String(a.FileName || '').split('_')[0]));
+        } catch (err) {
+          console.warn('Could not list existing attachments (continuing):', err?.message || err);
+        }
+
         for (const [questionId, recording] of Object.entries(audioRecordings)) {
+          if (existingPrefixes.has(questionId)) {
+            // Already uploaded for this question — skip to avoid a duplicate attachment.
+            uploadResults.push({ questionId, success: true, skipped: true, attempts: 0 });
+            continue;
+          }
           if (recording?.blob) {
             try {
               const arrayBuffer = await recording.blob.arrayBuffer();
               const ext      = audioService.getFileExtension(recording.blob.type);
-              const fileName = `${questionId}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
               let uploadResult = null;
               let attempts = 0;
               while (attempts < 3 && !uploadResult) {
                 attempts++;
+                // Fresh filename per attempt so a retry never collides with a
+                // partially-written file from the previous attempt.
+                const fileName = `${questionId}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
                 try {
                   if (attempts > 1) await new Promise(r => setTimeout(r, 1000 * attempts));
-                  uploadResult = await item.attachmentFiles.add(fileName, arrayBuffer);
+                  const added = await item.attachmentFiles.add(fileName, arrayBuffer);
+
+                  // Non-destructive integrity check: log a size mismatch for diagnostics
+                  // but NEVER delete the server file (attachment Length semantics aren't
+                  // guaranteed to equal local byteLength; a false positive would destroy
+                  // good audio, and the retry would then duplicate it). Idempotent upload
+                  // above already prevents duplicates.
+                  const srUrl = added?.ServerRelativeUrl || added?.data?.ServerRelativeUrl;
+                  if (srUrl) {
+                    try {
+                      const props = await sp.web.getFileByServerRelativeUrl(srUrl).select('Length')();
+                      const serverLen = Number(props?.Length ?? props?.length);
+                      if (Number.isFinite(serverLen) && serverLen !== arrayBuffer.byteLength) {
+                        console.warn(`Audio size check: server ${serverLen} ≠ local ${arrayBuffer.byteLength} for ${fileName} (kept; not deleting)`);
+                      }
+                    } catch { /* size unreadable — treat add() as authoritative */ }
+                  }
+
+                  uploadResult = added;
                   uploadResults.push({ questionId, success: true, fileName, attempts, size: arrayBuffer.byteLength });
                   break;
                 } catch (err) {
@@ -543,6 +599,37 @@ export const useSharePoint = () => {
         return { success: false, message: 'Invalid survey data' };
       }
 
+      // Ensure a fresh token before any write. Silent acquire returns the cached
+      // token if still valid; if expired it refreshes and pushes it to the PnP
+      // client. Non-interactive: a background sync must never trigger a popup.
+      const freshToken = await acquireToken({ interactive: false });
+      if (!freshToken) {
+        return { success: false, message: 'Sessão expirada. Inicie sessão novamente para sincronizar.', authExpired: true };
+      }
+
+      // ── Audio-only retry mode ───────────────────────────────────────────
+      // syncEngine calls this for surveys already created in SharePoint whose
+      // audio upload failed. We re-upload ONLY the audio to the existing item —
+      // never re-create the survey (which would duplicate it).
+      if (surveyData.audioOnly) {
+        try {
+          const res = await uploadPreLaunchAudio(
+            surveyData.listName, surveyData.spItemId, surveyData.audioRecordings || {},
+          );
+          const fullyOk = res && !res.hasFailures;
+          return {
+            success: fullyOk,
+            audioOnly: true,
+            audioUploadResult: res,
+            itemId: surveyData.spItemId,
+            listName: surveyData.listName,
+            message: fullyOk ? 'Áudio sincronizado.' : 'Áudio ainda por sincronizar.',
+          };
+        } catch (audioError) {
+          return { success: false, audioOnly: true, message: audioError.message, error: audioError.message };
+        }
+      }
+
       try {
         const r  = surveyData.responses   || {};
         const ci = surveyData.customInputs || {};
@@ -565,19 +652,33 @@ export const useSharePoint = () => {
         // ── Server-side duplicate prevention ──────────────────────────────
 
         onStepChange?.('checkingDuplicates');
-        // 1. Exact match by SurveyId (non-blocking if column not indexed)
+        // 1. Exact match by SurveyId. This is the idempotency guard: if a previous
+        //    attempt inserted the item but the client never got the response, this
+        //    check catches it on retry and avoids a duplicate. Because that safety
+        //    depends on the check actually running, we RETRY it a few times and, if
+        //    it still cannot run, DEFER the insert (retryable) rather than inserting
+        //    blindly — trading a delayed sync for zero duplicates.
         if (meta.surveyId) {
-          try {
-            const existingById = await sp.web.lists
-              .getByTitle(listName)
-              .items
-              .filter(`SurveyId eq '${escOData(meta.surveyId)}'`)
-              .top(1)();
-            if (existingById.length > 0) {
-              return { success: false, message: 'Inquérito duplicado detectado.', isDuplicate: true };
+          let checkOk = false;
+          for (let attempt = 1; attempt <= 3 && !checkOk; attempt++) {
+            try {
+              const existingById = await sp.web.lists
+                .getByTitle(listName)
+                .items
+                .filter(`SurveyId eq '${escOData(meta.surveyId)}'`)
+                .top(1)();
+              checkOk = true;
+              if (existingById.length > 0) {
+                return { success: false, message: 'Inquérito duplicado detectado.', isDuplicate: true };
+              }
+            } catch (err) {
+              console.warn(`SurveyId duplicate check failed (attempt ${attempt}/3):`, err?.message || err);
+              if (attempt < 3) await new Promise(r => setTimeout(r, 800 * attempt));
             }
-          } catch (err) {
-            console.warn('SurveyId duplicate check failed (non-blocking):', err?.message || err);
+          }
+          if (!checkOk) {
+            // Could not verify uniqueness — do NOT insert; let the sync engine retry later.
+            return { success: false, message: 'Não foi possível verificar duplicados. Nova tentativa mais tarde.', retryable: true };
           }
         }
 
@@ -730,7 +831,7 @@ export const useSharePoint = () => {
         return { success: false, message: errorMessage, error: error.message, details: error };
       }
     },
-    [sp, uploadPreLaunchAudio]
+    [sp, uploadPreLaunchAudio, acquireToken]
   );
 
   /**
@@ -768,11 +869,7 @@ export const useSharePoint = () => {
   const createPreLaunchLists = useCallback(async () => {
     if (!sp?.web) return { success: false, message: 'SharePoint not initialized' };
 
-    const listNames = [
-      'Cabinda_PreLaunch_Survey',
-      'Bie_PreLaunch_Survey',
-      'Zaire_PreLaunch_Survey',
-    ];
+    const listNames = Object.values(PRELAUNCH_LIST_NAMES);
 
     // Column schema — [internalName, type, extraProps]
     // type: 'text' | 'note' | 'number' | 'datetime'
@@ -1002,18 +1099,20 @@ export const useSharePoint = () => {
   );
 
   /**
-   * Fetch submission counts for Cabinda and Zaire from SharePoint in parallel.
-   * Returns { Cabinda: number, Zaire: number, total: number }
+   * Fetch submission counts for all pre-launch provinces from SharePoint in parallel.
    */
   const getSurveyTargetCounts = useCallback(
     async () => {
       if (!sp?.web) return null;
       try {
-        const [cabinda, zaire] = await Promise.all([
-          getProvinceCount('Cabinda'),
-          getProvinceCount('Zaire'),
-        ]);
-        return { Cabinda: cabinda, Zaire: zaire, total: cabinda + zaire };
+        const counts = await Promise.all(PRELAUNCH_PROVINCES.map((province) => getProvinceCount(province)));
+        const byProvince = Object.fromEntries(
+          PRELAUNCH_PROVINCES.map((province, index) => [province, counts[index]])
+        );
+        return {
+          ...byProvince,
+          total: counts.reduce((sum, count) => sum + count, 0),
+        };
       } catch (err) {
         console.warn('Failed to fetch survey target counts:', err.message);
         return null;
@@ -1031,13 +1130,6 @@ export const useSharePoint = () => {
     async () => {
       if (!sp?.web) return null;
       try {
-        const [cabindaItems, zaireItems] = await Promise.all([
-          collectAllPages(sp.web.lists.getByTitle('Cabinda_PreLaunch_Survey').items
-            .select('Municipio', 'Genero', 'FaixaEtaria')),
-          collectAllPages(sp.web.lists.getByTitle('Zaire_PreLaunch_Survey').items
-            .select('Municipio', 'Genero', 'FaixaEtaria')),
-        ]);
-
         const aggregate = (items) => {
           const municipalities = {};
           const genders = { 'Masculino': 0, 'Feminino': 0 };
@@ -1053,27 +1145,43 @@ export const useSharePoint = () => {
           return { municipalities, genders, ages, total: items.length };
         };
 
-        const cabinda = aggregate(cabindaItems);
-        const zaire = aggregate(zaireItems);
-
-        const allMunicipalities = { ...cabinda.municipalities };
-        for (const [k, v] of Object.entries(zaire.municipalities)) {
-          allMunicipalities[k] = (allMunicipalities[k] || 0) + v;
+        const results = await Promise.allSettled(
+          PRELAUNCH_PROVINCES.map((province) =>
+            collectAllPages(sp.web.lists.getByTitle(getProvinceListName(province)).items
+              .select('Municipio', 'Genero', 'FaixaEtaria'))
+          )
+        );
+        const fulfilled = results.filter((result) => result.status === 'fulfilled');
+        if (fulfilled.length === 0) {
+          results.forEach((result) => {
+            if (result.status === 'rejected') console.warn('Failed to fetch detailed survey stats:', result.reason?.message || result.reason);
+          });
+          return null;
         }
-        const allGenders = {
-          'Masculino': (cabinda.genders['Masculino'] || 0) + (zaire.genders['Masculino'] || 0),
-          'Feminino':  (cabinda.genders['Feminino']  || 0) + (zaire.genders['Feminino']  || 0),
-        };
-        const allAges = { ...cabinda.ages };
-        for (const [k, v] of Object.entries(zaire.ages)) {
-          allAges[k] = (allAges[k] || 0) + v;
+
+        const summaries = fulfilled.map((result) => aggregate(result.value));
+        const allMunicipalities = {};
+        const allGenders = { 'Masculino': 0, 'Feminino': 0 };
+        const allAges = {};
+        let total = 0;
+
+        for (const summary of summaries) {
+          total += summary.total;
+          for (const [k, v] of Object.entries(summary.municipalities)) {
+            allMunicipalities[k] = (allMunicipalities[k] || 0) + v;
+          }
+          allGenders.Masculino += summary.genders.Masculino || 0;
+          allGenders.Feminino += summary.genders.Feminino || 0;
+          for (const [k, v] of Object.entries(summary.ages)) {
+            allAges[k] = (allAges[k] || 0) + v;
+          }
         }
 
         return {
           municipalities: allMunicipalities,
           genders: allGenders,
           ages: allAges,
-          total: cabinda.total + zaire.total,
+          total,
         };
       } catch (err) {
         console.warn('Failed to fetch detailed survey stats:', err.message);
@@ -1104,6 +1212,19 @@ export const useSharePoint = () => {
       if (!sp?.web) throw new Error('SharePoint not initialized');
       const listName = getProvinceListName(province);
       await sp.web.lists.getByTitle(listName).items.getById(itemId).update(fields);
+    },
+    [sp]
+  );
+
+  /**
+   * Read a single province list item back from SharePoint.
+   * Used to validate that a transcription was persisted correctly.
+   */
+  const readProvinceRecord = useCallback(
+    async (province, itemId, selectFields) => {
+      if (!sp?.web) throw new Error('SharePoint not initialized');
+      const listName = getProvinceListName(province);
+      return await sp.web.lists.getByTitle(listName).items.getById(itemId).select(...selectFields)();
     },
     [sp]
   );
@@ -1413,6 +1534,7 @@ export const useSharePoint = () => {
     getProvinceCount,
     deleteProvinceRecord,
     updateProvinceRecord,
+    readProvinceRecord,
     getItemAttachments,
     downloadAttachment,
     exportProvincePackage,
