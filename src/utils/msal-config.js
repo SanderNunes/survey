@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars */
 // src/utils/msal-config.js
 import { PublicClientApplication } from "@azure/msal-browser";
 
@@ -7,6 +6,7 @@ export const msalConfig = {
     clientId: import.meta.env.VITE_APP_CLIENT_ID,
     authority: import.meta.env.VITE_APP_AUTHORITY,
     redirectUri: import.meta.env.VITE_APP_REDIRECT_URI,
+    postLogoutRedirectUri: import.meta.env.VITE_APP_POSTLOGOUTREDIRECTURI,
   },
   cache: {
     cacheLocation: "sessionStorage",
@@ -14,23 +14,28 @@ export const msalConfig = {
   },
 };
 
-let msalInstance = PublicClientApplication | null;
-
-export const loginRequest = {scopes : [
+export const loginRequest = {
+  scopes: [
     "files.readwrite",
     "sites.selected",
     "User.Read",
-  ]};
-
-
-export const getMsalInstance = async () => {
-  if (!msalInstance) {
-    msalInstance = new PublicClientApplication(msalConfig);
-    await msalInstance.initialize(); // This ensures full initialization
-  }
-  return msalInstance;
+  ],
 };
 
+export const ssoSilentRequest = { ...loginRequest };
 
+let msalInstancePromise = null;
 
-
+export const getMsalInstance = () => {
+  if (!msalInstancePromise) {
+    msalInstancePromise = (async () => {
+      const instance = new PublicClientApplication(msalConfig);
+      await instance.initialize();
+      const account =
+        instance.getActiveAccount() || instance.getAllAccounts()[0];
+      if (account) instance.setActiveAccount(account);
+      return instance;
+    })();
+  }
+  return msalInstancePromise;
+};

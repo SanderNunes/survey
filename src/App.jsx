@@ -41,9 +41,24 @@ import { useEffect, useState } from "react";
 import { getMsalInstance } from "./utils/msal-config";
 import { MsalProvider } from "@azure/msal-react";
 import LoadingSkeleton from "./components/LoadingSkeleton";
-import { useAuth } from "./hooks/useAuth";
 import { Toaster } from "react-hot-toast";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { authService } from "./services/auth.service";
+
+let authBootstrapPromise = null;
+
+function bootstrapAuth() {
+  if (!authBootstrapPromise) {
+    authBootstrapPromise = (async () => {
+      const instance = await getMsalInstance();
+      if (instance.getAllAccounts().length === 0) {
+        await authService.ssoSilent();
+      }
+      return instance;
+    })();
+  }
+  return authBootstrapPromise;
+}
 
 // Loader component for handling MSAL initialization
 function AuthLoader({ children }) {
@@ -83,21 +98,21 @@ useEffect(() => {
 
 
   useEffect(() => {
+    let cancelled = false;
     const initMsal = async () => {
       try {
-        const instance = await getMsalInstance();
-
-        // Optional delay to prevent loading flicker
-        setTimeout(() => {
-          setMsalInstance(instance);
-        }, 200);
+        const instance = await bootstrapAuth();
+        if (!cancelled) setMsalInstance(instance);
       } catch (err) {
         console.error("MSAL initialization failed:", err);
-        setError("Authentication service is currently unavailable.");
+        if (!cancelled) setError("Authentication service is currently unavailable.");
       }
     };
 
     initMsal();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (error) {
@@ -127,8 +142,36 @@ useEffect(() => {
   );
 }
 
+function hasOAuthParams() {
+  const keys = ["code", "state", "access_token", "id_token", "error", "session_state"];
+  const rawHash = window.location.hash.startsWith("#") ? window.location.hash.slice(1) : window.location.hash;
+  const hashParams = new URLSearchParams(rawHash);
+  const searchParams = new URLSearchParams(window.location.search);
+  return keys.some((key) => hashParams.has(key) || searchParams.has(key));
+}
+
+function isEmbeddedFrame() {
+  try {
+    return window.parent && window.parent !== window;
+  } catch {
+    return false;
+  }
+}
+
+function OAuthCompleting() {
+  return (
+    <div className="flex items-center justify-center w-screen h-screen bg-gray-50 animate-fadeIn">
+      <LoadingSkeleton />
+    </div>
+  );
+}
+
 // Main App component
 export default function App() {
+  if (window.location.pathname === "/" && hasOAuthParams() && (window.opener || isEmbeddedFrame())) {
+    return <OAuthCompleting />;
+  }
+
   return (
     <AuthLoader>
       <RouterProvider router={router} />

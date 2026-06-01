@@ -26,6 +26,7 @@ export function useAuth() {
     const isAuth = async () => {
       try {
         const token = await authService.getAccessToken();
+        if (!token) return;
         const [account, profile, profileBeta] = await Promise.all([
           authService.getAccount(),
           fetchUserProfile(token),
@@ -54,6 +55,10 @@ export function useAuth() {
     try {
       const authenticated = await authService.isAuthenticated();
       const token = await authService.getAccessToken();
+      if (!token) {
+        setIsAuthenticated(authenticated);
+        return;
+      }
       const account = (await authService.getAccount()) || {};
       const [profile, profileBeta] = await Promise.all([
         fetchUserProfile(token),
@@ -91,4 +96,3 @@ export function useAuth() {
     logout
   };
 };
-
