@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronLeft, Check, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff, User, AlertTriangle, RefreshCw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight, ChevronLeft, Check, Mic, Square, Play, Pause, Trash2, Save, Loader2, Wifi, WifiOff, User, AlertTriangle, RefreshCw, ArrowLeft } from 'lucide-react';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useSharePoint } from '@/hooks/useSharePoint';
 import { useOfflineQueue, StorageError } from '@/hooks/useOfflineQueue';
@@ -84,6 +85,7 @@ const PreliminaryReport = ({ stats, loading, targets, total, duration }) => {
 
 const CabindaSurvey = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(0);
   const [currentSection, setCurrentSection] = useState('demographics');
   const [responses, setResponses] = useState({});
@@ -312,7 +314,7 @@ const CabindaSurvey = () => {
       // Fetch synced surveys from SharePoint and unsynced ones from local IndexedDB in parallel
       const [spStats, localSurveys] = await Promise.all([
         getSurveyDetailedStats?.() ?? null,
-        db.surveys.where('status').anyOf(['pending', 'syncing', 'sync_failed', 'failed_permanent']).toArray(),
+        db.surveys.where('status').anyOf(['pending', 'syncing', 'sync_failed', 'audio_pending', 'failed_permanent']).toArray(),
       ]);
 
       // Aggregate local pending surveys by the same fields the SP report uses
@@ -349,7 +351,7 @@ const CabindaSurvey = () => {
   const loadPendingItems = useCallback(async () => {
     setLoadingItems(true);
     try {
-      const items = await db.surveys.where('status').anyOf(['pending', 'sync_failed', 'failed_permanent']).toArray();
+      const items = await db.surveys.where('status').anyOf(['pending', 'sync_failed', 'audio_pending', 'failed_permanent']).toArray();
       setPendingItems(items.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
     } catch { /* db not ready */ }
     finally { setLoadingItems(false); }
@@ -1141,6 +1143,13 @@ const CabindaSurvey = () => {
 
           {/* Header */}
           <div className="mb-6 sm:mb-8">
+            <button
+              onClick={() => navigate('/home')}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-primary transition-colors mb-3"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              {t('dashboard.backToDashboard')}
+            </button>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
               <h1 className="text-xl sm:text-2xl font-bold text-primaryDark text-center sm:text-left">
                 {t('cabinda.title')}

@@ -109,6 +109,14 @@ const DETAIL_SECTIONS = [
   },
 ];
 
+const blobToDataUrl = (blob) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Failed to export local audio blob'));
+    reader.readAsDataURL(blob);
+  });
+
 // Strip SharePoint ExternalClass HTML wrappers and decode HTML entities
 function stripSharePointHtml(raw) {
   if (!raw) return '';
@@ -552,7 +560,7 @@ export default function AdminPage() {
 
       // Diagnostics: last successful sync, storage usage, unsynced audio, recent log
       const [lastSynced, quota, unsyncedAudio, recentLog] = await Promise.all([
-        db.surveys.where('status').equals('synced').reverse().sortBy('syncedAt').then(rows => rows[0]?.syncedAt || null).catch(() => null),
+        db.submissions.orderBy('syncedAt').reverse().filter(row => !!row.syncedAt).first().then(row => row?.syncedAt || null).catch(() => null),
         storageService.getQuotaInfo().catch(() => null),
         db.audioBlobs.where('status').anyOf(['pending', 'upload_failed']).count().catch(() => 0),
         db.syncLog.reverse().limit(15).toArray().catch(() => []),
@@ -591,6 +599,43 @@ export default function AdminPage() {
     setConfirmDeleteLocal(null);
     await loadPendingLocalSurveys();
     toast.success('Inquérito local eliminado');
+  };
+
+  const handleExportLocalSurvey = async (survey) => {
+    try {
+      const audioRows = await db.audioBlobs.where('surveyId').equals(survey.surveyId).toArray();
+      const audioBlobs = [];
+      for (const row of audioRows) {
+        audioBlobs.push({
+          questionId: row.questionId,
+          mimeType: row.mimeType || row.blob?.type || '',
+          sizeBytes: row.sizeBytes || row.blob?.size || 0,
+          hash: row.hash || '',
+          status: row.status || '',
+          dataUrl: row.blob ? await blobToDataUrl(row.blob) : '',
+        });
+      }
+
+      const payload = {
+        exportedAt: new Date().toISOString(),
+        app: 'Africell Survey',
+        purpose: 'local-survey-recovery',
+        survey,
+        audioBlobs,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `local-survey-${survey.surveyId || survey.id}-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Inquérito local exportado');
+    } catch (err) {
+      toast.error(`Erro ao exportar inquérito local: ${err.message}`);
+    }
   };
 
   // ── load records — 404 shows an inline notice, not a toast ────────────────
@@ -1291,6 +1336,13 @@ export default function AdminPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2">
                                 <button
+                                  onClick={() => handleExportLocalSurvey(s)}
+                                  className="text-gray-400 hover:text-blue-500 transition-colors"
+                                  title="Exportar para suporte"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </button>
+                                <button
                                   onClick={() => handleRetryLocalSurvey(s.id)}
                                   disabled={s.status === 'pending'}
                                   className="text-gray-400 hover:text-primary disabled:opacity-30 transition-colors"
@@ -1832,7 +1884,7 @@ export default function AdminPage() {
               <h2 className="text-base font-semibold">Eliminar inquérito local?</h2>
             </div>
             <p className="text-sm text-gray-600">
-              Este inquérito ainda não foi enviado ao servidor. Eliminar apaga-o permanentemente deste dispositivo.
+              Este inquérito ainda não foi enviado ao servidor. Exporte-o para suporte antes de eliminar; eliminar apaga-o permanentemente deste dispositivo.
             </p>
             <div className="flex justify-end space-x-3">
               <button

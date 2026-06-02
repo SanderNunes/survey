@@ -5,6 +5,7 @@ import MainLayout from "@/layouts/MainLayout";
 import PrivateRoute from "./PrivateRoute";
 import AdminRoute from "./AdminRoute";
 import Survey from "@/pages/home";
+import SurveyorDashboard from "@/pages/dashboard";
 import AdminPage from "@/pages/admin";
 
 const router = createBrowserRouter([
@@ -22,6 +23,10 @@ const router = createBrowserRouter([
     children: [
       {
         path: "",
+        element: <SurveyorDashboard />,
+      },
+      {
+        path: "survey",
         element: <Survey />,
       },
       {

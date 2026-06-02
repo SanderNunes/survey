@@ -3,6 +3,13 @@ import { db, initDB, DBInitError, isStoragePersisted } from '@/db/offlineDB';
 import { storageService } from '@/services/storageService';
 import { syncEngine }     from '@/services/syncEngine';
 import { auditLogger, fireAndForget, AUDIT_ACTIONS } from '@/services/auditLogger';
+import {
+  SYNC_SCHEMA_VERSION,
+  buildAudioManifestFromBlobs,
+  buildAudioManifestFromRecordings,
+  buildPayloadChecksum,
+  getSubmissionMetadata,
+} from '@/utils/syncIntegrity';
 
 export class StorageError extends Error {
   constructor(message, code) {
@@ -26,13 +33,15 @@ function base64ToBlob(dataUri) {
   return new Blob([bytes], { type: mime });
 }
 
-async function migrateFromLocalStorage() {
+export async function migrateFromLocalStorage() {
   const LS_KEY = 'offline-cabinda-surveys';
   const raw    = localStorage.getItem(LS_KEY);
   if (!raw) return;
 
   try {
     const surveys = JSON.parse(raw);
+    const remaining = [];
+
     for (const old of surveys) {
       if (old.status === 'synced') continue;
 
@@ -42,15 +51,26 @@ async function migrateFromLocalStorage() {
       const exists = await db.surveys.where('surveyId').equals(surveyId).count();
       if (exists > 0) continue;
 
+      const audioRows = [];
       for (const [qId, b64] of Object.entries(old.audioData || {})) {
         try {
           const blob = base64ToBlob(b64);
-          await db.audioBlobs.add({
+          const manifest = await buildAudioManifestFromBlobs([{
             surveyId,
             questionId: qId,
             blob,
             mimeType:   blob.type,
             sizeBytes:  blob.size,
+            status:     'pending',
+            uploadedAt: null,
+          }]);
+          audioRows.push({
+            surveyId,
+            questionId: qId,
+            blob,
+            mimeType:   blob.type,
+            sizeBytes:  blob.size,
+            hash:       manifest[0]?.hash || '',
             status:     'pending',
             uploadedAt: null,
           });
@@ -59,25 +79,50 @@ async function migrateFromLocalStorage() {
         }
       }
 
-      await db.surveys.add({
-        surveyId,
-        province:    'cabinda',
-        retryCount:  0,
-        status:      old.status === 'sync_failed' ? 'sync_failed' : 'pending',
-        createdAt:   old.timestamp || new Date().toISOString(),
-        syncedAt:    null,
-        nextRetryAt: null,
-        lastError:   null,
-        data: {
-          responses:   old.responses   || {},
-          customInputs: old.customInputs || {},
-          metadata:    old.metadata     || {},
-          fingerprint: old.fingerprint,
-        },
-      });
+      const createdAt = old.timestamp || new Date().toISOString();
+      const data = {
+        responses:   old.responses   || {},
+        customInputs: old.customInputs || {},
+        metadata:    old.metadata     || {},
+        fingerprint: old.fingerprint,
+      };
+      if (!data.metadata.surveyId) data.metadata.surveyId = surveyId;
+      const payloadChecksum = await buildPayloadChecksum(data);
+      const audioManifest = await buildAudioManifestFromBlobs(audioRows);
+      const province = data.responses?.province || old.province || 'Cabinda';
+
+      try {
+        await db.transaction('rw', db.surveys, db.audioBlobs, db.submissions, async () => {
+          for (const row of audioRows) await db.audioBlobs.add(row);
+
+          const surveyRow = {
+            surveyId,
+            province,
+            retryCount:  0,
+            status:      old.status === 'sync_failed' ? 'sync_failed' : 'pending',
+            createdAt,
+            syncedAt:    null,
+            nextRetryAt: null,
+            lastError:   null,
+            data,
+            schemaVersion: SYNC_SCHEMA_VERSION,
+            payloadChecksum,
+            audioManifest,
+            syncLeaseOwner: null,
+            syncLeaseUntil: null,
+            syncPreviousStatus: null,
+          };
+          await db.surveys.add(surveyRow);
+          await db.submissions.add(getSubmissionMetadata(surveyRow, { syncStatus: 'local' }));
+        });
+      } catch (err) {
+        console.error('[useOfflineQueue] Failed to migrate localStorage survey:', surveyId, err);
+        remaining.push(old);
+      }
     }
 
-    localStorage.removeItem(LS_KEY);
+    if (remaining.length > 0) localStorage.setItem(LS_KEY, JSON.stringify(remaining));
+    else localStorage.removeItem(LS_KEY);
   } catch (err) {
     console.error('[useOfflineQueue] Migration from localStorage failed:', err);
   }
@@ -147,7 +192,7 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
       // Surface a clear, user-actionable error instead of silently breaking saves.
       setDbError(err instanceof DBInitError ? err : new DBInitError('Erro de armazenamento local.', err));
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Network detection ────────────────────────────────────────────────────
   useEffect(() => {
@@ -191,7 +236,7 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
     };
     navigator.serviceWorker?.addEventListener('message', handleSWMessage);
     return () => navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  });
 
   // ── Auto-sync 2 s after coming back online ───────────────────────────────
   useEffect(() => {
@@ -245,12 +290,12 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
 
     const interval = setInterval(syncLogs, 60000);
     return () => clearInterval(interval);
-  }, [isOnline, syncAuditLogsFn]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOnline, syncAuditLogsFn]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   const refreshPendingCount = async () => {
     try {
-      const n = await db.surveys.where('status').anyOf(['pending', 'sync_failed', 'audio_pending']).count();
+      const n = await db.surveys.where('status').anyOf(['pending', 'sync_failed', 'audio_pending', 'failed_permanent']).count();
       setPendingCount(n);
     } catch { /* DB may not be ready yet */ }
   };
@@ -293,12 +338,23 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
     }
 
     const surveyId = crypto.randomUUID(); // idempotency key
+    const createdAt = new Date().toISOString();
+    const audioManifest = await buildAudioManifestFromRecordings(audioRecordings);
+    const audioByQuestion = new Map(audioManifest.map(entry => [entry.questionId, entry]));
+    const surveyDataWithId = {
+      ...surveyData,
+      metadata: {
+        ...(surveyData?.metadata || {}),
+        surveyId,
+      },
+    };
+    const payloadChecksum = await buildPayloadChecksum(surveyDataWithId);
 
     try {
       // Atomic write: audio blobs + survey row succeed together or roll back together.
       // Prevents orphaned audio (blobs with no survey) or a half-saved survey if the
       // write throws midway (e.g. QuotaExceededError between the loop and the row add).
-      await db.transaction('rw', db.surveys, db.audioBlobs, async () => {
+      await db.transaction('rw', db.surveys, db.audioBlobs, db.submissions, async () => {
         for (const [qId, rec] of Object.entries(audioRecordings)) {
           if (!rec?.blob) continue;
           await db.audioBlobs.add({
@@ -307,23 +363,32 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
             blob:       rec.blob,
             mimeType:   rec.blob.type,
             sizeBytes:  rec.blob.size,
+            hash:       audioByQuestion.get(qId)?.hash || '',
             status:     'pending',
             uploadedAt: null,
           });
         }
 
         // Store survey data (text only — no blobs here)
-        await db.surveys.add({
+        const surveyRow = {
           surveyId,
           status:      'pending',
-          createdAt:   new Date().toISOString(),
+          createdAt,
           syncedAt:    null,
           province,
           retryCount:  0,
           nextRetryAt: null,
           lastError:   null,
-          data:        surveyData,
-        });
+          data:        surveyDataWithId,
+          schemaVersion: SYNC_SCHEMA_VERSION,
+          payloadChecksum,
+          audioManifest,
+          syncLeaseOwner: null,
+          syncLeaseUntil: null,
+          syncPreviousStatus: null,
+        };
+        await db.surveys.add(surveyRow);
+        await db.submissions.add(getSubmissionMetadata(surveyRow, { syncStatus: 'local' }));
       });
 
       fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SURVEY_SAVED_OFFLINE, surveyId, {

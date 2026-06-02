@@ -1,7 +1,5 @@
 const WARN_THRESHOLD  = 0.70;
 const BLOCK_THRESHOLD = 0.85;
-const CLEANUP_AGE_MS  = 24 * 60 * 60 * 1000; // 24 hours
-
 class StorageService {
   async getQuotaInfo() {
     if (!navigator.storage?.estimate) {
@@ -33,12 +31,11 @@ class StorageService {
     return { allowed: true, info };
   }
 
-  // Delete synced surveys + their audio blobs older than CLEANUP_AGE_MS
+  // Delete full synced surveys + their audio blobs. Metadata receipts stay in
+  // db.submissions, which is the durable local counter/audit surface.
   async cleanupSyncedData(db) {
-    const cutoff = new Date(Date.now() - CLEANUP_AGE_MS).toISOString();
     const synced = await db.surveys
       .where('status').equals('synced')
-      .and(s => !!s.syncedAt && s.syncedAt < cutoff)
       .toArray();
 
     for (const s of synced) {

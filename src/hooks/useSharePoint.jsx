@@ -10,6 +10,7 @@ import {
   PRELAUNCH_LIST_NAMES,
   PRELAUNCH_PROVINCES,
   getPreLaunchListName,
+  normalizePreLaunchProvince,
 } from "@/config/preLaunchSurvey";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
@@ -55,6 +56,12 @@ const getProvinceListName = (province) => {
   return listName;
 };
 
+const getScopedPreLaunchProvinces = (provinces = []) => {
+  if (!Array.isArray(provinces) || provinces.length === 0) return PRELAUNCH_PROVINCES;
+  const scoped = [...new Set(provinces.map((province) => normalizePreLaunchProvince(province)).filter(Boolean))];
+  return scoped.length > 0 ? scoped : PRELAUNCH_PROVINCES;
+};
+
 const PRELAUNCH_OPTIONAL_SAVE_FIELDS = new Set([
   'DuracaoInquerito',
   'NomeEntrevistador',
@@ -67,7 +74,13 @@ const PRELAUNCH_OPTIONAL_SAVE_FIELDS = new Set([
 
 const getMissingSharePointProperty = (error) => {
   const message = String(error?.message || error || '');
-  return message.match(/property '([^']+)' does not exist/i)?.[1] || '';
+  return message.match(/(?:property|Column) '([^']+)' does not exist/i)?.[1] || '';
+};
+
+const hasSharePointField = async (list, internalName) => {
+  const escaped = String(internalName || '').replace(/'/g, "''");
+  const fields = await list.fields.filter(`InternalName eq '${escaped}'`).top(1)();
+  return fields.length > 0;
 };
 
 const addPreLaunchItem = async (list, itemData, listName) => {
@@ -561,7 +574,8 @@ export const useSharePoint = () => {
           const existing = await item.attachmentFiles();
           existingPrefixes = new Set((existing || []).map(a => String(a.FileName || '').split('_')[0]));
         } catch (err) {
-          console.warn('Could not list existing attachments (continuing):', err?.message || err);
+          console.warn('Could not list existing attachments:', err?.message || err);
+          throw new Error('Não foi possível verificar anexos existentes. Nova tentativa mais tarde.');
         }
 
         for (const [questionId, recording] of Object.entries(audioRecordings)) {
@@ -722,11 +736,42 @@ export const useSharePoint = () => {
               const existingById = await sp.web.lists
                 .getByTitle(listName)
                 .items
+                .select('Id', 'SurveyId')
                 .filter(`SurveyId eq '${escOData(meta.surveyId)}'`)
                 .top(1)();
               checkOk = true;
               if (existingById.length > 0) {
-                return { success: false, message: 'Inquérito duplicado detectado.', isDuplicate: true };
+                const existingItemId = existingById[0].Id ?? existingById[0].ID ?? existingById[0].id ?? null;
+                if (!existingItemId) {
+                  return { success: false, message: 'Duplicado encontrado, mas sem recibo do item. Nova tentativa mais tarde.', retryable: true };
+                }
+                let audioUploadResult = null;
+                if (existingItemId && surveyData.audioRecordings && Object.keys(surveyData.audioRecordings).length > 0) {
+                  try {
+                    audioUploadResult = await uploadPreLaunchAudio(listName, existingItemId, surveyData.audioRecordings);
+                  } catch (audioError) {
+                    audioUploadResult = {
+                      total: Object.keys(surveyData.audioRecordings).length,
+                      successful: 0,
+                      failed: Object.keys(surveyData.audioRecordings).length,
+                      error: audioError.message,
+                      details: Object.keys(surveyData.audioRecordings).map(questionId => ({
+                        questionId,
+                        success: false,
+                        error: audioError.message,
+                      })),
+                      hasFailures: true,
+                    };
+                  }
+                }
+                return {
+                  success: true,
+                  message: 'Inquérito já existia no servidor; estado verificado.',
+                  isDuplicate: true,
+                  itemId: existingItemId,
+                  listName,
+                  audioUploadResult,
+                };
               }
             } catch (err) {
               console.warn(`SurveyId duplicate check failed (attempt ${attempt}/3):`, err?.message || err);
@@ -882,11 +927,14 @@ export const useSharePoint = () => {
       } catch (error) {
         console.error('Error saving pre-launch survey response:', error);
         let errorMessage = 'Erro ao guardar o inquérito. Tente novamente.';
+        const permanentFailure =
+          error.message.includes('Unknown province') ||
+          error.message.includes('400');
         if (error.message.includes('Unknown province'))       errorMessage = error.message;
         else if (error.message.includes('403'))               errorMessage = 'Erro de permissões. Contacte o administrador.';
         else if (error.message.includes('404'))               errorMessage = 'Lista não encontrada. Verifique a configuração.';
         else if (error.message.includes('400'))               errorMessage = 'Dados inválidos. Verifique o preenchimento.';
-        return { success: false, message: errorMessage, error: error.message, details: error };
+        return { success: false, message: errorMessage, error: error.message, details: error, permanentFailure };
       }
     },
     [sp, uploadPreLaunchAudio, acquireToken]
@@ -1265,6 +1313,77 @@ export const useSharePoint = () => {
   );
 
   /**
+   * Per-surveyor stats: how many surveys THIS interviewer has submitted, across
+   * selected province lists, filtered by NomeEntrevistador. Returns { total, today,
+   * municipalities } — the authoritative numbers when online. Mirrors
+   * getSurveyDetailedStats' paging/aggregation but scoped to one surveyor.
+   */
+  const getMySurveyStats = useCallback(
+    async (interviewerName, { provinces = [] } = {}) => {
+      if (!sp?.web || !interviewerName?.trim()) return null;
+      // OData string literals escape a single quote by doubling it.
+      const escaped = interviewerName.trim().replace(/'/g, "''");
+      const normalizedInterviewer = interviewerName.trim().toLowerCase();
+      const todayKey = new Date().toLocaleDateString('en-CA'); // local YYYY-MM-DD
+      const targetProvinces = getScopedPreLaunchProvinces(provinces);
+
+      try {
+        const results = await Promise.allSettled(
+          targetProvinces.map(async (province) => {
+            const list = sp.web.lists.getByTitle(getProvinceListName(province));
+            const hasInterviewerColumn = await hasSharePointField(list, 'NomeEntrevistador');
+
+            if (hasInterviewerColumn) {
+              return collectAllPages(
+                list.items
+                  .select('Municipio', 'DataPreenchimento')
+                  .filter(`NomeEntrevistador eq '${escaped}'`)
+              );
+            }
+
+            // Some existing province lists were created before NomeEntrevistador
+            // existed. Fall back to the SharePoint item author so the dashboard
+            // does not trigger 500s on those lists. This is less precise than the
+            // explicit interviewer column, but it is the only server-side identity
+            // available when the column is absent.
+            console.warn(`SharePoint list for ${province} is missing NomeEntrevistador; using Author fallback for dashboard stats.`);
+            const rows = await collectAllPages(
+              list.items
+                .select('Municipio', 'DataPreenchimento', 'Author/Title')
+                .expand('Author')
+            );
+            return rows.filter((item) =>
+              String(item.Author?.Title || '').trim().toLowerCase() === normalizedInterviewer
+            );
+          })
+        );
+        const fulfilled = results.filter((r) => r.status === 'fulfilled');
+        if (fulfilled.length === 0) return null;
+
+        const municipalities = {};
+        let total = 0;
+        let today = 0;
+        for (const result of fulfilled) {
+          for (const item of result.value) {
+            total++;
+            const mun = normalizeSurveyValue('Municipio', item.Municipio) || 'Desconhecido';
+            municipalities[mun] = (municipalities[mun] || 0) + 1;
+            if (item.DataPreenchimento &&
+                new Date(item.DataPreenchimento).toLocaleDateString('en-CA') === todayKey) {
+              today++;
+            }
+          }
+        }
+        return { total, today, municipalities };
+      } catch (err) {
+        console.warn('Failed to fetch surveyor stats:', err.message);
+        return null;
+      }
+    },
+    [sp]
+  );
+
+  /**
    * Permanently delete one item from a province list.
    */
   const deleteProvinceRecord = useCallback(
@@ -1620,6 +1739,7 @@ export const useSharePoint = () => {
     buildExcelWorksheet,
     getSurveyTargetCounts,
     getSurveyDetailedStats,
+    getMySurveyStats,
     // Debug
     testSharePointConnection,
   };
