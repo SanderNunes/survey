@@ -29,6 +29,7 @@
     "@pnp/odata": "^2.15.0",
     "@pnp/queryable": "^4.13.0",
     "@pnp/sp": "^4.13.0",
+    "@supabase/supabase-js": "^2.107.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tiptap/extension-text-align": "^3.0.9",
     "@tiptap/extension-underline": "^3.0.9",

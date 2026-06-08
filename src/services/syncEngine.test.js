@@ -53,6 +53,8 @@ describe('pre-launch offline sync hardening', () => {
   let initDB;
   let syncEngine;
   let migrateFromLocalStorage;
+  let clearSharePointNotReadyRetryDelays;
+  let getNextRetryDelayMs;
   let buildAudioManifestFromRecordings;
   let buildPayloadChecksum;
 
@@ -60,7 +62,7 @@ describe('pre-launch offline sync hardening', () => {
     installBrowserGlobals();
     ({ db, initDB } = await import('@/db/offlineDB'));
     ({ syncEngine } = await import('@/services/syncEngine'));
-    ({ migrateFromLocalStorage } = await import('@/hooks/useOfflineQueue'));
+    ({ migrateFromLocalStorage, clearSharePointNotReadyRetryDelays, getNextRetryDelayMs } = await import('@/hooks/useOfflineQueue'));
     ({ buildAudioManifestFromRecordings, buildPayloadChecksum } = await import('@/utils/syncIntegrity'));
   });
 
@@ -172,6 +174,24 @@ describe('pre-launch offline sync hardening', () => {
     expect(receipt.spItemId).toBe(42);
   });
 
+  it('defers SharePoint readiness errors without incrementing retry backoff', async () => {
+    const survey = await addSurvey({ surveyId: 'sp-not-ready' });
+
+    await syncEngine._syncOne(survey, async () => ({
+      success: false,
+      message: 'SharePoint not initialized',
+      retryable: true,
+      deferred: true,
+      reason: 'sharepoint_not_ready',
+    }));
+
+    const queued = await db.surveys.where('surveyId').equals('sp-not-ready').first();
+    expect(queued.status).toBe('pending');
+    expect(queued.retryCount).toBe(0);
+    expect(queued.nextRetryAt).toBeNull();
+    expect(queued.lastError).toBe('SharePoint not initialized');
+  });
+
   it('keeps only failed audio locally after partial SharePoint attachment upload', async () => {
     const audioRecordings = {
       mainInsight: { blob: new Blob(['ok-audio'], { type: 'audio/webm' }) },
@@ -199,5 +219,99 @@ describe('pre-launch offline sync hardening', () => {
     expect(queued.audioManifest.map(entry => entry.questionId)).toEqual(['newShopLocation']);
     expect(blobs.map(blob => blob.questionId)).toEqual(['newShopLocation']);
     expect(blobs[0].status).toBe('upload_failed');
+  });
+
+  it('passes full survey payload during audio-only retries for downstream mirrors', async () => {
+    const audioRecordings = {
+      mainInsight: { blob: new Blob(['retry-audio'], { type: 'audio/webm' }) },
+    };
+    const survey = await addSurvey({
+      surveyId: 'audio-only-1',
+      status: 'audio_pending',
+      audioRecordings,
+      data: {
+        responses: { province: 'Cabinda', municipality: 'Cabinda' },
+        customInputs: {},
+        metadata: { surveyId: 'audio-only-1', interviewerName: 'Ana' },
+      },
+    });
+    await db.surveys.update(survey.id, {
+      spItemId: 123,
+      listName: 'Cabinda_PreLaunch_Survey',
+    });
+    const queued = await db.surveys.get(survey.id);
+
+    const saveFn = vi.fn(async (payload) => {
+      expect(payload.audioOnly).toBe(true);
+      expect(payload.responses.province).toBe('Cabinda');
+      expect(payload.metadata.surveyId).toBe('audio-only-1');
+      expect(payload.idempotencyKey).toBe('audio-only-1');
+      expect(payload.audioRecordings.mainInsight.blob).toBeInstanceOf(Blob);
+      return { success: true };
+    });
+
+    await syncEngine._syncAudioOnly(queued, saveFn);
+
+    expect(saveFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps only failed audio after partial audio-only retry success', async () => {
+    const audioRecordings = {
+      mainInsight: { blob: new Blob(['uploaded-audio'], { type: 'audio/webm' }) },
+      newShopLocation: { blob: new Blob(['still-failed-audio'], { type: 'audio/webm' }) },
+    };
+    const survey = await addSurvey({
+      surveyId: 'audio-only-partial',
+      status: 'audio_pending',
+      audioRecordings,
+    });
+    await db.surveys.update(survey.id, {
+      spItemId: 456,
+      listName: 'Cabinda_PreLaunch_Survey',
+    });
+    const queued = await db.surveys.get(survey.id);
+
+    await syncEngine._syncAudioOnly(queued, async () => ({
+      success: false,
+      audioOnly: true,
+      itemId: 456,
+      listName: 'Cabinda_PreLaunch_Survey',
+      audioUploadResult: {
+        hasFailures: true,
+        details: [
+          { questionId: 'mainInsight', success: true, skipped: true },
+          { questionId: 'newShopLocation', success: false, error: 'network' },
+        ],
+      },
+    }));
+
+    const remainingSurvey = await db.surveys.where('surveyId').equals('audio-only-partial').first();
+    const blobs = await db.audioBlobs.where('surveyId').equals('audio-only-partial').toArray();
+    expect(remainingSurvey.status).toBe('audio_pending');
+    expect(remainingSurvey.audioManifest.map(entry => entry.questionId)).toEqual(['newShopLocation']);
+    expect(remainingSurvey.nextRetryAt).toBeTruthy();
+    expect(blobs.map(blob => blob.questionId)).toEqual(['newShopLocation']);
+    expect(blobs[0].status).toBe('upload_failed');
+  });
+
+  it('clears old SharePoint-not-ready retry delays and finds the next retry wake-up', async () => {
+    const first = await addSurvey({ surveyId: 'clear-sp-init', status: 'sync_failed' });
+    await db.surveys.update(first.id, {
+      retryCount: 4,
+      lastError: 'SharePoint not initialized',
+      nextRetryAt: '2026-06-01T10:10:00.000Z',
+    });
+    const second = await addSurvey({ surveyId: 'next-retry', status: 'audio_pending' });
+    await db.surveys.update(second.id, {
+      nextRetryAt: '2026-06-01T10:03:00.000Z',
+    });
+
+    await expect(getNextRetryDelayMs(new Date('2026-06-01T10:00:00.000Z').getTime())).resolves.toBe(180000);
+    await expect(clearSharePointNotReadyRetryDelays()).resolves.toBe(1);
+
+    const cleared = await db.surveys.where('surveyId').equals('clear-sp-init').first();
+    expect(cleared.retryCount).toBe(0);
+    expect(cleared.lastError).toBeNull();
+    expect(cleared.nextRetryAt).toBeNull();
   });
 });

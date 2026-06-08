@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { audioService } from "@/services/audioService";
 import { auditLogger, fireAndForget, AUDIT_ACTIONS } from "@/services/auditLogger";
+import { savePreLaunchSurveySupabaseFirst } from "@/services/preLaunchSync.service";
+import { mirrorAuditLogsToSupabase } from "@/services/supabase/mirror.service";
 import { useMsal } from "@azure/msal-react";
 import { loginRequest } from "@/utils/msal-config";
 import { getSP, setSPToken } from "@/utils/pnpjs-config";
@@ -62,52 +64,10 @@ const getScopedPreLaunchProvinces = (provinces = []) => {
   return scoped.length > 0 ? scoped : PRELAUNCH_PROVINCES;
 };
 
-const PRELAUNCH_OPTIONAL_SAVE_FIELDS = new Set([
-  'DuracaoInquerito',
-  'NomeEntrevistador',
-  'DataPreenchimento',
-  'StatusInquerito',
-  'Duplicado',
-  'TemGravacoes',
-  'CamposComGravacao',
-]);
-
-const getMissingSharePointProperty = (error) => {
-  const message = String(error?.message || error || '');
-  return message.match(/(?:property|Column) '([^']+)' does not exist/i)?.[1] || '';
-};
-
 const hasSharePointField = async (list, internalName) => {
   const escaped = String(internalName || '').replace(/'/g, "''");
   const fields = await list.fields.filter(`InternalName eq '${escaped}'`).top(1)();
   return fields.length > 0;
-};
-
-const addPreLaunchItem = async (list, itemData, listName) => {
-  let payload = itemData;
-  const removedFields = new Set();
-
-  for (;;) {
-    try {
-      return await list.items.add(payload);
-    } catch (error) {
-      const missingField = getMissingSharePointProperty(error);
-      const canRetry =
-        missingField &&
-        PRELAUNCH_OPTIONAL_SAVE_FIELDS.has(missingField) &&
-        Object.prototype.hasOwnProperty.call(payload, missingField) &&
-        !removedFields.has(missingField);
-
-      if (!canRetry) throw error;
-
-      removedFields.add(missingField);
-      const { [missingField]: _removed, ...nextPayload } = payload;
-      payload = nextPayload;
-      console.warn(
-        `SharePoint list "${listName}" is missing optional field "${missingField}". Retrying save without it.`
-      );
-    }
-  }
 };
 
 /**
@@ -556,7 +516,20 @@ export const useSharePoint = () => {
    */
   const uploadPreLaunchAudio = useCallback(
     async (listName, itemId, audioRecordings) => {
-      if (!sp?.web || !listName || !itemId || !audioRecordings) return;
+      const questionIds = Object.keys(audioRecordings || {});
+      if (!sp?.web || !listName || !itemId || !audioRecordings) {
+        const error = !sp?.web
+          ? 'SharePoint not initialized'
+          : 'Missing SharePoint audio upload target.';
+        return {
+          total: questionIds.length,
+          successful: 0,
+          failed: questionIds.length,
+          details: questionIds.map(questionId => ({ questionId, success: false, error })),
+          hasFailures: true,
+          error,
+        };
+      }
       try {
         const item = sp.web.lists.getByTitle(listName).items.getById(itemId);
         const uploadResults = [];
@@ -654,289 +627,18 @@ export const useSharePoint = () => {
     [sp, accounts]
   );
 
-  /** Escape single-quotes in OData string literals to prevent injection. */
-  const escOData = (val) => String(val ?? '').replace(/'/g, "''");
-
   /**
    * Save a pre-launch survey response to the correct province list.
    * Duplicate prevention: checks SurveyId (exact) and Fingerprint+time (device).
    */
   const saveCabindaSurveyResponse = useCallback(
-    async (surveyData, onStepChange) => {
-      if (!sp?.web) {
-        return { success: false, message: 'SharePoint not initialized' };
-      }
-      if (!surveyData || typeof surveyData !== 'object') {
-        return { success: false, message: 'Invalid survey data' };
-      }
-
-      // Ensure a fresh token before any write. Silent acquire returns the cached
-      // token if still valid; if expired it refreshes and pushes it to the PnP
-      // client. Non-interactive: a background sync must never trigger a popup.
-      const freshToken = await acquireToken({ interactive: false });
-      if (!freshToken) {
-        return { success: false, message: 'Sessão expirada. Inicie sessão novamente para sincronizar.', authExpired: true };
-      }
-
-      // ── Audio-only retry mode ───────────────────────────────────────────
-      // syncEngine calls this for surveys already created in SharePoint whose
-      // audio upload failed. We re-upload ONLY the audio to the existing item —
-      // never re-create the survey (which would duplicate it).
-      if (surveyData.audioOnly) {
-        try {
-          const res = await uploadPreLaunchAudio(
-            surveyData.listName, surveyData.spItemId, surveyData.audioRecordings || {},
-          );
-          const fullyOk = res && !res.hasFailures;
-          return {
-            success: fullyOk,
-            audioOnly: true,
-            audioUploadResult: res,
-            itemId: surveyData.spItemId,
-            listName: surveyData.listName,
-            message: fullyOk ? 'Áudio sincronizado.' : 'Áudio ainda por sincronizar.',
-          };
-        } catch (audioError) {
-          return { success: false, audioOnly: true, message: audioError.message, error: audioError.message };
-        }
-      }
-
-      try {
-        const r  = surveyData.responses   || {};
-        const ci = surveyData.customInputs || {};
-        // Accept UUID from SyncEngine's idempotencyKey or existing meta.surveyId
-        if (surveyData.idempotencyKey && surveyData.metadata) {
-          surveyData.metadata.surveyId = surveyData.idempotencyKey;
-        }
-        const meta = surveyData.metadata || {};
-
-        // Resolve the list from the selected province
-        const listName = getProvinceListName(r.province);
-
-        const getVoice = (id) => {
-          const text = r[id] || '';
-          const hasAudio = surveyData.audioRecordings?.[id];
-          if (hasAudio && text.includes('[Gravação de Áudio')) return `Audio recording captured at ${new Date().toLocaleString()}`;
-          return text.includes('[Gravação de Áudio') ? '' : text;
-        };
-
-        // ── Server-side duplicate prevention ──────────────────────────────
-
-        onStepChange?.('checkingDuplicates');
-        // 1. Exact match by SurveyId. This is the idempotency guard: if a previous
-        //    attempt inserted the item but the client never got the response, this
-        //    check catches it on retry and avoids a duplicate. Because that safety
-        //    depends on the check actually running, we RETRY it a few times and, if
-        //    it still cannot run, DEFER the insert (retryable) rather than inserting
-        //    blindly — trading a delayed sync for zero duplicates.
-        if (meta.surveyId) {
-          let checkOk = false;
-          for (let attempt = 1; attempt <= 3 && !checkOk; attempt++) {
-            try {
-              const existingById = await sp.web.lists
-                .getByTitle(listName)
-                .items
-                .select('Id', 'SurveyId')
-                .filter(`SurveyId eq '${escOData(meta.surveyId)}'`)
-                .top(1)();
-              checkOk = true;
-              if (existingById.length > 0) {
-                const existingItemId = existingById[0].Id ?? existingById[0].ID ?? existingById[0].id ?? null;
-                if (!existingItemId) {
-                  return { success: false, message: 'Duplicado encontrado, mas sem recibo do item. Nova tentativa mais tarde.', retryable: true };
-                }
-                let audioUploadResult = null;
-                if (existingItemId && surveyData.audioRecordings && Object.keys(surveyData.audioRecordings).length > 0) {
-                  try {
-                    audioUploadResult = await uploadPreLaunchAudio(listName, existingItemId, surveyData.audioRecordings);
-                  } catch (audioError) {
-                    audioUploadResult = {
-                      total: Object.keys(surveyData.audioRecordings).length,
-                      successful: 0,
-                      failed: Object.keys(surveyData.audioRecordings).length,
-                      error: audioError.message,
-                      details: Object.keys(surveyData.audioRecordings).map(questionId => ({
-                        questionId,
-                        success: false,
-                        error: audioError.message,
-                      })),
-                      hasFailures: true,
-                    };
-                  }
-                }
-                return {
-                  success: true,
-                  message: 'Inquérito já existia no servidor; estado verificado.',
-                  isDuplicate: true,
-                  itemId: existingItemId,
-                  listName,
-                  audioUploadResult,
-                };
-              }
-            } catch (err) {
-              console.warn(`SurveyId duplicate check failed (attempt ${attempt}/3):`, err?.message || err);
-              if (attempt < 3) await new Promise(r => setTimeout(r, 800 * attempt));
-            }
-          }
-          if (!checkOk) {
-            // Could not verify uniqueness — do NOT insert; let the sync engine retry later.
-            return { success: false, message: 'Não foi possível verificar duplicados. Nova tentativa mais tarde.', retryable: true };
-          }
-        }
-
-        // 2. Same device fingerprint within last 5 minutes (non-blocking if column not indexed)
-        if (meta.fingerprint) {
-          try {
-            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-            const existingByFingerprint = await sp.web.lists
-              .getByTitle(listName)
-              .items
-              .filter(`Fingerprint eq '${escOData(meta.fingerprint)}' and DataPreenchimento ge '${fiveMinutesAgo}'`)
-              .top(1)();
-            if (existingByFingerprint.length > 0) {
-              return { success: false, message: 'Submissão recente detectada para este dispositivo.', isDuplicate: true };
-            }
-          } catch (err) {
-            console.warn('Fingerprint duplicate check failed (non-blocking):', err?.message || err);
-          }
-        }
-
-        // 3. Phone number duplicate check — save anyway, but flag it
-        let isDuplicatePhone = false;
-        const phoneToCheck = r.phoneNumber?.trim();
-        if (phoneToCheck && /^9\d{8}$/.test(phoneToCheck)) {
-          try {
-            const existingByPhone = await sp.web.lists
-              .getByTitle(listName)
-              .items
-              .filter(`NumeroTelefone eq '${escOData(phoneToCheck)}'`)
-              .top(1)();
-            isDuplicatePhone = existingByPhone.length > 0;
-          } catch (err) {
-            console.warn('Phone duplicate check failed (non-blocking):', err?.message || err);
-          }
-        }
-
-        // ── Build item data ────────────────────────────────────────────────
-
-        const itemData = {
-          Title: `${r.province} Survey - ${new Date().toLocaleDateString()}`,
-
-          // Section 1 — Demographics
-          Provincia:               r.province || '',
-          Municipio:               r.municipality || '',
-          FaixaEtaria:             r.ageGroup || '',
-          Genero:                  r.gender || '',
-          Ocupacao:                r.occupation || '',
-          OcupacaoOutro:           ci.occupation || '',
-
-          // Section 2 — Device & Connectivity
-          TipoTelefone:            r.phoneType || '',
-          Suporta4G:               r.supports4G || '',
-          ConfiguracaoSIM:         r.simConfig || '',
-
-          // Section 3 — Operator & Network Perception
-          OperadorAtual:           r.currentOperator || '',
-          SatisfacaoOperador:      r.operatorSatisfaction || '',
-          CoberturaDaRede:         r.networkCoverage || '',
-          OperadorMaisVisivel:     r.mostVisibleOperator || '',
-          ZonasPiorCobertura:      r.worstCoverageAreas || '',
-          ZonasPiorCoberturaOutro: ci.worstCoverageAreas || '',
-
-          // Section 4 — Usage, Recharge & Spend
-          UsoTelefone:             r.primaryPhoneUse || '',
-          FrequenciaRecarga:       r.rechargeFrequency || '',
-          ValorRecarga:            r.rechargeAmount || '',
-          LocalRecarga:            r.rechargeLocation || '',
-          LocalRecargaOutro:       ci.rechargeLocation || '',
-          RazaoRecarga:            r.rechargeReason || '',
-          RazaoRecargaOutro:       ci.rechargeReason || '',
-          UsaMobileMoney:          r.usesMobileMoney || '',
-
-          // Section 5 — Preferences, Switching & Offers
-          PacotePreferido:         r.preferredBundle || '',
-          MudariaOperador:         r.wouldSwitch || '',
-          OfertaDificilAbandonar:  r.hardToGiveUp || '',
-          OfertaEspecifica:        ci.hardToGiveUp || '',
-          FontePromocoes:          r.promotionSource || '',
-          FontePromocoesOutro:     ci.promotionSource || '',
-          LocalNovasLojas:         getVoice('newShopLocation'),
-          FontesConfianca:         r.trustedCommunity || '',
-          FontesConfiancaOutro:    ci.trustedCommunity || '',
-
-          // Section 6 — Key Audio Insight
-          InsightPrincipal:        getVoice('mainInsight'),
-
-          // Section 7 — Contact
-          InteresseDiscussao:      r.interestedInDiscussion || '',
-          NomeCliente:             r.nomeCliente || '',
-          NumeroTelefone:          r.phoneNumber || '',
-
-          // Audio metadata
-          TemGravacoes:       surveyData.audioRecordings && Object.keys(surveyData.audioRecordings).length > 0 ? 'Sim' : 'Nao',
-          CamposComGravacao:  surveyData.audioRecordings ? Object.keys(surveyData.audioRecordings).join(', ') : '',
-
-          // Duplicate prevention fields
-          SurveyId:    meta.surveyId || '',
-          Fingerprint: meta.fingerprint || '',
-
-          // Metadata
-          DuracaoInquerito:    meta.duration || 0,
-          NomeEntrevistador:   meta.interviewerName || '',
-          DataPreenchimento:   new Date().toISOString(),
-          StatusInquerito:     'Completo',
-          Duplicado:           isDuplicatePhone ? true : false,
-        };
-
-        // ── Insert ─────────────────────────────────────────────────────────
-
-        onStepChange?.('sendingData');
-        const list = sp.web.lists.getByTitle(listName);
-        const result = await addPreLaunchItem(list, itemData, listName);
-
-        const itemId = result?.data?.Id ?? result?.data?.ID ?? result?.Id ?? result?.ID ?? result?.id ?? null;
-        const createdItem = result?.data || result;
-
-        if (itemId == null) throw new Error('Failed to get item ID from SharePoint response');
-
-        // ── Upload audio attachments ────────────────────────────────────────
-
-        let audioUploadResult = null;
-        if (surveyData.audioRecordings && Object.keys(surveyData.audioRecordings).length > 0) {
-          onStepChange?.('uploadingAudio');
-          try {
-            audioUploadResult = await uploadPreLaunchAudio(listName, itemId, surveyData.audioRecordings);
-          } catch (audioError) {
-            console.error('Error uploading audio recordings:', audioError);
-            audioUploadResult = { total: Object.keys(surveyData.audioRecordings).length, successful: 0, failed: Object.keys(surveyData.audioRecordings).length, error: audioError.message, hasFailures: true };
-          }
-        }
-
-        let message = 'Inquérito guardado com sucesso!';
-        if (audioUploadResult?.hasFailures) {
-          message += audioUploadResult.successful > 0
-            ? ` (${audioUploadResult.successful} de ${audioUploadResult.total} gravações guardadas)`
-            : ' (Erro ao guardar gravações de áudio)';
-        } else if (audioUploadResult?.successful > 0) {
-          message += ` (${audioUploadResult.successful} gravações de áudio guardadas)`;
-        }
-
-        onStepChange?.('done');
-        return { success: true, message, itemId, createdItem, audioUploadResult, listName };
-
-      } catch (error) {
-        console.error('Error saving pre-launch survey response:', error);
-        let errorMessage = 'Erro ao guardar o inquérito. Tente novamente.';
-        const permanentFailure =
-          error.message.includes('Unknown province') ||
-          error.message.includes('400');
-        if (error.message.includes('Unknown province'))       errorMessage = error.message;
-        else if (error.message.includes('403'))               errorMessage = 'Erro de permissões. Contacte o administrador.';
-        else if (error.message.includes('404'))               errorMessage = 'Lista não encontrada. Verifique a configuração.';
-        else if (error.message.includes('400'))               errorMessage = 'Dados inválidos. Verifique o preenchimento.';
-        return { success: false, message: errorMessage, error: error.message, details: error, permanentFailure };
-      }
-    },
+    async (surveyData, onStepChange) => savePreLaunchSurveySupabaseFirst({
+      surveyData,
+      onStepChange,
+      sp,
+      acquireToken,
+      uploadPreLaunchAudio,
+    }),
     [sp, uploadPreLaunchAudio, acquireToken]
   );
 
@@ -1634,7 +1336,22 @@ export const useSharePoint = () => {
       await new Promise(r => setTimeout(r, 200)); // throttle SP calls
     }
 
-    return results;
+    const sharePointSyncedLogs = logs.filter((log) =>
+      results.some((result) => result.id === log.id && result.success)
+    );
+    const mirrorResults = await mirrorAuditLogsToSupabase(sharePointSyncedLogs);
+    const mirrorById = new Map(mirrorResults.map((result) => [result.id, result]));
+
+    return results.map((result) => {
+      if (!result.success) return result;
+      const mirrorResult = mirrorById.get(result.id);
+      if (!mirrorResult || mirrorResult.success) return result;
+      return {
+        ...result,
+        success: false,
+        error: mirrorResult.error || 'Supabase audit mirror failed.',
+      };
+    });
   }, [sp, checkIsOwner]);
 
   /**

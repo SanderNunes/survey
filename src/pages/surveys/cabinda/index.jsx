@@ -114,7 +114,11 @@ const CabindaSurvey = () => {
   const { saveCabindaSurveyResponse, getSurveyDetailedStats, isSharePointReady, currentUserName, syncAuditLogsToSharePoint } = useSharePoint();
 
   // Offline-first queue: handles IndexedDB storage, quota checks, retry + sync
-  const { isOnline, pendingCount, storageInfo, syncProgress, saveSurvey, triggerSync, storagePersisted } = useOfflineQueue(saveCabindaSurveyResponse, syncAuditLogsToSharePoint);
+  const { isOnline, pendingCount, storageInfo, syncProgress, saveSurvey, triggerSync, storagePersisted } = useOfflineQueue(
+    saveCabindaSurveyResponse,
+    syncAuditLogsToSharePoint,
+    { syncReady: isSharePointReady },
+  );
 
   const { logSurveyEvent, AUDIT_ACTIONS } = useAuditLog({ province: 'cabinda', formType: 'cabinda_prelaunch' });
   const [detailedStats, setDetailedStats] = useState(null);

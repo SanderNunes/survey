@@ -155,6 +155,7 @@ export default function SurveyorDashboard() {
   const localeTag = LOCALE_MAP[i18n.language] || 'en-US';
 
   const {
+    isSharePointReady,
     saveCabindaSurveyResponse,
     syncAuditLogsToSharePoint,
     getMySurveyStats,
@@ -169,7 +170,7 @@ export default function SurveyorDashboard() {
     storageInfo,
     dbError,
     storagePersisted,
-  } = useOfflineQueue(saveCabindaSurveyResponse, syncAuditLogsToSharePoint);
+  } = useOfflineQueue(saveCabindaSurveyResponse, syncAuditLogsToSharePoint, { syncReady: isSharePointReady });
 
   const {
     stats,

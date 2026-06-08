@@ -15,6 +15,11 @@ const BACKOFF_MS = [
   3_600_000, 14_400_000,                  // attempts 9–10+: 1h, 4h
 ];
 const SYNC_LEASE_MS = 10 * 60 * 1000;
+const SHAREPOINT_NOT_READY_MESSAGE = 'SharePoint not initialized';
+
+function isSharePointNotReadyMessage(message = '') {
+  return String(message || '').includes(SHAREPOINT_NOT_READY_MESSAGE);
+}
 
 class PermanentSyncError extends Error {
   constructor(message) {
@@ -224,7 +229,26 @@ class SyncEngine {
     err.permanent = !!result?.permanentFailure;
     err.authExpired = !!result?.authExpired;
     err.retryable = result?.retryable !== false;
+    err.deferred = !!result?.deferred ||
+      result?.reason === 'sharepoint_not_ready' ||
+      isSharePointNotReadyMessage(err.message);
     return err;
+  }
+
+  async _markDeferred(survey, err, { status = 'pending' } = {}) {
+    const restoredStatus = survey.syncPreviousStatus && survey.syncPreviousStatus !== 'syncing'
+      ? survey.syncPreviousStatus
+      : status;
+
+    await db.surveys.update(survey.id, {
+      status: restoredStatus,
+      lastError: err.message,
+      nextRetryAt: null,
+      syncLeaseOwner: null,
+      syncLeaseUntil: null,
+      syncPreviousStatus: null,
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   async _syncOne(survey, saveFn) {
@@ -350,6 +374,11 @@ class SyncEngine {
       cleanupOfflineListener();
       Object.values(audioRecordings).forEach(r => URL.revokeObjectURL(r.url));
 
+      if (err.deferred) {
+        await this._markDeferred(survey, err, { status: survey.spItemId ? 'audio_pending' : 'pending' });
+        return;
+      }
+
       if (err.permanent) {
         await this._markPermanentFailure(survey, err);
         return;
@@ -392,14 +421,55 @@ class SyncEngine {
 
     try {
       const result = await Promise.race([
-        saveFn({ audioOnly: true, spItemId: survey.spItemId, listName: survey.listName, audioRecordings }),
+        saveFn({
+          ...survey.data,
+          audioOnly: true,
+          spItemId: survey.spItemId,
+          listName: survey.listName,
+          audioRecordings,
+          metadata: {
+            ...survey.data?.metadata,
+            syncedAt:          new Date().toISOString(),
+            originalOfflineId: survey.surveyId,
+            surveyId:          survey.surveyId,
+          },
+          idempotencyKey: survey.surveyId,
+        }),
         new Promise((_, rej) => setTimeout(() => rej(new Error(`Timeout áudio após ${Math.round(timeoutMs / 1000)}s`)), timeoutMs)),
         offlinePromise,
       ]);
       cleanup();
       Object.values(audioRecordings).forEach(r => URL.revokeObjectURL(r.url));
 
-      if (result.success) {
+      if (result.success || result.audioUploadResult) {
+        const audioFailed = result.audioUploadResult?.hasFailures;
+
+        if (audioFailed) {
+          const details = result.audioUploadResult?.details || [];
+          const succeededQ = new Set(details.filter(d => d.success).map(d => d.questionId));
+          const failedQ = new Set(details.filter(d => !d.success).map(d => d.questionId));
+          const remainingManifest = failedQ.size > 0
+            ? filterAudioManifest(survey.audioManifest || [], failedQ).map(entry => ({ ...entry, status: 'upload_failed' }))
+            : (survey.audioManifest || []).map(entry => ({ ...entry, status: 'upload_failed' }));
+
+          if (succeededQ.size > 0) {
+            await db.audioBlobs.where('surveyId').equals(survey.surveyId)
+              .and(b => succeededQ.has(b.questionId)).delete();
+          }
+          await db.audioBlobs.where('surveyId').equals(survey.surveyId).modify({ status: 'upload_failed' });
+          await db.surveys.update(survey.id, {
+            status: 'audio_pending',
+            audioManifest: remainingManifest,
+            lastError: result.audioUploadResult?.error || 'Áudio ainda por sincronizar.',
+            nextRetryAt: new Date(Date.now() + BACKOFF_MS[0]).toISOString(),
+            syncLeaseOwner: null,
+            syncLeaseUntil: null,
+            syncPreviousStatus: null,
+            updatedAt: new Date().toISOString(),
+          });
+          return;
+        }
+
         await finalizeSyncedSurvey(survey, {
           syncedAt: new Date().toISOString(),
           spItemId: survey.spItemId,
@@ -414,6 +484,10 @@ class SyncEngine {
     } catch (err) {
       cleanup();
       Object.values(audioRecordings).forEach(r => URL.revokeObjectURL(r.url));
+      if (err.deferred) {
+        await this._markDeferred(survey, err, { status: 'audio_pending' });
+        return;
+      }
       if (err.permanent) {
         await this._markPermanentFailure(survey, err);
         return;

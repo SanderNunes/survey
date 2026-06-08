@@ -19,6 +19,48 @@ export class StorageError extends Error {
   }
 }
 
+const ACTIVE_SURVEY_STATUSES = ['pending', 'sync_failed', 'audio_pending'];
+const VISIBLE_QUEUE_STATUSES = [...ACTIVE_SURVEY_STATUSES, 'failed_permanent'];
+const SHAREPOINT_NOT_READY_MESSAGE = 'SharePoint not initialized';
+
+export function isSharePointNotReadyError(message = '') {
+  return String(message || '').includes(SHAREPOINT_NOT_READY_MESSAGE);
+}
+
+export async function clearSharePointNotReadyRetryDelays() {
+  const rows = await db.surveys
+    .where('status')
+    .anyOf(VISIBLE_QUEUE_STATUSES)
+    .filter(survey => isSharePointNotReadyError(survey.lastError))
+    .toArray();
+
+  for (const survey of rows) {
+    await db.surveys.update(survey.id, {
+      lastError: null,
+      nextRetryAt: null,
+      retryCount: 0,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  return rows.length;
+}
+
+export async function getNextRetryDelayMs(nowMs = Date.now()) {
+  const rows = await db.surveys
+    .where('status')
+    .anyOf(ACTIVE_SURVEY_STATUSES)
+    .filter(survey => !!survey.nextRetryAt)
+    .toArray();
+
+  const retryTimes = rows
+    .map(survey => new Date(survey.nextRetryAt).getTime())
+    .filter(time => Number.isFinite(time));
+
+  if (retryTimes.length === 0) return null;
+  return Math.max(0, Math.min(...retryTimes) - nowMs);
+}
+
 // ─── One-time migration from the old localStorage queue ────────────────────
 
 function base64ToBlob(dataUri) {
@@ -168,13 +210,14 @@ const probeConnectivity = async (externalSignal) => {
  *   saveSurvey     — async ({ surveyData, audioRecordings, province }) → { success, surveyId }
  *   triggerSync    — manually kick off the sync queue
  */
-export function useOfflineQueue(saveFn, syncAuditLogsFn) {
+export function useOfflineQueue(saveFn, syncAuditLogsFn, { syncReady = true } = {}) {
   const [isOnline,     setIsOnline]     = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
   const [storageInfo,  setStorageInfo]  = useState(null);
   const [syncProgress, setSyncProgress] = useState({ isActive: false, current: 0, total: 0 });
   const [dbError,      setDbError]      = useState(null); // DBInitError if storage failed to open
   const [storagePersisted, setStoragePersisted] = useState(true); // false = browser may evict (iOS)
+  const [dbReadyVersion, setDbReadyVersion] = useState(0);
   const dbReady       = useRef(false);
   const probeAbortRef = useRef(null); // AbortController for the in-flight connectivity probe
 
@@ -187,6 +230,7 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
       await migrateFromLocalStorage();
       refreshPendingCount();
       refreshStorageInfo();
+      setDbReadyVersion(v => v + 1);
     }).catch(err => {
       console.error('[useOfflineQueue] DB init failed:', err);
       // Surface a clear, user-actionable error instead of silently breaking saves.
@@ -232,7 +276,7 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
   // ── Background Sync message from Service Worker ──────────────────────────
   useEffect(() => {
     const handleSWMessage = (e) => {
-      if (e.data?.type === 'BACKGROUND_SYNC_TRIGGERED') triggerSync();
+      if (e.data?.type === 'BACKGROUND_SYNC_TRIGGERED' && syncReady) triggerSync();
     };
     navigator.serviceWorker?.addEventListener('message', handleSWMessage);
     return () => navigator.serviceWorker?.removeEventListener('message', handleSWMessage);
@@ -240,23 +284,23 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
 
   // ── Auto-sync 2 s after coming back online ───────────────────────────────
   useEffect(() => {
-    if (!isOnline || !dbReady.current) return;
+    if (!isOnline || !syncReady || !dbReady.current) return;
     const t = setTimeout(() => triggerSync(), 2000);
     return () => clearTimeout(t);
-  }, [isOnline]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOnline, syncReady, dbReadyVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sync when the app returns to the foreground ──────────────────────────
   // Mobile browsers freeze background tabs; a surveyor reopening the app should
   // immediately flush whatever queued while it was hidden.
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible' && navigator.onLine && dbReady.current) {
+      if (document.visibilityState === 'visible' && navigator.onLine && syncReady && dbReady.current) {
         triggerSync();
       }
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [syncReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Register Periodic Background Sync (best-effort, where supported) ──────
   useEffect(() => {
@@ -275,7 +319,7 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
 
   // ── Audit log auto-sync every 60 s while online ──────────────────────────
   useEffect(() => {
-    if (!isOnline || !syncAuditLogsFn) return;
+    if (!isOnline || !syncReady || !syncAuditLogsFn) return;
 
     const syncLogs = async () => {
       if (!dbReady.current) return;
@@ -290,12 +334,12 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
 
     const interval = setInterval(syncLogs, 60000);
     return () => clearInterval(interval);
-  }, [isOnline, syncAuditLogsFn]);
+  }, [isOnline, syncReady, syncAuditLogsFn]);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   const refreshPendingCount = async () => {
     try {
-      const n = await db.surveys.where('status').anyOf(['pending', 'sync_failed', 'audio_pending', 'failed_permanent']).count();
+      const n = await db.surveys.where('status').anyOf(VISIBLE_QUEUE_STATUSES).count();
       setPendingCount(n);
     } catch { /* DB may not be ready yet */ }
   };
@@ -408,7 +452,7 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
     Promise.resolve().then(async () => {
       await refreshPendingCount();
       await refreshStorageInfo();
-      if (isOnline) {
+      if (isOnline && syncReady) {
         syncEngine.registerBackgroundSync().catch(() => {});
         triggerSync();
       }
@@ -419,7 +463,7 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
 
   // ── triggerSync ───────────────────────────────────────────────────────────
   const triggerSync = useCallback(async () => {
-    if (!isOnline || !saveFn || !dbReady.current) return;
+    if (!isOnline || !syncReady || !saveFn || !dbReady.current) return;
 
     setSyncProgress(p => ({ ...p, isActive: true }));
 
@@ -435,7 +479,40 @@ export function useOfflineQueue(saveFn, syncAuditLogsFn) {
     setSyncProgress({ isActive: false, current: 0, total: 0 });
     await refreshPendingCount();
     await refreshStorageInfo();
-  }, [isOnline, saveFn, syncAuditLogsFn]);
+  }, [isOnline, syncReady, saveFn, syncAuditLogsFn]);
+
+  // ── SharePoint readiness recovery ────────────────────────────────────────
+  useEffect(() => {
+    if (!isOnline || !syncReady || !dbReady.current) return;
+    let cancelled = false;
+
+    Promise.resolve().then(async () => {
+      const cleared = await clearSharePointNotReadyRetryDelays();
+      if (cancelled) return;
+      if (cleared > 0) await refreshPendingCount();
+      triggerSync();
+    }).catch(() => {});
+
+    return () => { cancelled = true; };
+  }, [isOnline, syncReady, dbReadyVersion, triggerSync]);
+
+  // ── Wake the queue exactly when the next retry becomes due ───────────────
+  useEffect(() => {
+    if (!isOnline || !syncReady || !dbReady.current || syncProgress.isActive) return;
+    let cancelled = false;
+    let timer = null;
+
+    Promise.resolve().then(async () => {
+      const delayMs = await getNextRetryDelayMs();
+      if (cancelled || delayMs === null) return;
+      timer = setTimeout(() => { triggerSync(); }, delayMs);
+    }).catch(() => {});
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [isOnline, syncReady, dbReadyVersion, pendingCount, syncProgress.isActive, triggerSync]);
 
   return { isOnline, pendingCount, storageInfo, syncProgress, saveSurvey, triggerSync, dbError, storagePersisted };
 }
