@@ -18,6 +18,12 @@ import {
   translateSurveyValue,
 } from '@/utils/surveyValueMapping';
 import {
+  getAudioRecordKey,
+  getSurveyAudioFileStatus,
+  hasClaimedAudio,
+  summarizeAudioFileStatuses,
+} from '@/utils/audioAttachmentStatus';
+import {
   PRELAUNCH_MUNICIPALITY_TARGETS,
   PRELAUNCH_PROVINCES,
 } from '@/config/preLaunchSurvey';
@@ -42,6 +48,8 @@ const PALETTE = [
   COLORS.quaternary, COLORS.warning, COLORS.danger,
   '#EC4899', '#14B8A6', '#F97316', '#6366F1',
 ];
+
+const AUDIO_ATTACHMENT_CHECK_CONCURRENCY = 5;
 
 const NAV_SECTIONS = [
   { id: 'overview',     icon: TrendingUp,  colorClass: 'bg-orange-100 text-orange-600'  },
@@ -179,7 +187,9 @@ function PieChartPanel({
   );
 }
 
-function KPICard({ title, value, sub, icon: Icon, colorClass = 'bg-orange-50 text-orange-600' }) {
+function KPICard({ title, value, sub, details = [], icon: Icon, colorClass = 'bg-orange-50 text-orange-600' }) {
+  const visibleDetails = details.filter(Boolean);
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
       <div className="flex items-start justify-between">
@@ -187,6 +197,22 @@ function KPICard({ title, value, sub, icon: Icon, colorClass = 'bg-orange-50 tex
           <p className="text-xs text-gray-400 font-medium uppercase tracking-wider truncate" title={title}>{title}</p>
           <p className="text-3xl font-bold text-gray-800 mt-1 break-words leading-tight">{value ?? '—'}</p>
           {sub && <p className="text-xs text-gray-400 mt-1 truncate" title={sub}>{sub}</p>}
+          {visibleDetails.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {visibleDetails.map(({ label, value: detailValue, colorClass: detailColorClass = 'bg-gray-50 text-gray-500 border-gray-100' }) => (
+                <span
+                  key={label}
+                  className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2 py-1 text-[11px] leading-none ${detailColorClass}`}
+                  title={detailValue === '' || detailValue === undefined ? label : `${detailValue} ${label}`}
+                >
+                  {detailValue !== '' && detailValue !== undefined && (
+                    <span className="font-semibold">{detailValue}</span>
+                  )}
+                  <span className="truncate">{label}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         {Icon && (
           <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ml-3 ${colorClass}`}>
@@ -456,17 +482,29 @@ function responsesByDay(records, locale = 'en-US') {
     .slice(-30);
 }
 
+async function runWithConcurrency(items, limit, task) {
+  const workerCount = Math.min(limit, items.length);
+  const workers = Array.from({ length: workerCount }, async (_, workerIndex) => {
+    for (let index = workerIndex; index < items.length; index += workerCount) {
+      await task(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function Analytics({ isOwner }) {
   const { t, i18n } = useTranslation();
   const localeTag = useMemo(() => LOCALE_MAP[i18n.language] || 'en-US', [i18n.language]);
-  const { sp, getProvinceRecords } = useSharePoint();
+  const { sp, getProvinceRecords, getItemAttachments } = useSharePoint();
 
   const [allRecords,    setAllRecords]    = useState([]);
   const [loading,       setLoading]       = useState(false);
   const [drillProvince, setDrillProvince] = useState(null);
   const [activeSection, setActiveSection] = useState('overview');
+  const [audioFileStatusByKey, setAudioFileStatusByKey] = useState({});
+  const [checkingAudioFiles, setCheckingAudioFiles] = useState(false);
 
   const sectionRefs = useRef({});
 
@@ -511,6 +549,53 @@ export default function Analytics({ isOwner }) {
     if (isOwner === true && sp) loadAll();
   }, [isOwner, sp]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!sp || !getItemAttachments || allRecords.length === 0) {
+      setAudioFileStatusByKey({});
+      setCheckingAudioFiles(false);
+      return;
+    }
+
+    const audioRecords = allRecords.filter(hasClaimedAudio);
+    setAudioFileStatusByKey({});
+
+    if (audioRecords.length === 0) {
+      setCheckingAudioFiles(false);
+      return;
+    }
+
+    let cancelled = false;
+    setCheckingAudioFiles(true);
+
+    (async () => {
+      const nextStatusByKey = {};
+
+      await runWithConcurrency(audioRecords, AUDIO_ATTACHMENT_CHECK_CONCURRENCY, async (record) => {
+        const key = getAudioRecordKey(record);
+        const province = record._province || record.Provincia;
+        const itemId = record.Id ?? record.ID ?? record.id;
+
+        try {
+          if (!province || itemId === undefined || itemId === null || itemId === '') {
+            throw new Error('Missing SharePoint item identifier');
+          }
+          const attachments = await getItemAttachments(province, itemId);
+          nextStatusByKey[key] = getSurveyAudioFileStatus(record, { attachments });
+        } catch (error) {
+          nextStatusByKey[key] = getSurveyAudioFileStatus(record, { error });
+        }
+      });
+
+      if (!cancelled) setAudioFileStatusByKey(nextStatusByKey);
+    })().finally(() => {
+      if (!cancelled) setCheckingAudioFiles(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sp, getItemAttachments, allRecords]);
+
   // ── Derived data ─────────────────────────────────────────────────────────
 
   const normalizedAllRecords = useMemo(
@@ -528,6 +613,44 @@ export default function Analytics({ isOwner }) {
   const total       = view.length;
   const withAudio   = view.filter(r => r.TemGravacoes === 'Sim').length;
   const avgSatisf   = avgNumber(view, 'SatisfacaoOperador');
+  const audioFileStats = useMemo(
+    () => summarizeAudioFileStatuses(view, audioFileStatusByKey),
+    [view, audioFileStatusByKey]
+  );
+  const audioKpiDetails = useMemo(() => {
+    const details = [
+      {
+        label: t('analytics.kpi.audioFilesPresent'),
+        value: audioFileStats.present,
+        colorClass: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+      },
+      {
+        label: t('analytics.kpi.audioFilesMissing'),
+        value: audioFileStats.missing,
+        colorClass: audioFileStats.missing > 0
+          ? 'bg-red-50 text-red-700 border-red-100'
+          : 'bg-gray-50 text-gray-500 border-gray-100',
+      },
+    ];
+
+    if (audioFileStats.unverified > 0) {
+      details.push({
+        label: t('analytics.kpi.audioFilesUnverified'),
+        value: audioFileStats.unverified,
+        colorClass: 'bg-amber-50 text-amber-700 border-amber-100',
+      });
+    }
+
+    if (checkingAudioFiles || audioFileStats.pending > 0) {
+      details.push({
+        label: t('analytics.kpi.audioFilesChecking'),
+        value: audioFileStats.pending || '',
+        colorClass: 'bg-blue-50 text-blue-700 border-blue-100',
+      });
+    }
+
+    return details;
+  }, [audioFileStats, checkingAudioFiles, t]);
 
   const provinceData = useMemo(() =>
     PROVINCES.map(p => ({
@@ -686,6 +809,7 @@ export default function Analytics({ isOwner }) {
             title={t('analytics.kpi.withAudio')}
             value={withAudio}
             sub={`${total ? ((withAudio / total) * 100).toFixed(1) : 0}${t('analytics.kpi.percentOfTotal')}`}
+            details={audioKpiDetails}
             icon={Mic}
             colorClass="bg-blue-50 text-blue-600"
           />

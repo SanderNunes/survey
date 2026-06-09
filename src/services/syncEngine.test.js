@@ -216,9 +216,14 @@ describe('pre-launch offline sync hardening', () => {
     const blobs = await db.audioBlobs.where('surveyId').equals('partial-audio').toArray();
     expect(queued.status).toBe('audio_pending');
     expect(queued.spItemId).toBe(99);
-    expect(queued.audioManifest.map(entry => entry.questionId)).toEqual(['newShopLocation']);
-    expect(blobs.map(blob => blob.questionId)).toEqual(['newShopLocation']);
-    expect(blobs[0].status).toBe('upload_failed');
+    expect(queued.audioManifest.map(entry => [entry.questionId, entry.status])).toEqual([
+      ['mainInsight', 'uploaded'],
+      ['newShopLocation', 'upload_failed'],
+    ]);
+    expect(blobs.map(blob => [blob.questionId, blob.status])).toEqual([
+      ['mainInsight', 'uploaded'],
+      ['newShopLocation', 'upload_failed'],
+    ]);
   });
 
   it('passes full survey payload during audio-only retries for downstream mirrors', async () => {
@@ -255,6 +260,33 @@ describe('pre-launch offline sync hardening', () => {
     expect(saveFn).toHaveBeenCalledTimes(1);
   });
 
+  it('finalizes audio-only retries using a recovered SharePoint item id', async () => {
+    const audioRecordings = {
+      mainInsight: { blob: new Blob(['retry-audio'], { type: 'audio/webm' }) },
+    };
+    const survey = await addSurvey({
+      surveyId: 'audio-only-recovered',
+      status: 'audio_pending',
+      audioRecordings,
+    });
+    await db.surveys.update(survey.id, {
+      spItemId: 123,
+      listName: 'Cabinda_PreLaunch_Survey',
+    });
+    const queued = await db.surveys.get(survey.id);
+
+    await syncEngine._syncAudioOnly(queued, async () => ({
+      success: true,
+      itemId: 777,
+      listName: 'Cabinda_PreLaunch_Survey',
+    }));
+
+    expect(await db.surveys.where('surveyId').equals('audio-only-recovered').count()).toBe(0);
+    const receipt = await db.submissions.where('surveyId').equals('audio-only-recovered').first();
+    expect(receipt.spItemId).toBe(777);
+    expect(receipt.syncStatus).toBe('synced');
+  });
+
   it('keeps only failed audio after partial audio-only retry success', async () => {
     const audioRecordings = {
       mainInsight: { blob: new Blob(['uploaded-audio'], { type: 'audio/webm' }) },
@@ -274,7 +306,7 @@ describe('pre-launch offline sync hardening', () => {
     await syncEngine._syncAudioOnly(queued, async () => ({
       success: false,
       audioOnly: true,
-      itemId: 456,
+      itemId: 789,
       listName: 'Cabinda_PreLaunch_Survey',
       audioUploadResult: {
         hasFailures: true,
@@ -288,10 +320,16 @@ describe('pre-launch offline sync hardening', () => {
     const remainingSurvey = await db.surveys.where('surveyId').equals('audio-only-partial').first();
     const blobs = await db.audioBlobs.where('surveyId').equals('audio-only-partial').toArray();
     expect(remainingSurvey.status).toBe('audio_pending');
-    expect(remainingSurvey.audioManifest.map(entry => entry.questionId)).toEqual(['newShopLocation']);
+    expect(remainingSurvey.spItemId).toBe(789);
+    expect(remainingSurvey.audioManifest.map(entry => [entry.questionId, entry.status])).toEqual([
+      ['mainInsight', 'uploaded'],
+      ['newShopLocation', 'upload_failed'],
+    ]);
     expect(remainingSurvey.nextRetryAt).toBeTruthy();
-    expect(blobs.map(blob => blob.questionId)).toEqual(['newShopLocation']);
-    expect(blobs[0].status).toBe('upload_failed');
+    expect(blobs.map(blob => [blob.questionId, blob.status])).toEqual([
+      ['mainInsight', 'uploaded'],
+      ['newShopLocation', 'upload_failed'],
+    ]);
   });
 
   it('clears old SharePoint-not-ready retry delays and finds the next retry wake-up', async () => {

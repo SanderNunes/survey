@@ -55,6 +55,29 @@ async function insertIgnoringDuplicate(client, table, row) {
   throw error;
 }
 
+function buildSurveyMirrorUpdate(row) {
+  return {
+    sharepoint_item_id: row.sharepoint_item_id,
+    sharepoint_list_name: row.sharepoint_list_name,
+    has_audio: row.has_audio,
+    audio_question_ids: row.audio_question_ids,
+    status: row.status,
+    is_duplicate: row.is_duplicate,
+    duplicate_phone: row.duplicate_phone,
+    metadata: row.metadata,
+    sharepoint_fields: row.sharepoint_fields,
+    sharepoint_receipt: row.sharepoint_receipt,
+  };
+}
+
+async function updateSharePointReceipt(client, row) {
+  const { error } = await client
+    .from('survey_submissions')
+    .update(buildSurveyMirrorUpdate(row))
+    .eq('survey_id', row.survey_id);
+  if (error) throw error;
+}
+
 async function uploadIgnoringConflict(client, bucket, path, blob) {
   const { error } = await client.storage.from(bucket).upload(path, blob, {
     contentType: blob.type || 'application/octet-stream',
@@ -163,11 +186,13 @@ export async function mirrorPreLaunchSurveyToSupabase({ surveyData, itemData, sh
   }
 
   try {
-    await insertIgnoringDuplicate(client, 'survey_submissions', buildSurveyMirrorRow({
+    const surveyRow = buildSurveyMirrorRow({
       surveyData,
       itemData: resolvedItemData,
       sharePoint,
-    }));
+    });
+    await insertIgnoringDuplicate(client, 'survey_submissions', surveyRow);
+    if (sharePoint) await updateSharePointReceipt(client, surveyRow);
     await mirrorAudioFiles({ client, bucket: audioBucket, surveyData, itemData: resolvedItemData });
     return { success: true };
   } catch (error) {

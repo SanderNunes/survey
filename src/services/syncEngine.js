@@ -5,7 +5,6 @@ import {
   SYNC_SCHEMA_VERSION,
   buildAudioManifestFromBlobs,
   buildPayloadChecksum,
-  filterAudioManifest,
 } from '@/utils/syncIntegrity';
 
 // Extended backoff: fast retries first, then patient retry for hours on poor networks
@@ -322,31 +321,32 @@ class SyncEngine {
           // Survey row IS in SharePoint, but audio upload partially failed. Keep the
           // survey as 'audio_pending' (NOT synced) and remember the SharePoint item so
           // the next sync re-uploads ONLY the missing audio — never a duplicate survey.
+          // Keep all blobs locally until full finalization. Uploaded blobs are marked
+          // but retained so a later stale/deleted SharePoint item can be recreated.
+          const details = result.audioUploadResult?.details || [];
+          const succeededQ = new Set(details.filter(d => d.success).map(d => d.questionId));
+          const failedQ = new Set(details.filter(d => !d.success).map(d => d.questionId));
+          const statusForQuestion = (questionId) =>
+            succeededQ.has(questionId) ? 'uploaded' : 'upload_failed';
+          const remainingManifest = (survey.audioManifest || []).map(entry => ({
+            ...entry,
+            status: statusForQuestion(entry.questionId),
+          }));
+          await db.audioBlobs.where('surveyId').equals(survey.surveyId).modify((blob) => {
+            blob.status = statusForQuestion(blob.questionId);
+            if (succeededQ.has(blob.questionId)) blob.uploadedAt = syncedAt;
+          });
           await db.surveys.update(survey.id, {
             status:      'audio_pending',
             spItemId:    result.itemId ?? survey.spItemId ?? null,
             listName:    result.listName ?? survey.listName ?? null,
+            lastError:   result.audioUploadResult?.error || (failedQ.size > 0 ? 'Áudio ainda por sincronizar.' : null),
             nextRetryAt: new Date(Date.now() + BACKOFF_MS[0]).toISOString(),
-            updatedAt:   new Date().toISOString(),
-          });
-          // Delete blobs whose question uploaded OK; keep only the failed ones for retry.
-          // This prevents the audio-only retry from re-uploading already-present audio.
-          const details = result.audioUploadResult?.details || [];
-          const succeededQ = new Set(details.filter(d => d.success).map(d => d.questionId));
-          const failedQ = new Set(details.filter(d => !d.success).map(d => d.questionId));
-          const remainingManifest = failedQ.size > 0
-            ? filterAudioManifest(survey.audioManifest || [], failedQ).map(entry => ({ ...entry, status: 'upload_failed' }))
-            : (survey.audioManifest || []).map(entry => ({ ...entry, status: 'upload_failed' }));
-          if (succeededQ.size > 0) {
-            await db.audioBlobs.where('surveyId').equals(survey.surveyId)
-              .and(b => succeededQ.has(b.questionId)).delete();
-          }
-          await db.audioBlobs.where('surveyId').equals(survey.surveyId).modify({ status: 'upload_failed' });
-          await db.surveys.update(survey.id, {
             audioManifest: remainingManifest,
             syncLeaseOwner: null,
             syncLeaseUntil: null,
             syncPreviousStatus: null,
+            updatedAt:   new Date().toISOString(),
           });
         }
 
@@ -368,6 +368,13 @@ class SyncEngine {
           }));
         }
       } else {
+        if (result.itemId || result.listName) {
+          await db.surveys.update(survey.id, {
+            spItemId: result.itemId ?? survey.spItemId ?? null,
+            listName: result.listName ?? survey.listName ?? null,
+            updatedAt: new Date().toISOString(),
+          });
+        }
         throw this._resultToError(result);
       }
     } catch (err) {
@@ -441,24 +448,31 @@ class SyncEngine {
       cleanup();
       Object.values(audioRecordings).forEach(r => URL.revokeObjectURL(r.url));
 
+      const resolvedItemId = result.itemId ?? survey.spItemId;
+      const resolvedListName = result.listName ?? survey.listName;
+
       if (result.success || result.audioUploadResult) {
         const audioFailed = result.audioUploadResult?.hasFailures;
 
         if (audioFailed) {
           const details = result.audioUploadResult?.details || [];
           const succeededQ = new Set(details.filter(d => d.success).map(d => d.questionId));
-          const failedQ = new Set(details.filter(d => !d.success).map(d => d.questionId));
-          const remainingManifest = failedQ.size > 0
-            ? filterAudioManifest(survey.audioManifest || [], failedQ).map(entry => ({ ...entry, status: 'upload_failed' }))
-            : (survey.audioManifest || []).map(entry => ({ ...entry, status: 'upload_failed' }));
+          const syncedAt = new Date().toISOString();
+          const statusForQuestion = (questionId) =>
+            succeededQ.has(questionId) ? 'uploaded' : 'upload_failed';
+          const remainingManifest = (survey.audioManifest || []).map(entry => ({
+            ...entry,
+            status: statusForQuestion(entry.questionId),
+          }));
 
-          if (succeededQ.size > 0) {
-            await db.audioBlobs.where('surveyId').equals(survey.surveyId)
-              .and(b => succeededQ.has(b.questionId)).delete();
-          }
-          await db.audioBlobs.where('surveyId').equals(survey.surveyId).modify({ status: 'upload_failed' });
+          await db.audioBlobs.where('surveyId').equals(survey.surveyId).modify((blob) => {
+            blob.status = statusForQuestion(blob.questionId);
+            if (succeededQ.has(blob.questionId)) blob.uploadedAt = syncedAt;
+          });
           await db.surveys.update(survey.id, {
             status: 'audio_pending',
+            spItemId: resolvedItemId,
+            listName: resolvedListName,
             audioManifest: remainingManifest,
             lastError: result.audioUploadResult?.error || 'Áudio ainda por sincronizar.',
             nextRetryAt: new Date(Date.now() + BACKOFF_MS[0]).toISOString(),
@@ -472,13 +486,20 @@ class SyncEngine {
 
         await finalizeSyncedSurvey(survey, {
           syncedAt: new Date().toISOString(),
-          spItemId: survey.spItemId,
-          listName: survey.listName,
+          spItemId: resolvedItemId,
+          listName: resolvedListName,
         });
         fireAndForget(() => auditLogger.logEvent(AUDIT_ACTIONS.SYNC_SUCCEEDED, survey.surveyId, {
-          province: survey.province, metadata: { itemId: survey.spItemId, mode: 'audio_only' },
+          province: survey.province, metadata: { itemId: resolvedItemId, mode: 'audio_only' },
         }));
       } else {
+        if (result.itemId || result.listName) {
+          await db.surveys.update(survey.id, {
+            spItemId: resolvedItemId,
+            listName: resolvedListName,
+            updatedAt: new Date().toISOString(),
+          });
+        }
         throw this._resultToError(result);
       }
     } catch (err) {

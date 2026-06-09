@@ -62,7 +62,8 @@ describe('prelaunch Supabase-first sync flow', () => {
     const { sp, items } = makeSharePoint(calls);
     const mirrorToSupabase = vi.fn(async ({ sharePoint }) => {
       calls.push('supabase');
-      expect(sharePoint).toBeUndefined();
+      if (calls.length === 1) expect(sharePoint).toBeUndefined();
+      else expect(sharePoint).toEqual(expect.objectContaining({ itemId: 42 }));
     });
     const acquireToken = vi.fn(async () => {
       calls.push('token');
@@ -79,8 +80,11 @@ describe('prelaunch Supabase-first sync flow', () => {
 
     expect(result.success).toBe(true);
     expect(result.itemId).toBe(42);
-    expect(calls).toEqual(['supabase', 'token', 'sharepoint-query', 'sharepoint-add']);
+    expect(calls).toEqual(['supabase', 'token', 'sharepoint-query', 'sharepoint-add', 'supabase']);
     expect(items.add).toHaveBeenCalledTimes(1);
+    expect(mirrorToSupabase).toHaveBeenLastCalledWith(expect.objectContaining({
+      sharePoint: expect.objectContaining({ itemId: 42, listName: 'Cabinda_PreLaunch_Survey' }),
+    }));
   });
 
   it('returns a retryable failure without touching SharePoint when Supabase fails', async () => {
@@ -134,5 +138,74 @@ describe('prelaunch Supabase-first sync flow', () => {
     expect(result.message).toBe('SharePoint not initialized');
     expect(calls).toEqual(['supabase']);
     expect(acquireToken).not.toHaveBeenCalled();
+  });
+
+  it('recovers audio-only sync by finding the SharePoint item by SurveyId', async () => {
+    const calls = [];
+    const { sp } = makeSharePoint(calls, [{ Id: 777, SurveyId: 'audio-recover-1' }]);
+    const uploadPreLaunchAudio = vi.fn(async (_listName, itemId) => {
+      calls.push(`upload-${itemId}`);
+      if (itemId === 123) throw new Error('The object can not be found.');
+      return { total: 1, successful: 1, failed: 0, details: [{ questionId: 'mainInsight', success: true }], hasFailures: false };
+    });
+    const mirrorToSupabase = vi.fn(async ({ sharePoint }) => {
+      calls.push(sharePoint ? `supabase-${sharePoint.itemId}` : 'supabase');
+    });
+
+    const result = await savePreLaunchSurveySupabaseFirst({
+      surveyData: makeSurvey({
+        idempotencyKey: 'audio-recover-1',
+        audioOnly: true,
+        spItemId: 123,
+        listName: 'Cabinda_PreLaunch_Survey',
+        audioRecordings: {
+          mainInsight: { blob: new Blob(['audio'], { type: 'audio/webm' }) },
+        },
+      }),
+      sp,
+      acquireToken: vi.fn(async () => 'token'),
+      uploadPreLaunchAudio,
+      mirrorToSupabase,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.itemId).toBe(777);
+    expect(result.recovery.type).toBe('found_by_survey_id');
+    expect(calls).toEqual(['supabase', 'upload-123', 'sharepoint-query', 'upload-777', 'supabase-777']);
+  });
+
+  it('recovers audio-only sync by recreating a missing SharePoint item', async () => {
+    const calls = [];
+    const { sp, items } = makeSharePoint(calls, []);
+    const uploadPreLaunchAudio = vi.fn(async (_listName, itemId) => {
+      calls.push(`upload-${itemId}`);
+      if (itemId === 123) throw new Error('The object can not be found.');
+      return { total: 1, successful: 1, failed: 0, details: [{ questionId: 'mainInsight', success: true }], hasFailures: false };
+    });
+    const mirrorToSupabase = vi.fn(async ({ sharePoint }) => {
+      calls.push(sharePoint ? `supabase-${sharePoint.itemId}` : 'supabase');
+    });
+
+    const result = await savePreLaunchSurveySupabaseFirst({
+      surveyData: makeSurvey({
+        idempotencyKey: 'audio-recreate-1',
+        audioOnly: true,
+        spItemId: 123,
+        listName: 'Cabinda_PreLaunch_Survey',
+        audioRecordings: {
+          mainInsight: { blob: new Blob(['audio'], { type: 'audio/webm' }) },
+        },
+      }),
+      sp,
+      acquireToken: vi.fn(async () => 'token'),
+      uploadPreLaunchAudio,
+      mirrorToSupabase,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.itemId).toBe(42);
+    expect(result.recovery.type).toBe('recreated_sharepoint_item');
+    expect(items.add).toHaveBeenCalledTimes(1);
+    expect(calls).toEqual(['supabase', 'upload-123', 'sharepoint-query', 'sharepoint-add', 'upload-42', 'supabase-42']);
   });
 });

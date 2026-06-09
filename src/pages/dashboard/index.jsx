@@ -218,9 +218,9 @@ export default function SurveyorDashboard() {
     await Promise.all([refresh(), loadQueueItems()]);
   }, [refresh, loadQueueItems]);
 
-  const retrySurvey = useCallback(async (surveyId) => {
-    await db.surveys.where('surveyId').equals(surveyId).modify({
-      status: 'pending',
+  const retrySurvey = useCallback(async (item) => {
+    await db.surveys.where('surveyId').equals(item.surveyId).modify({
+      status: item.status === 'audio_pending' ? 'audio_pending' : 'pending',
       retryCount: 0,
       lastError: null,
       nextRetryAt: null,
@@ -460,7 +460,7 @@ export default function SurveyorDashboard() {
                     const dateText = date
                       ? `${date.toLocaleDateString(localeTag, { day: '2-digit', month: '2-digit' })} ${date.toLocaleTimeString(localeTag, { hour: '2-digit', minute: '2-digit' })}`
                       : '';
-                    const canRetry = ['sync_failed', 'failed_permanent'].includes(item.status) && !isCurrent;
+                    const canRetry = ['sync_failed', 'failed_permanent', 'audio_pending'].includes(item.status) && !isCurrent;
 
                     return (
                       <div key={item.surveyId} className={`py-3 ${isCurrent ? 'bg-blue-50/70 px-2' : ''}`}>
@@ -480,7 +480,7 @@ export default function SurveyorDashboard() {
                             {canRetry && (
                               <button
                                 type="button"
-                                onClick={() => retrySurvey(item.surveyId)}
+                                onClick={() => retrySurvey(item)}
                                 className="inline-flex items-center gap-1 rounded-lg bg-red-50 px-2 py-1 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100"
                               >
                                 <RotateCcw className="h-3 w-3" />

@@ -6,6 +6,7 @@ const supabaseMocks = vi.hoisted(() => ({
   from: vi.fn(),
   storageFrom: vi.fn(),
   inserts: [],
+  updates: [],
   uploads: [],
 }));
 
@@ -22,12 +23,19 @@ describe('Supabase prelaunch sync', () => {
     vi.stubEnv('VITE_SUPABASE_AUDIO_BUCKET', 'survey-audio');
 
     supabaseMocks.inserts = [];
+    supabaseMocks.updates = [];
     supabaseMocks.uploads = [];
     supabaseMocks.from.mockImplementation((table) => ({
       insert: vi.fn(async (row) => {
         supabaseMocks.inserts.push({ table, row });
         return { error: null };
       }),
+      update: vi.fn((row) => ({
+        eq: vi.fn(async (column, value) => {
+          supabaseMocks.updates.push({ table, row, column, value });
+          return { error: null };
+        }),
+      })),
     }));
     supabaseMocks.storageFrom.mockImplementation((bucket) => ({
       upload: vi.fn(async (path, blob, options) => {
@@ -145,5 +153,53 @@ describe('Supabase prelaunch sync', () => {
       surveyData,
       itemData: buildPreLaunchSharePointItemData(surveyData),
     })).resolves.toEqual({ success: true });
+  });
+
+  it('updates the Supabase survey row with the SharePoint receipt after duplicate insert', async () => {
+    const duplicate = { code: '23505', message: 'duplicate key value violates unique constraint' };
+    supabaseMocks.from.mockImplementation((table) => ({
+      insert: vi.fn(async (row) => {
+        supabaseMocks.inserts.push({ table, row });
+        return { error: duplicate };
+      }),
+      update: vi.fn((row) => ({
+        eq: vi.fn(async (column, value) => {
+          supabaseMocks.updates.push({ table, row, column, value });
+          return { error: null };
+        }),
+      })),
+    }));
+
+    const { mirrorPreLaunchSurveyToSupabase } = await import('./mirror.service');
+    const surveyData = {
+      idempotencyKey: 'survey-4',
+      responses: { province: 'Cabinda', municipality: 'Cabinda' },
+      customInputs: {},
+      audioRecordings: {
+        mainInsight: { blob: new Blob(['audio'], { type: 'audio/webm' }) },
+      },
+      metadata: { surveyId: 'survey-4', completedAt: '2026-06-01T10:00:00.000Z' },
+    };
+
+    await expect(mirrorPreLaunchSurveyToSupabase({
+      surveyData,
+      itemData: buildPreLaunchSharePointItemData(surveyData),
+      sharePoint: {
+        itemId: 88,
+        listName: 'Cabinda_PreLaunch_Survey',
+        audioUploadResult: { hasFailures: false },
+      },
+    })).resolves.toEqual({ success: true });
+
+    expect(supabaseMocks.updates[0]).toMatchObject({
+      table: 'survey_submissions',
+      column: 'survey_id',
+      value: 'survey-4',
+    });
+    expect(supabaseMocks.updates[0].row).toMatchObject({
+      sharepoint_item_id: 88,
+      sharepoint_list_name: 'Cabinda_PreLaunch_Survey',
+      status: 'synced_to_sharepoint',
+    });
   });
 });

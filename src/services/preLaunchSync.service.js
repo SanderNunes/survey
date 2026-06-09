@@ -25,6 +25,20 @@ const getMissingSharePointProperty = (error) => {
   return message.match(/(?:property|Column) '([^']+)' does not exist/i)?.[1] || '';
 };
 
+const getSharePointItemId = (item) =>
+  item?.Id ?? item?.ID ?? item?.id ?? item?.data?.Id ?? item?.data?.ID ?? item?.data?.id ?? null;
+
+export function isSharePointItemNotFoundError(error) {
+  const message = String(error?.message || error || '').toLowerCase();
+  return (
+    message.includes('object can not be found') ||
+    message.includes('object cannot be found') ||
+    message.includes('item does not exist') ||
+    message.includes('item not found') ||
+    message.includes('404')
+  );
+}
+
 export const supabaseSyncFailureResult = (error, result = {}) => ({
   success: false,
   message: `Supabase sync failed: ${error?.message || 'unknown error'}`,
@@ -85,6 +99,49 @@ async function syncToSupabaseFirst({ surveyData, itemData, mirrorToSupabase }) {
   }
 }
 
+async function syncSharePointReceiptToSupabase({ surveyData, itemData, sharePoint, mirrorToSupabase }) {
+  try {
+    await mirrorToSupabase({ surveyData, itemData, sharePoint });
+    return null;
+  } catch (mirrorError) {
+    return supabaseSyncFailureResult(mirrorError, sharePoint);
+  }
+}
+
+async function findPreLaunchItemBySurveyId(sp, listName, surveyId) {
+  if (!surveyId) return null;
+  const rows = await sp.web.lists
+    .getByTitle(listName)
+    .items
+    .select('Id', 'SurveyId')
+    .filter(`SurveyId eq '${escOData(surveyId)}'`)
+    .top(1)();
+  return rows[0] || null;
+}
+
+async function createPreLaunchItem(sp, listName, itemData) {
+  const list = sp.web.lists.getByTitle(listName);
+  const result = await addPreLaunchItem(list, itemData, listName);
+  const itemId = getSharePointItemId(result);
+  if (itemId == null) throw new Error('Failed to get item ID from SharePoint response');
+  return { itemId, createdItem: result?.data || result };
+}
+
+function audioUploadFailureResult(audioError, questionIds) {
+  return {
+    total: questionIds.length,
+    successful: 0,
+    failed: questionIds.length,
+    error: audioError.message,
+    details: questionIds.map(questionId => ({
+      questionId,
+      success: false,
+      error: audioError.message,
+    })),
+    hasFailures: true,
+  };
+}
+
 export async function savePreLaunchSurveySupabaseFirst({
   surveyData,
   onStepChange,
@@ -134,21 +191,82 @@ export async function savePreLaunchSurveySupabaseFirst({
     }
 
     if (surveyData.audioOnly) {
-      try {
+      const questionIds = Object.keys(surveyData.audioRecordings || {});
+      const uploadAndMirror = async (itemId, recovery = null) => {
         const res = await uploadPreLaunchAudio(
-          listName, surveyData.spItemId, surveyData.audioRecordings || {},
+          listName, itemId, surveyData.audioRecordings || {},
         );
         const fullyOk = res && !res.hasFailures;
+        const sharePoint = {
+          itemId,
+          listName,
+          audioUploadResult: res,
+          recovery,
+        };
+        const supabaseReceiptFailure = await syncSharePointReceiptToSupabase({
+          surveyData,
+          itemData: supabaseItemData,
+          sharePoint,
+          mirrorToSupabase,
+        });
+        if (supabaseReceiptFailure) return supabaseReceiptFailure;
+
         return {
           success: fullyOk,
           audioOnly: true,
           audioUploadResult: res,
-          itemId: surveyData.spItemId,
+          itemId,
           listName,
+          recovery,
           message: fullyOk ? 'Áudio sincronizado.' : 'Áudio ainda por sincronizar.',
         };
+      };
+
+      try {
+        return await uploadAndMirror(surveyData.spItemId);
       } catch (audioError) {
-        return { success: false, audioOnly: true, message: audioError.message, error: audioError.message };
+        if (!isSharePointItemNotFoundError(audioError)) {
+          return { success: false, audioOnly: true, message: audioError.message, error: audioError.message };
+        }
+
+        const existing = await findPreLaunchItemBySurveyId(sp, listName, meta.surveyId);
+        const existingItemId = getSharePointItemId(existing);
+        if (existingItemId != null) {
+          try {
+            return await uploadAndMirror(existingItemId, {
+              type: 'found_by_survey_id',
+              previousItemId: surveyData.spItemId ?? null,
+            });
+          } catch (retryError) {
+            return {
+              success: false,
+              audioOnly: true,
+              itemId: existingItemId,
+              listName,
+              message: retryError.message,
+              error: retryError.message,
+            };
+          }
+        }
+
+        try {
+          const { itemId } = await createPreLaunchItem(sp, listName, supabaseItemData);
+          return await uploadAndMirror(itemId, {
+            type: 'recreated_sharepoint_item',
+            previousItemId: surveyData.spItemId ?? null,
+          });
+        } catch (recreateError) {
+          const audioUploadResult = audioUploadFailureResult(recreateError, questionIds);
+          return {
+            success: false,
+            audioOnly: true,
+            itemId: surveyData.spItemId ?? null,
+            listName,
+            message: recreateError.message,
+            error: recreateError.message,
+            audioUploadResult,
+          };
+        }
       }
     }
 
@@ -165,7 +283,7 @@ export async function savePreLaunchSurveySupabaseFirst({
             .top(1)();
           checkOk = true;
           if (existingById.length > 0) {
-            const existingItemId = existingById[0].Id ?? existingById[0].ID ?? existingById[0].id ?? null;
+            const existingItemId = getSharePointItemId(existingById[0]);
             if (!existingItemId) {
               return { success: false, message: 'Duplicado encontrado, mas sem recibo do item. Nova tentativa mais tarde.', retryable: true };
             }
@@ -174,20 +292,23 @@ export async function savePreLaunchSurveySupabaseFirst({
               try {
                 audioUploadResult = await uploadPreLaunchAudio(listName, existingItemId, surveyData.audioRecordings);
               } catch (audioError) {
-                audioUploadResult = {
-                  total: Object.keys(surveyData.audioRecordings).length,
-                  successful: 0,
-                  failed: Object.keys(surveyData.audioRecordings).length,
-                  error: audioError.message,
-                  details: Object.keys(surveyData.audioRecordings).map(questionId => ({
-                    questionId,
-                    success: false,
-                    error: audioError.message,
-                  })),
-                  hasFailures: true,
-                };
+                audioUploadResult = audioUploadFailureResult(audioError, Object.keys(surveyData.audioRecordings));
               }
             }
+            const sharePoint = {
+              itemId: existingItemId,
+              listName,
+              isDuplicate: true,
+              audioUploadResult,
+            };
+            const supabaseReceiptFailure = await syncSharePointReceiptToSupabase({
+              surveyData,
+              itemData: supabaseItemData,
+              sharePoint,
+              mirrorToSupabase,
+            });
+            if (supabaseReceiptFailure) return supabaseReceiptFailure;
+
             return {
               success: true,
               message: 'Inquérito já existia no servidor; estado verificado.',
@@ -244,7 +365,7 @@ export async function savePreLaunchSurveySupabaseFirst({
     const list = sp.web.lists.getByTitle(listName);
     const result = await addPreLaunchItem(list, itemData, listName);
 
-    const itemId = result?.data?.Id ?? result?.data?.ID ?? result?.Id ?? result?.ID ?? result?.id ?? null;
+    const itemId = getSharePointItemId(result);
     const createdItem = result?.data || result;
 
     if (itemId == null) throw new Error('Failed to get item ID from SharePoint response');
@@ -256,15 +377,17 @@ export async function savePreLaunchSurveySupabaseFirst({
         audioUploadResult = await uploadPreLaunchAudio(listName, itemId, surveyData.audioRecordings);
       } catch (audioError) {
         console.error('Error uploading audio recordings:', audioError);
-        audioUploadResult = {
-          total: Object.keys(surveyData.audioRecordings).length,
-          successful: 0,
-          failed: Object.keys(surveyData.audioRecordings).length,
-          error: audioError.message,
-          hasFailures: true,
-        };
+        audioUploadResult = audioUploadFailureResult(audioError, Object.keys(surveyData.audioRecordings));
       }
     }
+
+    const supabaseReceiptFailure = await syncSharePointReceiptToSupabase({
+      surveyData,
+      itemData,
+      sharePoint: { itemId, listName, audioUploadResult },
+      mirrorToSupabase,
+    });
+    if (supabaseReceiptFailure) return supabaseReceiptFailure;
 
     let message = 'Inquérito guardado com sucesso!';
     if (audioUploadResult?.hasFailures) {
