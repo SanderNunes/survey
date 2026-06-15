@@ -658,7 +658,7 @@ export default function AdminPage() {
           .sort((a, b) => new Date(b.DataPreenchimento) - new Date(a.DataPreenchimento));
         setRecords(combined);
       } else {
-        const data = await getProvinceRecords(province);
+        const data = await getProvinceRecords(province, { top: 5000 });
         setRecords(data);
       }
     } catch (err) {
