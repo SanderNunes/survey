@@ -152,7 +152,7 @@ export default function MainLayout() {
 
                 {/* Language toggle */}
                 <div className="order-2 flex items-center rounded-full bg-white/10 p-0.5 sm:order-none">
-                  {['pt', 'en'].map(lang => (
+                  {['fr', 'en', 'pt'].map(lang => (
                     <button
                       key={lang}
                       onClick={() => i18n.changeLanguage(lang)}

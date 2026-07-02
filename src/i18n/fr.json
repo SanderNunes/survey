@@ -80,6 +80,7 @@
     "pending": "À synchroniser",
     "allPrelaunch": "Toutes les provinces du pré-lancement",
     "biePrelaunch": "Statistiques du pré-lancement au Bié",
+    "namibePrelaunch": "Statistiques du pré-lancement au Namibe",
     "combinedTotal": "Total Bié",
     "sharePoint": "SharePoint",
     "sharePointSynced": "Enquêtes Bié synchronisées",
@@ -117,7 +118,6 @@
     "statsError": "Impossible d'actualiser les données serveur. Les données locales disponibles sont affichées.",
     "dbErrorTitle": "Stockage local indisponible",
     "dbErrorHint": "L'enregistrement des enquêtes peut échouer jusqu'au rechargement de l'application.",
-    "storagePersistedWarning": "Le stockage local peut être effacé par le système. Synchronisez souvent sur cet appareil.",
     "storageCritical": "Stockage critique. Synchronisez ou supprimez les enquêtes en attente.",
     "storageWarning": "Stockage :",
     "startSurvey": "Démarrer l'enquête",
@@ -273,13 +273,13 @@
     "all": "Tous",
     "refresh": "Actualiser",
     "nav": {
-      "overview":     "Vue d'ensemble",
-      "progress":     "Progression",
-      "surveyors":    "Enquêteurs",
+      "overview": "Vue d'ensemble",
+      "progress": "Progression",
+      "surveyors": "Enquêteurs",
       "demographics": "Démographie",
-      "devices":      "Appareils",
-      "operator":     "Opérateur",
-      "usage":        "Usage & Recharges"
+      "devices": "Appareils",
+      "operator": "Opérateur",
+      "usage": "Usage & Recharges"
     },
     "velocity": {
       "kpiTitle": "Rythme actuel",
@@ -390,145 +390,144 @@
   "survey": {
     "sections": {
       "demographics": "Profil démographique",
-      "device":       "Appareil & connectivité",
-      "operator":     "Opérateur & réseau",
-      "usage":        "Usage & recharges",
-      "preferences":  "Préférences & offres",
-      "insights":     "Insights audio",
-      "contact":      "Contact",
-      "audio":        "Enregistrements audio"
+      "device": "Appareil & connectivité",
+      "operator": "Opérateur & réseau",
+      "usage": "Usage & recharges",
+      "preferences": "Préférences & offres",
+      "insights": "Insights audio",
+      "contact": "Contact",
+      "audio": "Enregistrements audio"
     },
     "fields": {
-      "Provincia":               "Province",
-      "Municipio":               "Commune",
-      "FaixaEtaria":             "Tranche d'âge",
-      "Genero":                  "Genre",
-      "Ocupacao":                "Profession",
-      "OcupacaoOutro":           "Profession (autre)",
-      "TipoTelefone":            "Type de téléphone",
-      "Suporta4G":               "Support 4G",
-      "ConfiguracaoSIM":         "Configuration SIM",
-      "OperadorAtual":           "Opérateur actuel",
-      "SatisfacaoOperador":      "Satisfaction opérateur",
-      "CoberturaDaRede":         "Couverture réseau",
-      "OperadorMaisVisivel":     "Opérateur le plus visible",
-      "ZonasPiorCobertura":      "Zones à mauvaise couverture",
+      "Provincia": "Province",
+      "Municipio": "Commune",
+      "FaixaEtaria": "Tranche d'âge",
+      "Genero": "Genre",
+      "Ocupacao": "Profession",
+      "OcupacaoOutro": "Profession (autre)",
+      "TipoTelefone": "Type de téléphone",
+      "Suporta4G": "Support 4G",
+      "ConfiguracaoSIM": "Configuration SIM",
+      "OperadorAtual": "Opérateur actuel",
+      "SatisfacaoOperador": "Satisfaction opérateur",
+      "CoberturaDaRede": "Couverture réseau",
+      "OperadorMaisVisivel": "Opérateur le plus visible",
+      "ZonasPiorCobertura": "Zones à mauvaise couverture",
       "ZonasPiorCoberturaOutro": "Mauvaise couverture (autre)",
-      "UsoTelefone":             "Utilisation principale",
-      "FrequenciaRecarga":       "Fréquence de recharge",
-      "ValorRecarga":            "Montant de recharge",
-      "LocalRecarga":            "Lieu de recharge",
-      "LocalRecargaOutro":       "Lieu de recharge (autre)",
-      "RazaoRecarga":            "Raison de recharge",
-      "RazaoRecargaOutro":       "Raison de recharge (autre)",
-      "UsaMobileMoney":          "Utilise Mobile Money",
-      "PacotePreferido":         "Forfait préféré",
-      "MudariaOperador":         "Changerait d'opérateur",
-      "OfertaDificilAbandonar":  "Offre difficile à abandonner",
-      "OfertaEspecifica":        "Offre spécifique",
-      "FontePromocoes":          "Source des promotions",
-      "FontePromocoesOutro":     "Source promotions (autre)",
-      "FontesConfianca":         "Sources de confiance",
-      "FontesConfiancaOutro":    "Sources de confiance (autre)",
-      "LocalNovasLojas":         "Lieu pour nouvelles boutiques",
-      "InsightPrincipal":        "Insight principal",
-      "InteresseDiscussao":      "Intérêt pour discussion",
-      "NumeroTelefone":          "Numéro de téléphone"
+      "UsoTelefone": "Utilisation principale",
+      "FrequenciaRecarga": "Fréquence de recharge",
+      "ValorRecarga": "Montant de recharge",
+      "LocalRecarga": "Lieu de recharge",
+      "LocalRecargaOutro": "Lieu de recharge (autre)",
+      "RazaoRecarga": "Raison de recharge",
+      "RazaoRecargaOutro": "Raison de recharge (autre)",
+      "UsaMobileMoney": "Utilise Mobile Money",
+      "PacotePreferido": "Forfait préféré",
+      "MudariaOperador": "Changerait d'opérateur",
+      "OfertaDificilAbandonar": "Offre difficile à abandonner",
+      "OfertaEspecifica": "Offre spécifique",
+      "FontePromocoes": "Source des promotions",
+      "FontePromocoesOutro": "Source promotions (autre)",
+      "FontesConfianca": "Sources de confiance",
+      "FontesConfiancaOutro": "Sources de confiance (autre)",
+      "LocalNovasLojas": "Lieu pour nouvelles boutiques",
+      "InsightPrincipal": "Insight principal",
+      "InteresseDiscussao": "Intérêt pour discussion",
+      "NumeroTelefone": "Numéro de téléphone"
     },
     "values": {
-      "Cabinda":                                    "Cabinda",
-      "Bié":                                        "Bié",
-      "Zaire":                                      "Zaire",
-      "Kuito":                                      "Kuito",
-      "M'banza Congo":                              "M'banza Congo",
-      "Soyo":                                       "Soyo",
-      "18–24":                                      "18–24",
-      "25–34":                                      "25–34",
-      "35–44":                                      "35–44",
-      "45–54":                                      "45–54",
-      "55+":                                        "55+",
-      "Masculino":                                  "Masculin",
-      "Feminino":                                   "Féminin",
-      "Prefiro não responder":                      "Préfère ne pas répondre",
-      "Menos de 18":                                "Moins de 18 ans",
-      "55 ou mais":                                 "55 ans ou plus",
-      "Estudante":                                  "Étudiant(e)",
-      "Empregado - Privado":                        "Employé(e) privé",
-      "Empregado - Público":                        "Employé(e) public",
-      "Trabalhador(a) por conta própria":           "Travailleur indépendant",
-      "Desempregado(a)":                            "Sans emploi",
-      "Outro (especificar)":                        "Autre (préciser)",
-      "Trabalhador por conta própria":              "Travailleur indépendant",
-      "Trabalhador por conta de outrem":            "Salarié(e)",
-      "Desempregado":                               "Sans emploi",
-      "Reformado":                                  "Retraité(e)",
-      "Doméstico(a)":                               "Au foyer",
-      "Outro":                                      "Autre",
-      "Smartphone":                                 "Smartphone",
-      "Feature Phone (Básico)":                     "Téléphone basique",
-      "Telemóvel simples (feature phone)":          "Téléphone basique (feature phone)",
-      "Ambos":                                      "Les deux",
-      "Não sei":                                    "Je ne sais pas",
-      "SIM único":                                  "SIM unique",
-      "Dual SIM":                                   "Double SIM",
-      "Dois cartões SIM (mas uso apenas um)":       "Double SIM (un seul actif)",
-      "Dois cartões SIM (uso os dois)":             "Double SIM (les deux actifs)",
-      "Unitel":                                     "Unitel",
-      "Movicel":                                    "Movicel",
-      "Ambos por igual":                            "Les deux à égalité",
-      "Nenhum":                                     "Aucun",
-      "Chamadas":                                   "Appels",
-      "Dados":                                      "Données",
-      "SMS":                                        "SMS",
-      "Todos por igual":                            "Tous également",
-      "Internet/Dados":                             "Internet/Données",
-      "Redes sociais":                              "Réseaux sociaux",
-      "Trabalho/Negócios":                          "Travail/Affaires",
-      "Entretenimento":                             "Divertissement",
-      "Diariamente":                                "Quotidiennement",
-      "De vez em quando":                           "De temps en temps",
-      "Quinzenalmente":                             "Toutes les deux semaines",
-      "De poucos em poucos dias":                   "Tous les quelques jours",
-      "Semanalmente":                               "Hebdomadairement",
-      "Mensalmente":                                "Mensuellement",
-      "Raramente":                                  "Rarement",
-      "<200 Kz":                                    "Moins de 200 Kz",
-      "200–500 Kz":                                 "200–500 Kz",
-      "500–1.000 Kz":                               "500–1 000 Kz",
-      "1.000–2.500 Kz":                             "1 000–2 500 Kz",
-      "2.500–5.000 Kz":                             "2 500–5 000 Kz",
-      "5.000+ Kz":                                  "5 000+ Kz",
-      "Menos de 200 Kz":                            "Moins de 200 Kz",
-      "Mais de 1000 Kz":                            "Plus de 1 000 Kz",
-      "Vendedores de rua (Agentes)":                "Vendeurs de rue (Agents)",
-      "Lojas":                                      "Boutiques",
-      "Proximidade":                                "Proximité",
-      "Conveniência":                               "Commodité",
-      "Confiança":                                  "Confiance",
-      "Única opção disponível":                     "Seule option disponible",
-      "Misto (voz + dados)":                        "Mixte (voix + données)",
-      "Noturno/fim de semana":                      "Nuit / week-end",
-      "Pré-pago sem pacote":                        "Prépayé sans forfait",
-      "Hábito":                                     "Habitude",
-      "Apenas voz":                                 "Voix uniquement",
-      "Apenas dados":                               "Données uniquement",
-      "Voz e dados":                                "Voix & données",
-      "Pacotes combinados":                         "Forfaits combinés",
-      "Talvez":                                     "Peut-être",
-      "Lojas/Quiosques":                            "Boutiques/Kiosques",
-      "Rádio":                                      "Radio",
-      "Televisão":                                  "Télévision",
-      "Amigos/Família":                             "Amis/Famille",
-      "Igrejas":                                    "Églises",
-      "Lojas de bairro":                            "Boutiques de quartier",
-      "Mercados locais":                            "Marchés locaux",
-      "Estradas principais":                        "Routes principales",
-      "Mercados":                                   "Marchés",
-      "Zonas fronteiriças":                         "Zones frontalières",
-      "Sim":                                        "Oui",
-      "Nao":                                        "Non",
-      "Não":                                        "Non",
-      "Não sei":                                    "Je ne sais pas"
+      "Cabinda": "Cabinda",
+      "Bié": "Bié",
+      "Zaire": "Zaire",
+      "Kuito": "Kuito",
+      "M'banza Congo": "M'banza Congo",
+      "Soyo": "Soyo",
+      "18–24": "18–24",
+      "25–34": "25–34",
+      "35–44": "35–44",
+      "45–54": "45–54",
+      "55+": "55+",
+      "Masculino": "Masculin",
+      "Feminino": "Féminin",
+      "Prefiro não responder": "Préfère ne pas répondre",
+      "Menos de 18": "Moins de 18 ans",
+      "55 ou mais": "55 ans ou plus",
+      "Estudante": "Étudiant(e)",
+      "Empregado - Privado": "Employé(e) privé",
+      "Empregado - Público": "Employé(e) public",
+      "Trabalhador(a) por conta própria": "Travailleur indépendant",
+      "Desempregado(a)": "Sans emploi",
+      "Outro (especificar)": "Autre (préciser)",
+      "Trabalhador por conta própria": "Travailleur indépendant",
+      "Trabalhador por conta de outrem": "Salarié(e)",
+      "Desempregado": "Sans emploi",
+      "Reformado": "Retraité(e)",
+      "Doméstico(a)": "Au foyer",
+      "Outro": "Autre",
+      "Smartphone": "Smartphone",
+      "Feature Phone (Básico)": "Téléphone basique",
+      "Telemóvel simples (feature phone)": "Téléphone basique (feature phone)",
+      "Ambos": "Les deux",
+      "Não sei": "Je ne sais pas",
+      "SIM único": "SIM unique",
+      "Dual SIM": "Double SIM",
+      "Dois cartões SIM (mas uso apenas um)": "Double SIM (un seul actif)",
+      "Dois cartões SIM (uso os dois)": "Double SIM (les deux actifs)",
+      "Unitel": "Unitel",
+      "Movicel": "Movicel",
+      "Ambos por igual": "Les deux à égalité",
+      "Nenhum": "Aucun",
+      "Chamadas": "Appels",
+      "Dados": "Données",
+      "SMS": "SMS",
+      "Todos por igual": "Tous également",
+      "Internet/Dados": "Internet/Données",
+      "Redes sociais": "Réseaux sociaux",
+      "Trabalho/Negócios": "Travail/Affaires",
+      "Entretenimento": "Divertissement",
+      "Diariamente": "Quotidiennement",
+      "De vez em quando": "De temps en temps",
+      "Quinzenalmente": "Toutes les deux semaines",
+      "De poucos em poucos dias": "Tous les quelques jours",
+      "Semanalmente": "Hebdomadairement",
+      "Mensalmente": "Mensuellement",
+      "Raramente": "Rarement",
+      "<200 Kz": "Moins de 200 Kz",
+      "200–500 Kz": "200–500 Kz",
+      "500–1.000 Kz": "500–1 000 Kz",
+      "1.000–2.500 Kz": "1 000–2 500 Kz",
+      "2.500–5.000 Kz": "2 500–5 000 Kz",
+      "5.000+ Kz": "5 000+ Kz",
+      "Menos de 200 Kz": "Moins de 200 Kz",
+      "Mais de 1000 Kz": "Plus de 1 000 Kz",
+      "Vendedores de rua (Agentes)": "Vendeurs de rue (Agents)",
+      "Lojas": "Boutiques",
+      "Proximidade": "Proximité",
+      "Conveniência": "Commodité",
+      "Confiança": "Confiance",
+      "Única opção disponível": "Seule option disponible",
+      "Misto (voz + dados)": "Mixte (voix + données)",
+      "Noturno/fim de semana": "Nuit / week-end",
+      "Pré-pago sem pacote": "Prépayé sans forfait",
+      "Hábito": "Habitude",
+      "Apenas voz": "Voix uniquement",
+      "Apenas dados": "Données uniquement",
+      "Voz e dados": "Voix & données",
+      "Pacotes combinados": "Forfaits combinés",
+      "Talvez": "Peut-être",
+      "Lojas/Quiosques": "Boutiques/Kiosques",
+      "Rádio": "Radio",
+      "Televisão": "Télévision",
+      "Amigos/Família": "Amis/Famille",
+      "Igrejas": "Églises",
+      "Lojas de bairro": "Boutiques de quartier",
+      "Mercados locais": "Marchés locaux",
+      "Estradas principais": "Routes principales",
+      "Mercados": "Marchés",
+      "Zonas fronteiriças": "Zones frontalières",
+      "Sim": "Oui",
+      "Nao": "Non",
+      "Não": "Non"
     },
     "ratings": {
       "1": "Très mauvais",
@@ -538,53 +537,1368 @@
       "5": "Excellent"
     },
     "audio": {
-      "loading":   "Chargement audio…",
-      "notFound":  "Fichiers audio introuvables pour cet enregistrement.",
-      "insight":   "Insight principal",
-      "newShop":   "Lieu pour nouvelles boutiques"
+      "loading": "Chargement audio…",
+      "notFound": "Fichiers audio introuvables pour cet enregistrement.",
+      "insight": "Insight principal",
+      "newShop": "Lieu pour nouvelles boutiques"
     },
     "modal": {
-      "record":   "Enregistrement",
+      "record": "Enregistrement",
       "surveyId": "ID enquête",
-      "close":    "Fermer",
-      "unknown":  "Commune inconnue"
+      "close": "Fermer",
+      "unknown": "Commune inconnue"
     },
     "questions": {
-      "Provincia":               "De quelle province / région êtes-vous ?",
-      "Municipio":               "De quelle commune êtes-vous ?",
-      "FaixaEtaria":             "Quelle est votre tranche d'âge ?",
-      "Genero":                  "Quel est votre genre ?",
-      "Ocupacao":                "Quelle est votre profession ?",
-      "OcupacaoOutro":           "Profession — précisez autre",
-      "TipoTelefone":            "Quel type de téléphone utilisez-vous ?",
-      "Suporta4G":               "Votre téléphone supporte-t-il la 4G / LTE ?",
-      "ConfiguracaoSIM":         "Quelle est votre configuration SIM ?",
-      "OperadorAtual":           "Quel(s) opérateur(s) mobile(s) utilisez-vous actuellement ?",
-      "SatisfacaoOperador":      "Satisfaction globale avec votre opérateur actuel (1–5)",
-      "CoberturaDaRede":         "Comment évaluez-vous la couverture réseau dans votre zone ? (1–5)",
-      "OperadorMaisVisivel":     "Quel opérateur a la publicité / marque la plus visible dans votre zone ?",
-      "ZonasPiorCobertura":      "Quelles zones ou routes dans votre région ont la pire couverture mobile ?",
+      "Provincia": "De quelle province / région êtes-vous ?",
+      "Municipio": "De quelle commune êtes-vous ?",
+      "FaixaEtaria": "Quelle est votre tranche d'âge ?",
+      "Genero": "Quel est votre genre ?",
+      "Ocupacao": "Quelle est votre profession ?",
+      "OcupacaoOutro": "Profession — précisez autre",
+      "TipoTelefone": "Quel type de téléphone utilisez-vous ?",
+      "Suporta4G": "Votre téléphone supporte-t-il la 4G / LTE ?",
+      "ConfiguracaoSIM": "Quelle est votre configuration SIM ?",
+      "OperadorAtual": "Quel(s) opérateur(s) mobile(s) utilisez-vous actuellement ?",
+      "SatisfacaoOperador": "Satisfaction globale avec votre opérateur actuel (1–5)",
+      "CoberturaDaRede": "Comment évaluez-vous la couverture réseau dans votre zone ? (1–5)",
+      "OperadorMaisVisivel": "Quel opérateur a la publicité / marque la plus visible dans votre zone ?",
+      "ZonasPiorCobertura": "Quelles zones ou routes dans votre région ont la pire couverture mobile ?",
       "ZonasPiorCoberturaOutro": "Zones à mauvaise couverture — précisez autre",
-      "UsoTelefone":             "Pour quoi utilisez-vous principalement votre téléphone ?",
-      "FrequenciaRecarga":       "À quelle fréquence rechargez-vous ?",
-      "ValorRecarga":            "Montant de recharge habituel (Kz)",
-      "LocalRecarga":            "Où rechargez-vous habituellement ?",
-      "LocalRecargaOutro":       "Lieu de recharge — précisez autre",
-      "RazaoRecarga":            "Pourquoi utilisez-vous cette méthode de recharge ?",
-      "RazaoRecargaOutro":       "Raison de recharge — précisez autre",
-      "UsaMobileMoney":          "Utilisez-vous Mobile Money ?",
-      "PacotePreferido":         "Quel type de forfait préférez-vous ?",
-      "MudariaOperador":         "Changeriez-vous pour un nouvel opérateur avec des prix 20 % moins chers et la même couverture ?",
-      "OfertaDificilAbandonar":  "Y a-t-il une offre de votre opérateur actuel qu'il serait difficile d'abandonner ?",
-      "OfertaEspecifica":        "Offre difficile à abandonner — précisez",
-      "FontePromocoes":          "Où voyez-vous habituellement des promotions ou entendez-vous parler d'offres ?",
-      "FontePromocoesOutro":     "Source des promotions — précisez autre",
-      "FontesConfianca":         "Y a-t-il des commerces locaux, écoles, églises ou figures communautaires en qui vous avez confiance pour des recommandations de produits ?",
-      "FontesConfiancaOutro":    "Sources de confiance — précisez autre",
-      "LocalNovasLojas":         "🎤 Où devraient se trouver les nouvelles boutiques de télécoms, et pourquoi ?",
-      "InsightPrincipal":        "🎤 En 30–60 secondes : Quel est le plus grand problème avec votre réseau actuel ? Qu'est-ce qui vous ferait changer d'opérateur ? Quel forfait/pack utilisez-vous avec Unitel ?",
-      "InteresseDiscussao":      "Êtes-vous intéressé(e) par une discussion rémunérée sur les télécoms dans votre région ?",
-      "NumeroTelefone":          "Numéro de téléphone (facultatif — contact uniquement si sélectionné pour la discussion rémunérée)"
+      "UsoTelefone": "Pour quoi utilisez-vous principalement votre téléphone ?",
+      "FrequenciaRecarga": "À quelle fréquence rechargez-vous ?",
+      "ValorRecarga": "Montant de recharge habituel (Kz)",
+      "LocalRecarga": "Où rechargez-vous habituellement ?",
+      "LocalRecargaOutro": "Lieu de recharge — précisez autre",
+      "RazaoRecarga": "Pourquoi utilisez-vous cette méthode de recharge ?",
+      "RazaoRecargaOutro": "Raison de recharge — précisez autre",
+      "UsaMobileMoney": "Utilisez-vous Mobile Money ?",
+      "PacotePreferido": "Quel type de forfait préférez-vous ?",
+      "MudariaOperador": "Changeriez-vous pour un nouvel opérateur avec des prix 20 % moins chers et la même couverture ?",
+      "OfertaDificilAbandonar": "Y a-t-il une offre de votre opérateur actuel qu'il serait difficile d'abandonner ?",
+      "OfertaEspecifica": "Offre difficile à abandonner — précisez",
+      "FontePromocoes": "Où voyez-vous habituellement des promotions ou entendez-vous parler d'offres ?",
+      "FontePromocoesOutro": "Source des promotions — précisez autre",
+      "FontesConfianca": "Y a-t-il des commerces locaux, écoles, églises ou figures communautaires en qui vous avez confiance pour des recommandations de produits ?",
+      "FontesConfiancaOutro": "Sources de confiance — précisez autre",
+      "LocalNovasLojas": "🎤 Où devraient se trouver les nouvelles boutiques de télécoms, et pourquoi ?",
+      "InsightPrincipal": "🎤 En 30–60 secondes : Quel est le plus grand problème avec votre réseau actuel ? Qu'est-ce qui vous ferait changer d'opérateur ? Quel forfait/pack utilisez-vous avec Unitel ?",
+      "InteresseDiscussao": "Êtes-vous intéressé(e) par une discussion rémunérée sur les télécoms dans votre région ?",
+      "NumeroTelefone": "Numéro de téléphone (facultatif — contact uniquement si sélectionné pour la discussion rémunérée)"
+    }
+  },
+  "searchTeam": {
+    "placeholder": "Rechercher par nom ou e-mail...",
+    "search": "Rechercher",
+    "clean": "Effacer"
+  },
+  "zoom": {
+    "center": "Centrer"
+  },
+  "loading": {
+    "loadingData": "Chargement de l'organigramme..."
+  },
+  "search": {
+    "resultsFor": "Résultats de recherche pour",
+    "noResults": "Aucun résultat trouvé.",
+    "error": "Échec de la recherche",
+    "uncategorized": "Non catégorisé",
+    "placeholder": "Rechercher des documents, articles et FAQ...",
+    "tabs": {
+      "article": "Articles",
+      "books": "Livres",
+      "videos": "Vidéos",
+      "courses": "Cours"
+    },
+    "pagination": "Page {{current}} sur {{total}}"
+  },
+  "searchSuggestions": {
+    "extension": "Extension",
+    "category": "Catégorie",
+    "noCategory": "Aucune catégorie",
+    "lastModified": "Dernière modification"
+  },
+  "home": {
+    "quiklinks": {
+      "home": "Accueil",
+      "whoarewe": "Cellito",
+      "news": "Actualités",
+      "africelluniversity": "Africell University",
+      "orgchart": "Notre équipe",
+      "articles": "Articles",
+      "calendar": "Calendrier",
+      "team": "Notre équipe"
+    },
+    "menu": {
+      "searchbartext": "Obtenez des réponses, parcourez les FAQ, découvrez...",
+      "profile": "Profil",
+      "analytics": "Analyses et rapports",
+      "notifications": "Notifications",
+      "contentmanagement": "Gestion de contenu",
+      "courses": "Cours",
+      "articles": "Articles",
+      "events": "Événements",
+      "team": "Équipe",
+      "feedback": "Commentaires",
+      "audit": "Audit du système",
+      "settings": "Paramètres",
+      "logout": "Déconnexion",
+      "documents": "Documents"
+    },
+    "submenu": {
+      "kuyuyu": "Kuyuyu SIM/eSIM",
+      "dataplans": "Forfaits Data",
+      "voiceandsmsplans": "Forfaits Voix et SMS",
+      "socializaplans": "Forfaits Socializa",
+      "comboplans": "Forfaits Combo",
+      "regionsplans": "Forfaits Régions",
+      "roaming": "Itinérance",
+      "internationalcalling": "Appels internationaux",
+      "konekta": "Konekta",
+      "campaignsnadpromotions": "Campagnes et promotions"
+    },
+    "welcome": "Bienvenue sur notre",
+    "subtitle": "Base de connaissances",
+    "content": "Comment pouvons-nous vous aider ?",
+    "populararticles": "Articles populaires",
+    "helpfullarticles": "Les utilisateurs ont trouvé ce guide utile - {{helpfull}}/5 étoiles",
+    "explore": "Explorer",
+    "allacategories": "Toutes les catégories",
+    "browsebytopic": "Parcourir par thème",
+    "satisfiedclients": "Clients satisfaits",
+    "projectcompleted": "Projets terminés",
+    "supportteam": "Équipe d'assistance",
+    "gottohistory": "Voir le tableau",
+    "eficacy": "Efficacité",
+    "tma": "Temps moyen de traitement (TMT)",
+    "callsperday": "Appels présentés par jour",
+    "viewBoard": "Aller au tableau de bord et ",
+    "viewMore": "Voir plus"
+  },
+  "cellito": {
+    "initializing": "Initialisation de Cellito...",
+    "gettingReady": "Cellito se prépare...",
+    "loadingDocuments": "Chargement des documents...",
+    "greetings": "Bonjour !",
+    "welcomeMessage": "Je suis Cellito",
+    "description": "Votre assistant personnel. Comment puis-je vous aider aujourd'hui ?",
+    "askQuestion": "Posez-moi une question",
+    "askQuestionPlaceholder": "Saisissez votre question ici...",
+    "thinking": "Cellito réfléchit...",
+    "baseonknowledge": "Selon notre base de connaissances",
+    "socializa_pack": "Quels sont les forfaits Socializa ?",
+    "weekend_bundles": "Quels sont les forfaits week-end ?",
+    "konektas_devices": "Quelles sont les caractéristiques de Konekta 5G ?",
+    "konekta_plans": "Quels sont les forfaits Konekta 5G ?",
+    "confidence_percentage": "% de confiance",
+    "verified_docs": "Sources consultées :",
+    "source_web": "Web",
+    "source_internal": "Interne",
+    "search_hybrid": "Hybride",
+    "search_internal": "Interne",
+    "usefull_answer": "Réponse utile",
+    "non_usefull_response": "Réponse non utile",
+    "thanks_feedback": "Merci pour votre retour !",
+    "search_hybrid_description": "Mode hybride : recherche interne + web",
+    "search_internal_description": "Mode interne : recherche uniquement dans la base de connaissances",
+    "footertext": "Cellito peut faire des erreurs. Pensez à vérifier les informations importantes."
+  },
+  "footer": {
+    "help": "Besoin d'aide ?",
+    "more": "Demander à Cellito",
+    "productsServices": "Produits et services",
+    "kuyuyuTariffs": "Kuyuyu SIM/eSIM et tarifs",
+    "dataVoiceSmsPlans": "Forfaits Data, Voix et SMS",
+    "socialComboPlans": "Forfaits Socializa et Combo",
+    "roamingIntlCalling": "Région, itinérance et appels internationaux",
+    "konekta": "Konekta",
+    "campaignsPromotions": "Campagnes et promotions",
+    "helpGuides": "Aide et guides",
+    "networkSimIssues": "Problèmes de réseau et de SIM",
+    "dataVoiceSmsHelp": "Aide Data, Voix et SMS",
+    "esimRouterGuides": "Guides eSIM et routeur",
+    "rechargeHelp": "Aide au rechargement",
+    "accountManagement": "Gestion du compte",
+    "checkNumberBalance": "Vérifier le numéro et le solde",
+    "managePlansServices": "Gérer les forfaits et services",
+    "simSwapOwnership": "Échange de SIM et propriété",
+    "transferBalanceUssd": "Transfert de solde et USSD",
+    "termsConditions": "Conditions générales",
+    "core": "Essentiel",
+    "simTariffs": "SIM/eSIM et tarifs",
+    "dataPlans": "Forfaits Data",
+    "voiceSmsPlans": "Forfaits Voix et SMS",
+    "roaming": "Itinérance",
+    "copyright": "©2024 Africell. Tous droits réservés.",
+    "termsOfService": "Conditions d'utilisation",
+    "privacyPolicy": "Politique de confidentialité",
+    "cookiePolicy": "Politique relative aux cookies"
+  },
+  "articlesFeed": {
+    "pageTitle": "Tous les articles",
+    "loadingMessage": "Chargement des articles de connaissances...",
+    "loadingArticles": "Chargement des articles...",
+    "searchResultsFor": "Résultats de recherche pour",
+    "articlesFound": "{{count}} article trouvé",
+    "articlesFound_plural": "{{count}} articles trouvés",
+    "showingResults": "Affichage de {{start}} à {{end}} sur {{total}} articles",
+    "noSearchResults": "Aucun résultat de recherche trouvé",
+    "noArticlesFound": "Aucun article de connaissances trouvé",
+    "noSearchResultsMessage": "Aucun article ne correspond à votre recherche « {{query}} ». Essayez d'autres mots-clés ou effacez votre recherche.",
+    "noArticlesMessage": "Aucun article n'est actuellement disponible"
+  },
+  "sidebar": {
+    "searchHere": "Rechercher ici",
+    "searchPlaceholder": "Rechercher des articles, catégories, tags...",
+    "clearSearchTitle": "Effacer la recherche",
+    "searchTitle": "Rechercher",
+    "found": "{{count}} article trouvé pour « {{query}} »",
+    "found_plural": "{{count}} articles trouvés pour « {{query}} »",
+    "noResultsFor": "Aucun résultat trouvé pour « {{query}} »",
+    "searchResults": "Résultats de recherche",
+    "popularPosts": "Publications populaires",
+    "noArticlesFound": "Aucun article ne correspond à votre recherche.",
+    "noArticlesAvailable": "Aucun article disponible pour l'instant.",
+    "moreTagsCount": "+{{count}}"
+  },
+  "quickLinks": {
+    "title": "Liens rapides",
+    "actions": {
+      "createCourse": "Créer un cours",
+      "createArticle": "Créer un article",
+      "uploadDocument": "Téléverser un document"
+    },
+    "descriptions": {
+      "createCourseDesc": "Créer un nouveau cours",
+      "createArticleDesc": "Créer un nouvel article",
+      "uploadDocumentDesc": "Téléverser ou gérer des documents"
+    },
+    "users": {
+      "quickAction": "Action rapide",
+      "contentHub": "Centre de contenu",
+      "system": "Système"
+    }
+  },
+  "topContent": {
+    "title": "Articles récents",
+    "viewAll": "Voir tout",
+    "metrics": {
+      "views": "vues",
+      "totalArticles": "Total d'articles"
+    },
+    "timeAgo": {
+      "justNow": "à l'instant",
+      "minuteAgo": "il y a une minute",
+      "minutesAgo": "il y a {{count}} minutes",
+      "hourAgo": "il y a une heure",
+      "hoursAgo": "il y a {{count}} heures",
+      "dayAgo": "il y a un jour",
+      "daysAgo": "il y a {{count}} jours",
+      "weekAgo": "il y a une semaine",
+      "weeksAgo": "il y a {{count}} semaines",
+      "monthAgo": "il y a un mois",
+      "monthsAgo": "il y a {{count}} mois",
+      "yearAgo": "il y a un an",
+      "yearsAgo": "il y a {{count}} ans"
+    },
+    "noContent": "Aucun article récent disponible",
+    "loadingContent": "Chargement des articles récents..."
+  },
+  "activityFeed": {
+    "title": "Activités récentes",
+    "viewAll": "Voir tout",
+    "actions": {
+      "created": "a créé",
+      "updated": "a mis à jour",
+      "deleted": "a supprimé",
+      "uploaded": "a téléversé",
+      "downloaded": "a téléchargé",
+      "shared": "a partagé",
+      "commented": "a commenté",
+      "assigned": "a assigné",
+      "completed": "a terminé",
+      "viewed": "a consulté"
+    },
+    "actionTypes": {
+      "Create": "Créer",
+      "Update": "Mettre à jour",
+      "Delete": "Supprimer",
+      "Upload": "Téléverser",
+      "Download": "Télécharger",
+      "Share": "Partager",
+      "Comment": "Commenter",
+      "Assign": "Assigner",
+      "Complete": "Terminer",
+      "View": "Consulter"
+    },
+    "labels": {
+      "by": "par",
+      "userPerformed": "{{user}} {{action}} {{content}}",
+      "noActivities": "Aucune activité récente disponible",
+      "loadingActivities": "Chargement des activités récentes..."
+    },
+    "sampleActivities": {
+      "createProject": "a créé un nouveau projet",
+      "completeTask": "a terminé la tâche",
+      "commentOn": "a commenté",
+      "uploadFile": "a téléversé le fichier",
+      "assignTask": "a assigné la tâche"
+    }
+  },
+  "courses": {
+    "title": "Gestion des cours",
+    "rateCourse": "Veuillez évaluer le cours !",
+    "subtitle": "Gérer tous les cours du système de l'académie",
+    "actions": {
+      "create": "Créer un cours",
+      "edit": "Modifier le cours",
+      "delete": "Supprimer le cours",
+      "view": "Voir le cours",
+      "createNew": "Créer un nouveau cours",
+      "goBack": "Retour",
+      "startCourse": "Commencer le cours",
+      "continueCourse": "Continuer le cours",
+      "reviewCourse": "Revoir le cours",
+      "checkingEnrollment": "Vérification de l'inscription...",
+      "takeExam": "Passer l'examen"
+    },
+    "table": {
+      "headers": {
+        "courseTitle": "Titre du cours",
+        "category": "Catégorie",
+        "duration": "Durée",
+        "reviews": "Avis",
+        "rating": "Note",
+        "createdDate": "Date de création",
+        "level": "Niveau",
+        "status": "Statut",
+        "tags": "Tags"
+      },
+      "values": {
+        "noReviews": "Aucun avis",
+        "notRated": "Non noté",
+        "reviews": "{{count}} avis",
+        "reviews_plural": "{{count}} avis"
+      }
+    },
+    "filters": {
+      "level": {
+        "beginner": "Débutant",
+        "intermediate": "Intermédiaire",
+        "advanced": "Avancé"
+      }
+    },
+    "bulkActions": {
+      "publishSelected": "Publier la sélection",
+      "archiveSelected": "Archiver la sélection",
+      "deleteSelected": "Supprimer la sélection",
+      "exportSelected": "Exporter la sélection"
+    },
+    "status": {
+      "published": "Publié",
+      "draft": "Brouillon",
+      "archived": "Archivé",
+      "scheduled": "Programmé"
+    },
+    "messages": {
+      "loadingCourses": "Chargement des cours...",
+      "loadingCourse": "Chargement du cours...",
+      "addCourses": "Ajouter des cours",
+      "noCoursesFound": "Aucun cours trouvé",
+      "errorLoading": "Erreur lors du chargement des cours",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer « {{title}} » ?",
+      "deleteSuccess": "Cours supprimé avec succès",
+      "deleteFailed": "Échec de la suppression du cours. Veuillez réessayer.",
+      "bulkDeleteConfirm": "Supprimer {{count}} cours ?",
+      "bulkDeleteConfirm_plural": "Supprimer {{count}} cours ?",
+      "bulkActionFailed": "Échec de l'action groupée. Veuillez réessayer.",
+      "saveCourseFailed": "Échec de l'enregistrement du cours. Veuillez réessayer.",
+      "emptyState": "Aucun cours trouvé. Créez votre premier cours pour commencer.",
+      "startExam": "Maintenant que vous avez terminé toutes les leçons, vous êtes prêt pour l'examen. N'hésitez pas à commencer.",
+      "courseProgress": "Terminé",
+      "lessonsComplete": "Félicitations !",
+      "chapters": "Chapitres"
+    },
+    "exams": {
+      "actions": {
+        "previous": "Précédent",
+        "next": "Suivant",
+        "complete": "Terminer"
+      },
+      "messages": {
+        "examComplete": "Inscrivez-vous à d'autres cours",
+        "thankYou": "Merci d'avoir suivi ce parcours et terminé l'examen pour",
+        "questions": "Questions",
+        "correct": "correctes sur",
+        "passingScore": "La note de passage est de {{score}} points",
+        "yourResults": "Vos résultats",
+        "yourScore": "Score",
+        "complete": "Terminer",
+        "startExam": "Commencer l'examen",
+        "getStarted": "Commencez votre examen",
+        "welcome": "Bienvenue à l'examen pour"
+      }
+    },
+    "details": {
+      "title": "Détails du cours",
+      "loading": "Chargement des détails du cours...",
+      "error": "Erreur lors du chargement du cours",
+      "notFound": "Cours introuvable",
+      "missingId": "L'identifiant du cours est manquant"
+    },
+    "metadata": {
+      "duration": "Durée",
+      "format": "Format",
+      "level": "Niveau",
+      "rating": "Note",
+      "ratingOutOf": "{{rating}} / 5"
+    },
+    "enrollment": {
+      "enrolled": "Inscrit",
+      "notEnrolled": "Non inscrit",
+      "completed": "Terminé",
+      "inProgress": "En cours"
+    },
+    "sections": {
+      "whatYouLearn": "Ce que vous allez apprendre",
+      "curriculum": "Programme du cours",
+      "assessment": "Évaluation du cours",
+      "preview": "Aperçu du cours"
+    },
+    "emptyMessages": {
+      "noOutcomes": "Aucun objectif d'apprentissage disponible pour ce cours.",
+      "noCurriculum": "Aucun détail de programme disponible pour ce cours.",
+      "noAssessment": "Aucune évaluation disponible pour ce cours."
+    },
+    "dialog": {
+      "assessmentTitle": "Évaluation du cours",
+      "close": "Fermer"
+    }
+  },
+  "table": {
+    "search": {
+      "placeholder": "Rechercher...",
+      "noResults": "Aucun résultat trouvé",
+      "noResultsDesc": "Essayez d'ajuster vos critères de recherche ou de filtre",
+      "noData": "Aucune donnée disponible"
+    },
+    "filters": {
+      "title": "Filtres",
+      "all": "Tous",
+      "allLevel": "Tous les niveaux",
+      "allStatus": "Tous les statuts",
+      "allCategory": "Toutes les catégories",
+      "clearFilters": "Effacer les filtres"
+    },
+    "bulk": {
+      "selected": "{{count}} élément sélectionné",
+      "selected_plural": "{{count}} éléments sélectionnés",
+      "chooseAction": "Choisir une action...",
+      "apply": "Appliquer"
+    },
+    "actions": {
+      "view": "Voir",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "create": "Créer"
+    },
+    "pagination": {
+      "showing": "Affichage de",
+      "to": "à",
+      "of": "sur",
+      "results": "résultats",
+      "previous": "Précédent",
+      "next": "Suivant"
+    },
+    "values": {
+      "yes": "Oui",
+      "no": "Non",
+      "dash": "—",
+      "ratings": "{{count}} note",
+      "ratings_plural": "{{count}} notes"
+    },
+    "loading": "Chargement..."
+  },
+  "courseForm": {
+    "titles": {
+      "view": "Voir le cours",
+      "edit": "Modifier le cours",
+      "create": "Créer un nouveau cours"
+    },
+    "buttons": {
+      "lesson": "Leçon",
+      "exam": "Examen",
+      "save": "Enregistrer",
+      "update": "Mettre à jour",
+      "saving": "Enregistrement...",
+      "editing": "Modification...",
+      "addLearningOutcome": "Ajouter un objectif d'apprentissage",
+      "addCurriculumItem": "Ajouter un élément de programme",
+      "addOption": "Ajouter une option",
+      "addNewQuestion": "Ajouter une nouvelle question"
+    },
+    "fields": {
+      "courseTitle": "Titre du cours",
+      "courseTitleRequired": "Titre du cours *",
+      "description": "Description",
+      "authorBio": "Biographie de l'auteur",
+      "duration": "Durée",
+      "durationPlaceholder": "ex. : 4 semaines",
+      "format": "Format",
+      "selectFormat": "Sélectionner le format",
+      "level": "Niveau",
+      "selectLevel": "Sélectionner le niveau",
+      "tags": "Tags",
+      "tagsPlaceholder": "Tags séparés par des virgules",
+      "language": "Langue",
+      "languagePlaceholder": "ex. : Français",
+      "category": "Catégorie",
+      "selectCategory": "Sélectionner la catégorie",
+      "learningOutcomes": "Objectifs d'apprentissage",
+      "learningOutcomePlaceholder": "Objectif d'apprentissage {{index}}",
+      "curriculum": "Programme",
+      "curriculumPlaceholder": "Élément de programme {{index}}",
+      "assessmentQuestions": "Questions d'évaluation",
+      "imageUrl": "URL de l'image",
+      "imageUrlPlaceholder": "https://exemple.com/image.jpg"
+    },
+    "assessment": {
+      "question": "Question",
+      "questionNumber": "Question {{number}}",
+      "stepTitle": "Titre de l'étape",
+      "stepTitlePlaceholder": "ex. : Étape 1",
+      "questionId": "ID de la question",
+      "questionIdPlaceholder": "ex. : q1",
+      "questionPlaceholder": "Saisissez votre question ici...",
+      "answerOptions": "Options de réponse",
+      "optionPlaceholder": "Option {{number}}",
+      "noQuestions": "Aucune question d'évaluation ajoutée"
+    },
+    "formats": {
+      "online": "En ligne",
+      "inPerson": "En présentiel",
+      "hybrid": "Hybride",
+      "selfPaced": "À son rythme"
+    },
+    "levels": {
+      "beginner": "Débutant",
+      "intermediate": "Intermédiaire",
+      "advanced": "Avancé"
+    },
+    "categories": {
+      "customerExperience": "Expérience client"
+    },
+    "messages": {
+      "courseSaved": "Cours enregistré avec succès !",
+      "courseUpdated": "Cours mis à jour avec succès !",
+      "errorSaving": "Erreur lors de l'enregistrement du cours : {{error}}",
+      "courseNotFound": "Cours introuvable",
+      "errorParsing": "Erreur lors de l'analyse des questions d'évaluation",
+      "fetchError": "Échec de la récupération des cours : {{error}}"
+    }
+  },
+  "articles": {
+    "title": "Gestion des articles",
+    "subtitle": "Gérez les articles de votre portail de connaissances",
+    "articleHelpfulness": "Dans quelle mesure l'article a-t-il été utile ?",
+    "table": {
+      "headers": {
+        "title": "Titre",
+        "status": "Statut",
+        "category": "Catégorie",
+        "tags": "Tags",
+        "date": "Date",
+        "statistics": "Statistiques"
+      }
+    },
+    "status": {
+      "published": "Publié",
+      "draft": "Brouillon",
+      "archived": "Archivé",
+      "scheduled": "Programmé"
+    },
+    "actions": {
+      "publish": "Publier",
+      "draft": "Brouillon",
+      "archive": "Archiver",
+      "publishSelected": "Publier la sélection",
+      "moveToDraft": "Déplacer vers les brouillons",
+      "archiveSelected": "Archiver la sélection"
+    },
+    "messages": {
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer « {{title}} » ?",
+      "bulkDeleteConfirm": "Supprimer {{count}} article ?",
+      "bulkDeleteConfirm_plural": "Supprimer {{count}} articles ?",
+      "emptyState": "Aucun article trouvé. Créez votre premier article pour commencer.",
+      "ratings": "{{count}} note",
+      "ratings_plural": "{{count}} notes"
+    }
+  },
+  "createArticle": {
+    "titles": {
+      "create": "Créer un nouvel article",
+      "edit": "Modifier l'article"
+    },
+    "buttons": {
+      "save": "Enregistrer",
+      "update": "Mettre à jour",
+      "saving": "Enregistrement...",
+      "updating": "Mise à jour...",
+      "contentEditor": "Éditeur de contenu"
+    },
+    "sections": {
+      "basicInfo": "Informations de base",
+      "classification": "Classification"
+    },
+    "fields": {
+      "title": "Titre",
+      "titleRequired": "Titre *",
+      "titlePlaceholder": "Saisissez le titre de l'article...",
+      "summary": "Résumé",
+      "summaryRequired": "Résumé *",
+      "summaryPlaceholder": "Saisissez le résumé de l'article...",
+      "slug": "Slug",
+      "featured": "En vedette",
+      "notFeatured": "Pas en vedette",
+      "slugRequired": "Slug *",
+      "slugPlaceholder": "slug-article",
+      "coverImage": "URL de l'image de couverture",
+      "coverImageRequired": "URL de l'image de couverture *",
+      "coverImagePlaceholder": "https://exemple.com/image.jpg",
+      "category": "Catégorie",
+      "categoryRequired": "Catégorie *",
+      "categoryPlaceholder": "Sélectionner une catégorie...",
+      "type": "Type",
+      "typeRequired": "Type *",
+      "typePlaceholder": "Sélectionner un type...",
+      "level": "Niveau",
+      "levelRequired": "Niveau *",
+      "levelPlaceholder": "Sélectionner un niveau...",
+      "tags": "Tags",
+      "tagsPlaceholder": "Ajouter un tag...",
+      "readTime": "Temps de lecture (minutes)",
+      "readTimePlaceholder": "5"
+    },
+    "categories": {
+      "customerExperience": "Expérience client"
+    },
+    "types": {
+      "tutorial": "Tutoriel",
+      "guide": "Guide",
+      "news": "Actualités",
+      "review": "Critique",
+      "opinion": "Opinion",
+      "caseStudy": "Étude de cas",
+      "bestPractice": "Bonne pratique",
+      "framework": "Cadre de référence",
+      "template": "Modèle"
+    },
+    "levels": {
+      "beginner": "Débutant",
+      "intermediate": "Intermédiaire",
+      "advanced": "Avancé",
+      "expert": "Expert"
+    },
+    "validation": {
+      "titleRequired": "Le titre est obligatoire",
+      "summaryRequired": "Le résumé est obligatoire",
+      "categoryRequired": "La catégorie est obligatoire",
+      "typeRequired": "Le type est obligatoire",
+      "levelRequired": "Le niveau est obligatoire",
+      "slugRequired": "Le slug est obligatoire"
+    },
+    "messages": {
+      "saveSuccess": "Article enregistré avec succès !",
+      "updateSuccess": "Article mis à jour avec succès !",
+      "saveError": "Erreur lors de l'enregistrement de l'article : {{error}}",
+      "fetchError": "Erreur lors de la récupération de l'article : {{error}}"
+    }
+  },
+  "editor": {
+    "buttons": {
+      "goBack": "Retour",
+      "save": "Enregistrer",
+      "publish": "Publier",
+      "publishing": "Publication..."
+    },
+    "status": {
+      "autoSaving": "Enregistrement automatique...",
+      "lastSaved": "Dernier enregistrement : {{time}}",
+      "manualSaveCompleted": "Enregistrement manuel terminé",
+      "autoSavedAt": "Enregistré automatiquement à : {{time}}"
+    },
+    "messages": {
+      "publishSuccess": "Article publié avec succès !",
+      "publishError": "Échec de la publication de l'article. Veuillez réessayer.",
+      "saveError": "Erreur lors de l'enregistrement de l'article : {{error}}",
+      "autoSaveError": "Échec de l'enregistrement automatique : {{error}}"
+    },
+    "tooltips": {
+      "goBack": "Retour",
+      "saveArticle": "Enregistrer l'article",
+      "publishArticle": "Publier l'article",
+      "lastSavedTime": "Dernier enregistrement : {{time}}"
+    }
+  },
+  "documents": {
+    "title": "Gestion des documents",
+    "subtitle": "Gérez et organisez les documents par catégorie",
+    "breadcrumb": {
+      "allCategories": "Toutes les catégories"
+    },
+    "search": {
+      "placeholder": "Rechercher des fichiers et catégories...",
+      "placeholderInCategory": "Rechercher dans {{category}}...",
+      "clearSearch": "Effacer la recherche"
+    },
+    "viewModes": {
+      "grid": "Vue en grille",
+      "list": "Vue en liste"
+    },
+    "categories": {
+      "uncategorized": "Non catégorisé"
+    },
+    "fileCount": {
+      "single": "{{count}} fichier",
+      "plural": "{{count}} fichiers"
+    },
+    "stats": {
+      "filesInCategory": "{{count}} fichiers dans {{category}}",
+      "categoriesAndFiles": "{{categoryCount}} catégories • {{fileCount}} fichiers au total"
+    },
+    "emptyState": {
+      "noFiles": "Aucun fichier trouvé",
+      "noFilesInCategory": "Aucun fichier dans cette catégorie",
+      "searchHint": "Essayez d'ajuster vos termes de recherche ou parcourez une autre catégorie",
+      "categoryEmpty": "Cette catégorie semble être vide"
+    },
+    "table": {
+      "headers": {
+        "name": "Nom",
+        "type": "Type",
+        "modified": "Modifié"
+      }
+    },
+    "actions": {
+      "upload": "Téléverser un fichier",
+      "download": "Télécharger",
+      "preview": "Aperçu",
+      "delete": "Supprimer"
+    }
+  },
+  "emptyState": {
+    "auditLogs": {
+      "title": "Aucun journal d'audit trouvé",
+      "description": "Essayez d'ajuster vos filtres pour voir plus de résultats."
+    },
+    "noData": {
+      "title": "Aucune donnée disponible",
+      "description": "Il n'y a rien à afficher pour le moment."
+    },
+    "noSearchResults": {
+      "title": "Aucun résultat de recherche",
+      "description": "Essayez d'autres termes de recherche ou effacez vos filtres."
+    },
+    "noFiles": {
+      "title": "Aucun fichier trouvé",
+      "description": "Téléversez des fichiers pour commencer ou ajustez vos critères de recherche."
+    },
+    "noArticles": {
+      "title": "Aucun article trouvé",
+      "description": "Créez votre premier article pour commencer."
+    },
+    "generic": {
+      "title": "Rien à afficher",
+      "description": "Revenez plus tard ou essayez de rafraîchir la page."
+    }
+  },
+  "audit": {
+    "title": "Journaux d'audit",
+    "subtitle": "Surveillez et suivez les activités du système",
+    "filters": {
+      "activityType": "Type d'activité",
+      "dateRange": "Plage de dates",
+      "selectActivity": "Sélectionner le type d'activité",
+      "selectDateRange": "Sélectionner la plage de dates"
+    },
+    "status": {
+      "loading": "Chargement...",
+      "noEntries": "Aucune entrée",
+      "totalEntries": "{{count}} entrée au total",
+      "totalEntries_plural": "{{count}} entrées au total",
+      "pageInfo": "Page {{page}}"
+    },
+    "actions": {
+      "refresh": "Actualiser",
+      "export": "Exporter",
+      "clearFilters": "Effacer les filtres"
+    },
+    "dateRanges": {
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "last7Days": "7 derniers jours",
+      "last30Days": "30 derniers jours",
+      "thisMonth": "Ce mois-ci",
+      "lastMonth": "Le mois dernier",
+      "custom": "Plage personnalisée"
+    },
+    "activities": {
+      "all": "Toutes les activités",
+      "login": "Connexion",
+      "logout": "Déconnexion",
+      "create": "Créer",
+      "update": "Mettre à jour",
+      "delete": "Supprimer",
+      "view": "Consulter",
+      "download": "Télécharger"
+    }
+  },
+  "knowledgeBase": {
+    "bannerAlt": "Bannière de la base de connaissances"
+  },
+  "pagination": {
+    "ellipsis": "...",
+    "page": "Page",
+    "totalEntries": "{{count}} entrée au total",
+    "totalEntries_plural": "{{count}} entrées au total",
+    "pageInfo": "Page {{page}}",
+    "pageInfoWithTotal": "Page {{page}} ({{total}} entrées au total)",
+    "previous": "Précédent",
+    "next": "Suivant",
+    "loading": "Chargement...",
+    "noResults": "Aucun résultat trouvé"
+  },
+  "events": {
+    "title": "Gestion des événements",
+    "subtitle": "Gérez et organisez tous les événements",
+    "status": {
+      "scheduled": "Programmé",
+      "confirmed": "Confirmé",
+      "cancelled": "Annulé",
+      "completed": "Terminé",
+      "postponed": "Reporté"
+    },
+    "types": {
+      "internal": "Interne - (PCX)",
+      "external": "Externe",
+      "client": "Client",
+      "personal": "Personnel",
+      "company": "Entreprise - (Africell)"
+    },
+    "table": {
+      "headers": {
+        "title": "Événement",
+        "status": "Statut",
+        "category": "Catégorie",
+        "eventType": "Type",
+        "dateTime": "Date et heure",
+        "team": "Équipe",
+        "reminder": "Rappel"
+      },
+      "duration": "Durée"
+    },
+    "actions": {
+      "confirm": "Confirmer",
+      "cancel": "Annuler",
+      "complete": "Terminer",
+      "postpone": "Reporter",
+      "confirmSelected": "Confirmer la sélection",
+      "cancelSelected": "Annuler la sélection",
+      "completeSelected": "Terminer la sélection",
+      "postponeSelected": "Reporter la sélection"
+    },
+    "messages": {
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer « {title} » ?",
+      "bulkDeleteConfirm": "Êtes-vous sûr de vouloir supprimer {count} événements ?",
+      "emptyState": "Aucun événement trouvé"
+    },
+    "navigation": {
+      "backToCalendar": "Retour au calendrier",
+      "feature": "Mettre l'événement en vedette"
+    }
+  },
+  "createEvent": {
+    "team": {
+      "pcx": "PCX - Général",
+      "quality_assurance": "Assurance qualité",
+      "hybrid": "Hybride",
+      "residential": "Résidentiel",
+      "corporate": "Entreprise",
+      "projects": "Projets",
+      "external": "Externe"
+    },
+    "titles": {
+      "create": "Créer un événement",
+      "edit": "Modifier l'événement"
+    },
+    "sections": {
+      "basicInfo": "Informations de base",
+      "classification": "Classification de l'événement"
+    },
+    "fields": {
+      "titleRequired": "Titre *",
+      "titlePlaceholder": "Saisissez le titre de l'événement",
+      "description": "Description",
+      "descriptionPlaceholder": "Saisissez la description de l'événement",
+      "startDateRequired": "Date de début *",
+      "endDate": "Date de fin",
+      "categoryRequired": "Catégorie *",
+      "categoryPlaceholder": "Sélectionner une catégorie",
+      "eventTypeRequired": "Type d'événement *",
+      "eventTypePlaceholder": "Sélectionner le type d'événement",
+      "statusRequired": "Statut *",
+      "statusPlaceholder": "Sélectionner le statut",
+      "team": "Équipe",
+      "teamPlaceholder": "Saisissez le nom de l'équipe",
+      "accessLevel": "Niveau d'accès",
+      "accessLevelPlaceholder": "Sélectionner le niveau d'accès",
+      "reminder": "Rappel",
+      "reminderPlaceholder": "Sélectionner un rappel",
+      "recurrenceType": "Récurrence",
+      "recurrenceTypePlaceholder": "Sélectionner la récurrence",
+      "notes": "Notes",
+      "notesPlaceholder": "Notes ou commentaires supplémentaires"
+    },
+    "categories": {
+      "meeting": "Réunion",
+      "training": "Formation",
+      "conference": "Conférence",
+      "workshop": "Atelier",
+      "mistery_shop": "Client mystère",
+      "audit": "Audit",
+      "holiday": "Jour férié",
+      "celebration": "Célébration",
+      "review": "Revue",
+      "others": "Autres rendez-vous",
+      "deadline": "Échéance"
+    },
+    "types": {
+      "internal": "Interne - (PCX)",
+      "external": "Externe",
+      "client": "Client",
+      "personal": "Personnel",
+      "company": "Entreprise - (Africell)"
+    },
+    "accessLevels": {
+      "public": "Public",
+      "private": "Privé",
+      "restricted": "Restreint",
+      "confidential": "Confidentiel"
+    },
+    "status": {
+      "scheduled": "Programmé",
+      "confirmed": "Confirmé",
+      "cancelled": "Annulé",
+      "completed": "Terminé",
+      "postponed": "Reporté"
+    },
+    "reminders": {
+      "none": "Aucun rappel",
+      "fifteenMinutes": "15 minutes avant",
+      "thirtyMinutes": "30 minutes avant",
+      "oneHour": "1 heure avant",
+      "twoHours": "2 heures avant",
+      "oneDay": "1 jour avant",
+      "oneWeek": "1 semaine avant"
+    },
+    "recurrence": {
+      "none": "Aucune récurrence",
+      "daily": "Quotidienne",
+      "weekly": "Hebdomadaire",
+      "monthly": "Mensuelle",
+      "quarterly": "Trimestrielle",
+      "semestral": "Semestrielle",
+      "yearly": "Annuelle"
+    },
+    "validation": {
+      "titleRequired": "Le titre est obligatoire",
+      "categoryRequired": "La catégorie est obligatoire",
+      "startDateRequired": "La date de début est obligatoire",
+      "eventTypeRequired": "Le type d'événement est obligatoire",
+      "statusRequired": "Le statut est obligatoire",
+      "endDateAfterStart": "La date de fin doit être postérieure à la date de début"
+    },
+    "buttons": {
+      "save": "Enregistrer l'événement",
+      "update": "Mettre à jour l'événement",
+      "saving": "Enregistrement...",
+      "updating": "Mise à jour..."
+    },
+    "messages": {
+      "saveSuccess": "Événement enregistré avec succès",
+      "saveError": "Échec de l'enregistrement de l'événement",
+      "fetchError": "Échec de la récupération de l'événement : {error}"
+    }
+  },
+  "calendar": {
+    "loading": {
+      "events": "Chargement des événements...",
+      "text": "Chargement..."
+    },
+    "navigation": {
+      "today": "Aujourd'hui",
+      "prev": "Précédent",
+      "next": "Suivant",
+      "month": "Mois",
+      "week": "Semaine",
+      "day": "Jour"
+    },
+    "views": {
+      "dayGridMonth": "Mois",
+      "timeGridWeek": "Semaine",
+      "timeGridDay": "Jour"
+    },
+    "events": {
+      "noTitle": "Sans titre",
+      "moreEvents": "+ {{count}} de plus",
+      "allDay": "Toute la journée"
+    },
+    "dateClick": {
+      "alert": "Date cliquée : {{date}}"
+    },
+    "modal": {
+      "close": "Fermer",
+      "title": "Détails de l'événement",
+      "sections": {
+        "dateTime": "Date et heure",
+        "description": "Description",
+        "details": "Détails",
+        "notes": "Notes",
+        "metadata": "Informations sur l'événement"
+      },
+      "fields": {
+        "start": "Début",
+        "end": "Fin",
+        "eventType": "Type d'événement",
+        "team": "Équipe",
+        "status": "Statut",
+        "reminder": "Rappel",
+        "createdBy": "Créé par",
+        "created": "Créé",
+        "lastModified": "Dernière modification",
+        "category": "Catégorie",
+        "accessLevel": "Niveau d'accès"
+      }
+    },
+    "categories": {
+      "meeting": "Réunion",
+      "conference": "Conférence",
+      "audit": "Audit",
+      "training": "Formation",
+      "holiday": "Jour férié",
+      "celebration": "Célébration",
+      "workshop": "Atelier",
+      "mistery_shop": "Client mystère",
+      "review": "Revue"
+    },
+    "eventTypes": {
+      "internal": "Interne - (PCX)",
+      "external": "Externe",
+      "client": "Client",
+      "personal": "Personnel",
+      "company": " Entreprise - (Africell)"
+    },
+    "status": {
+      "scheduled": "Programmé",
+      "confirmed": "Confirmé",
+      "cancelled": "Annulé",
+      "completed": "Terminé",
+      "postponed": "Reporté"
+    },
+    "errors": {
+      "loadEvents": "Erreur lors du chargement des événements",
+      "noEventsFound": "Aucun événement trouvé",
+      "connectionError": "Impossible de se connecter au serveur"
+    },
+    "fallbackEvents": {
+      "meeting": "Réunion",
+      "conference": "Conférence",
+      "deadline": "Échéance"
+    }
+  },
+  "teams": {
+    "title": "Gestion des équipes",
+    "table": {
+      "headers": {
+        "name": "Nom",
+        "team": "Équipe",
+        "reportTo": "Rapporte à",
+        "email": "E-mail",
+        "msisdn": "Numéro de téléphone",
+        "startDate": "Date de début"
+      }
+    },
+    "emptyState": "Aucun membre d'équipe trouvé"
+  },
+  "teamForm": {
+    "validation": {
+      "nameRequired": "Le nom est obligatoire",
+      "emailRequired": "L'e-mail est obligatoire",
+      "emailInvalid": "Veuillez saisir une adresse e-mail valide",
+      "departmentRequired": "Le département est obligatoire",
+      "functionRequired": "La fonction est obligatoire",
+      "teamRequired": "L'équipe est obligatoire",
+      "typeRequired": "Le type d'emploi est obligatoire"
+    },
+    "buttons": {
+      "save": "Enregistrer le membre",
+      "update": "Mettre à jour le membre",
+      "saving": "Enregistrement...",
+      "updating": "Mise à jour..."
+    },
+    "messages": {
+      "saveSuccess": "Membre de l'équipe enregistré avec succès",
+      "saveError": "Échec de l'enregistrement du membre. Veuillez réessayer.",
+      "fetchError": "Échec du chargement des données du membre"
+    }
+  },
+  "navigationTeams": {
+    "goBack": "Retour",
+    "backToTeams": "Retour aux équipes",
+    "viewMode": "Passer en mode consultation",
+    "editMode": "Passer en mode édition",
+    "switchToViewMode": "Passer en mode consultation",
+    "switchToEditMode": "Passer en mode édition"
+  },
+  "employeeForm": {
+    "titles": {
+      "employeeDetails": "Détails de l'employé",
+      "editEmployee": "Modifier l'employé",
+      "addNewEmployee": "Ajouter un nouvel employé"
+    },
+    "sections": {
+      "personalInformation": "Informations personnelles",
+      "organizationInformation": "Informations sur l'organisation",
+      "contactEmploymentDetails": "Coordonnées et détails d'emploi"
+    },
+    "fields": {
+      "fullName": "Nom complet",
+      "emailAddress": "Adresse e-mail",
+      "department": "Département",
+      "team": "Équipe",
+      "functionPosition": "Fonction/Poste",
+      "reportsTo": "Rapporte à",
+      "phoneNumber": "Numéro de téléphone (MSISDN)",
+      "startDate": "Date de début",
+      "currentType": "Type actuel",
+      "imageProfile": "Photo de profil",
+      "section": "Section",
+      "ranking": "Classement",
+      "kpi": "KPI"
+    },
+    "placeholders": {
+      "fullName": "Saisissez le nom complet de l'employé",
+      "email": "employe@entreprise.com",
+      "phone": "+244 999 999 999",
+      "managerName": "Nom du responsable",
+      "selectOption": "Sélectionner"
+    },
+    "validation": {
+      "nameRequired": "Le nom est obligatoire",
+      "departmentRequired": "Le département est obligatoire",
+      "teamRequired": "L'équipe est obligatoire",
+      "functionRequired": "La fonction est obligatoire",
+      "reportToRequired": "Le responsable hiérarchique est obligatoire",
+      "phoneRequired": "Le numéro de téléphone est obligatoire",
+      "phoneInvalid": "Veuillez saisir un numéro de téléphone valide",
+      "emailRequired": "L'e-mail est obligatoire",
+      "emailInvalid": "Veuillez saisir une adresse e-mail valide",
+      "startDateRequired": "La date de début est obligatoire",
+      "currentTypeRequired": "Le type actuel est obligatoire"
+    },
+    "status": {
+      "notSpecified": "Non spécifié"
+    },
+    "departments": [
+      {
+        "value": "PCX - Projects & Customer Experience",
+        "label": "PCX - Projets & Expérience client"
+      }
+    ],
+    "teams": [
+      {
+        "value": "Customer Experience",
+        "label": "Expérience client"
+      },
+      {
+        "value": "Corporate Customer Support",
+        "label": "Support client entreprise"
+      },
+      {
+        "value": "Residential Customer Support",
+        "label": "Support client résidentiel"
+      },
+      {
+        "value": "Hybrid Customer Support Luanda",
+        "label": "Support client hybride Luanda"
+      },
+      {
+        "value": "Hybrid Customer Support Huambo",
+        "label": "Support client hybride Huambo"
+      },
+      {
+        "value": "Hybrid Customer Support Huila",
+        "label": "Support client hybride Huila"
+      },
+      {
+        "value": "Project Innovation Developers",
+        "label": "Développeurs innovation de projets"
+      },
+      {
+        "value": "Project Managers",
+        "label": "Chefs de projet"
+      },
+      {
+        "value": "Quality Assurance",
+        "label": "Assurance qualité"
+      },
+      {
+        "value": "PCX",
+        "label": "PCX"
+      }
+    ],
+    "functions": [
+      {
+        "value": "Customer Support Agent",
+        "label": "Agent de support client"
+      },
+      {
+        "value": "Developer",
+        "label": "Développeur"
+      },
+      {
+        "value": "Team Lead",
+        "label": "Chef d'équipe"
+      },
+      {
+        "value": "Manager",
+        "label": "Responsable"
+      },
+      {
+        "value": "Director",
+        "label": "Directeur"
+      },
+      {
+        "value": "Chief Projects & Customer Experience Officer",
+        "label": "Directeur des projets et de l'expérience client"
+      }
+    ],
+    "employeeTypes": [
+      {
+        "value": "HRD - Full Time",
+        "label": "HRD - Temps plein"
+      },
+      {
+        "value": "Africell -FT",
+        "label": "Africell - Temps plein"
+      }
+    ]
+  },
+  "feedback": {
+    "pageTitle": "Gestion des commentaires",
+    "pageSubtitle": "Gérez les commentaires et suggestions des utilisateurs pour améliorer votre plateforme",
+    "title": "Commentaires",
+    "subtitle": "Gérez les commentaires et suggestions des utilisateurs",
+    "formSubtitle": "Soumettez ou gérez des commentaires pour nous aider à nous améliorer",
+    "bannerAlt": "Bannière de gestion des commentaires",
+    "loadingMessage": "Chargement des commentaires...",
+    "showingResults": "Affichage de {start} à {end} sur {total} résultats",
+    "titles": {
+      "create": "Soumettre un nouveau commentaire",
+      "edit": "Modifier le commentaire",
+      "view": "Voir le commentaire"
+    },
+    "sections": {
+      "basicInfo": "Informations de base",
+      "attachments": "Pièces jointes"
+    },
+    "fields": {
+      "titleRequired": "Titre *",
+      "titlePlaceholder": "Saisissez un bref résumé de votre commentaire",
+      "feedbackTypeRequired": "Type de commentaire *",
+      "feedbackTypePlaceholder": "Sélectionner le type de commentaire",
+      "descriptionRequired": "Description *",
+      "descriptionPlaceholder": "Décrivez votre commentaire en détail",
+      "priorityRequired": "Priorité *",
+      "priorityPlaceholder": "Sélectionner le niveau de priorité",
+      "statusRequired": "Statut *",
+      "statusPlaceholder": "Sélectionner le statut",
+      "image": "Capture d'écran/Image",
+      "imageHelp": "Téléversez des captures d'écran ou des images pour illustrer votre commentaire (Max 5 Mo, PNG/JPG uniquement)"
+    },
+    "types": {
+      "bugReport": "Rapport de bug",
+      "featureRequest": "Demande de fonctionnalité",
+      "generalSuggestion": "Suggestion générale",
+      "usabilityIssue": "Problème d'utilisabilité",
+      "performanceIssue": "Problème de performance"
+    },
+    "priority": {
+      "low": "Faible",
+      "medium": "Moyenne",
+      "high": "Élevée",
+      "critical": "Critique"
+    },
+    "status": {
+      "new": "Nouveau",
+      "inReview": "En cours de révision",
+      "inProgress": "En cours",
+      "resolved": "Résolu",
+      "closed": "Fermé",
+      "wontFix": "Ne sera pas corrigé"
+    },
+    "table": {
+      "headers": {
+        "title": "Titre",
+        "type": "Type",
+        "priority": "Priorité",
+        "status": "Statut",
+        "author": "Auteur",
+        "date": "Date",
+        "attachment": "Pièce jointe"
+      }
+    },
+    "actions": {
+      "view": "Voir",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "resolve": "Résoudre",
+      "close": "Fermer",
+      "markInReview": "Marquer en révision",
+      "markInProgress": "Marquer en cours",
+      "markResolved": "Marquer comme résolu",
+      "markClosed": "Marquer comme fermé",
+      "markWontFix": "Marquer « Ne sera pas corrigé »"
+    },
+    "buttons": {
+      "save": "Soumettre le commentaire",
+      "update": "Mettre à jour le commentaire",
+      "saving": "Soumission...",
+      "updating": "Mise à jour...",
+      "selectImage": "Sélectionner une image",
+      "removeImage": "Supprimer l'image"
+    },
+    "labels": {
+      "preview": "Aperçu",
+      "attachedImage": "Image jointe",
+      "noAttachment": "Aucune pièce jointe"
+    },
+    "validation": {
+      "titleRequired": "Le titre est obligatoire",
+      "feedbackTypeRequired": "Le type de commentaire est obligatoire",
+      "descriptionRequired": "La description est obligatoire",
+      "priorityRequired": "La priorité est obligatoire",
+      "statusRequired": "Le statut est obligatoire",
+      "invalidImageType": "Veuillez sélectionner un fichier image valide (PNG, JPG, GIF)",
+      "imageTooLarge": "Le fichier image est trop volumineux. La taille maximale est de 5 Mo"
+    },
+    "messages": {
+      "fetchError": "Erreur lors du chargement des commentaires : {error}",
+      "saveSuccess": "Commentaire enregistré avec succès !",
+      "saveError": "Erreur lors de l'enregistrement du commentaire. Veuillez réessayer.",
+      "deleteConfirm": "Êtes-vous sûr de vouloir supprimer « {title} » ?",
+      "bulkDeleteConfirm": "Êtes-vous sûr de vouloir supprimer {count} commentaires ?",
+      "emptyState": "Aucun commentaire trouvé",
+      "loadingArticles": "Chargement des commentaires..."
     }
   }
 }

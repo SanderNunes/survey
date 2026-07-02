@@ -8,7 +8,6 @@ import {
   Cloud,
   CloudOff,
   Database,
-  HardDrive,
   Loader2,
   MapPin,
   Plus,
@@ -29,7 +28,7 @@ import {
 
 const QUEUE_STATUSES = ['pending', 'sync_failed', 'syncing', 'audio_pending', 'failed_permanent'];
 const LOCALE_MAP = { en: 'en-US', pt: 'pt-AO', fr: 'fr-FR' };
-const DASHBOARD_PROVINCE_SCOPE = ['Bié'];
+const DASHBOARD_PROVINCE_SCOPE = ['Namibe'];
 const DASHBOARD_TOTAL_TARGET = DASHBOARD_PROVINCE_SCOPE.reduce(
   (sum, province) => sum + (PRELAUNCH_PROVINCE_TARGETS[province] || 0),
   0,
@@ -169,7 +168,6 @@ export default function SurveyorDashboard() {
     triggerSync,
     storageInfo,
     dbError,
-    storagePersisted,
   } = useOfflineQueue(saveCabindaSurveyResponse, syncAuditLogsToSharePoint, { syncReady: isSharePointReady });
 
   const {
@@ -276,7 +274,7 @@ export default function SurveyorDashboard() {
             <h1 className="truncate text-2xl font-bold text-primaryDark sm:text-3xl">
               {interviewerName || t('dashboard.surveyor')}
             </h1>
-            <p className="mt-1 text-sm text-gray-500">{t('dashboard.biePrelaunch')}</p>
+            <p className="mt-1 text-sm text-gray-500">{t('dashboard.namibePrelaunch')}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -508,9 +506,6 @@ export default function SurveyorDashboard() {
                 <Notice tone="red">
                   <span className="font-semibold">{t('dashboard.dbErrorTitle')}:</span> {dbError.message || t('dashboard.dbErrorHint')}
                 </Notice>
-              )}
-              {storagePersisted === false && (
-                <Notice icon={<HardDrive />} tone="amber">{t('dashboard.storagePersistedWarning')}</Notice>
               )}
               {storageInfo?.isWarning && (
                 <Notice tone={storageInfo.isCritical ? 'red' : 'amber'}>

@@ -1,15 +1,17 @@
-export const PRELAUNCH_PROVINCES = ['Cabinda', 'Bié', 'Zaire'];
+export const PRELAUNCH_PROVINCES = ['Cabinda', 'Bié', 'Zaire', 'Namibe'];
 
 export const PRELAUNCH_MUNICIPALITIES_BY_PROVINCE = {
   Cabinda: ['Cabinda'],
   'Bié': ['Kuito'],
   Zaire: ["M'banza Congo", 'Soyo'],
+  Namibe: ['Namibe', 'Moçâmedes', 'Tômbwa'],
 };
 
 export const PRELAUNCH_PROVINCE_TARGETS = {
   Cabinda: 600,
   'Bié': 600,
   Zaire: 400,
+  Namibe: 700,
 };
 
 export const PRELAUNCH_MUNICIPALITY_TARGETS = {
@@ -17,6 +19,9 @@ export const PRELAUNCH_MUNICIPALITY_TARGETS = {
   Kuito: 600,
   "M'banza Congo": 100,
   Soyo: 300,
+  Namibe: 300,
+  'Moçâmedes': 300,
+  'Tômbwa': 100,
 };
 
 export const PRELAUNCH_TOTAL_TARGET = Object.values(PRELAUNCH_PROVINCE_TARGETS)
@@ -26,6 +31,7 @@ export const PRELAUNCH_LIST_NAMES = {
   Cabinda: 'Cabinda_PreLaunch_Survey',
   'Bié': 'Bie_PreLaunch_Survey',
   Zaire: 'Zaire_PreLaunch_Survey',
+  Namibe: 'Namibe_PreLaunch_Survey',
 };
 
 const normalizeProvinceKey = (value) =>

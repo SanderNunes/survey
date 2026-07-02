@@ -19,6 +19,11 @@ import { useTranslation } from 'react-i18next';
 
 const INTERVIEWER_NAME_KEY = 'cabinda_interviewer_name';
 
+// Provinces selectable in the survey form. Scoped to the active campaign so
+// only these appear in the province dropdown (other provinces stay hidden).
+const FORM_PROVINCE_SCOPE = ['Namibe'];
+const FORM_PROVINCES = PRELAUNCH_PROVINCES.filter((p) => FORM_PROVINCE_SCOPE.includes(p));
+
 const AGE_ORDER = ['18–24', '25–34', '35–44', '45–54', '55+'];
 
 const formatDuration = (s) => {
@@ -109,12 +114,11 @@ const CabindaSurvey = () => {
   const [draftId, setDraftId] = useState(() => crypto.randomUUID());
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [resumableDraft, setResumableDraft] = useState(null);
-  const [persistWarningDismissed, setPersistWarningDismissed] = useState(false);
 
   const { saveCabindaSurveyResponse, getSurveyDetailedStats, isSharePointReady, currentUserName, syncAuditLogsToSharePoint } = useSharePoint();
 
   // Offline-first queue: handles IndexedDB storage, quota checks, retry + sync
-  const { isOnline, pendingCount, storageInfo, syncProgress, saveSurvey, triggerSync, storagePersisted } = useOfflineQueue(
+  const { isOnline, pendingCount, storageInfo, syncProgress, saveSurvey, triggerSync } = useOfflineQueue(
     saveCabindaSurveyResponse,
     syncAuditLogsToSharePoint,
     { syncReady: isSharePointReady },
@@ -186,7 +190,7 @@ const CabindaSurvey = () => {
   // ─── Survey data ──────────────────────────────────────────────────────────
 
   const surveyData = {
-    provinces:          PRELAUNCH_PROVINCES,
+    provinces:          FORM_PROVINCES,
     ageGroups:          ['18–24', '25–34', '35–44', '45–54', '55+'],
     genders:            ['Masculino', 'Feminino'],
     occupations:        ['Estudante', 'Empregado - Privado', 'Empregado - Público', 'Trabalhador(a) por conta própria', 'Desempregado(a)', 'Outro (especificar)'],
@@ -987,17 +991,6 @@ const CabindaSurvey = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-blue-100 py-4 px-3 sm:py-8 sm:px-4">
-      {/* Storage eviction warning — persistence not granted (common on iOS) */}
-      {storagePersisted === false && !persistWarningDismissed && (
-        <div className="max-w-2xl mx-auto mb-3 flex items-start gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl">
-          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-800 flex-1">
-            O armazenamento pode ser apagado pelo sistema. Sincronize com frequência para não perder inquéritos.
-          </p>
-          <button onClick={() => setPersistWarningDismissed(true)} className="text-amber-500 hover:text-amber-700 text-lg leading-none flex-shrink-0">×</button>
-        </div>
-      )}
-
       {/* Connection status badge */}
       <div className={`fixed bottom-4 right-4 z-40 px-3 py-2 rounded-full shadow-lg transition-all duration-300 ${isOnline ? 'bg-green-500 text-white' : 'bg-red-500 text-white'}`}>
         <div className="flex items-center gap-2 text-xs sm:text-sm">
