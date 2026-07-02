@@ -41,6 +41,7 @@ import { useEffect, useState } from "react";
 import { getMsalInstance } from "./utils/msal-config";
 import { MsalProvider } from "@azure/msal-react";
 import LoadingSkeleton from "./components/LoadingSkeleton";
+import { useAuthWatchdog, ResetButton } from "./hooks/useAuthWatchdog";
 import { Toaster } from "react-hot-toast";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { authService } from "./services/auth.service";
@@ -64,6 +65,7 @@ function bootstrapAuth() {
 function AuthLoader({ children }) {
   const [msalInstance, setMsalInstance] = useState(null);
   const [error, setError] = useState(null);
+  const { timedOut } = useAuthWatchdog(!msalInstance && !error);
 
 useEffect(() => {
   // Run only if NOT localhost
@@ -128,6 +130,7 @@ useEffect(() => {
     return (
       <div className="flex items-center justify-center w-screen h-screen bg-gray-50 animate-fadeIn">
         <LoadingSkeleton />
+        {timedOut && <ResetButton />}
       </div>
     );
   }
