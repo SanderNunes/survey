@@ -11,7 +11,7 @@ export const PRELAUNCH_PROVINCE_TARGETS = {
   Cabinda: 600,
   'Bié': 600,
   Zaire: 400,
-  Namibe: 700,
+  Namibe: 500,
 };
 
 export const PRELAUNCH_MUNICIPALITY_TARGETS = {
@@ -19,8 +19,8 @@ export const PRELAUNCH_MUNICIPALITY_TARGETS = {
   Kuito: 600,
   "M'banza Congo": 100,
   Soyo: 300,
-  Namibe: 300,
-  'Moçâmedes': 300,
+  Namibe: 200,
+  'Moçâmedes': 200,
   'Tômbwa': 100,
 };
 
