@@ -19,8 +19,8 @@ export const PRELAUNCH_MUNICIPALITY_TARGETS = {
   Kuito: 600,
   "M'banza Congo": 100,
   Soyo: 300,
-  Namibe: 200,
-  'Moçâmedes': 200,
+  Namibe: 100,
+  'Moçâmedes': 300,
   'Tômbwa': 100,
 };
 
